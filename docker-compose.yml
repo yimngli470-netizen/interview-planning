@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-prep}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prep}
+      POSTGRES_DB: ${POSTGRES_DB:-prep}
+    ports:
+      - "5434:5432"   # host 5434 to avoid clashing with a local/other-project postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prep} -d ${POSTGRES_DB:-prep}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-prep}:${POSTGRES_PASSWORD:-prep}@db:5432/${POSTGRES_DB:-prep}
+    ports:
+      - "8001:8000"   # host 8001 to avoid clashing with another local backend on 8000
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8001}
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+
+volumes:
+  pgdata:
