@@ -19,8 +19,11 @@ docker compose up --build
 ```
 
 - Frontend: http://localhost:5173
-- API docs: http://localhost:8000/docs
-- Postgres: localhost:5433 (host port; 5432 inside the network)
+- API docs: http://localhost:8001/docs
+- Postgres: localhost:5434 (host port; 5432 inside the network)
+
+> Host ports 8001/5434 are used (instead of 8000/5433) so this stack can run
+> alongside the equity-research project without port clashes.
 
 On first boot the DB is created and seeded with the default topic plan
 (from the original `idea.ts` prototype). The seed is idempotent — it only runs
