@@ -1,13 +1,20 @@
-"""Seed default domains + topics on first run (idempotent).
+"""Seed + enrich domains, topics, and learning points (fully idempotent).
 
-Ported from the original idea.ts prototype. Only runs when the domains table
-is empty, so it never clobbers data you've added.
+`TOPICS` below is the base plan ported from the original idea.ts prototype
+(carries priority/effort/pinned for fresh installs). `content.CONTENT_BY_DOMAIN`
+adds the curated learning points, richer notes, and a few extra high-value
+topics. `seed_or_enrich()` runs on every startup and:
+  - creates any missing domains / base topics / extra topics,
+  - adds any missing learning points (matched by title within a topic),
+  - backfills a topic's notes only when currently empty.
+So re-running never overwrites your edits, and it tops up new content on deploy.
 """
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Domain, Topic
+from .models import Domain, Subtopic, Topic
+from .content import CONTENT_BY_DOMAIN
 
 DOMAINS = [
     ("Coding", "blue"),
@@ -87,21 +94,24 @@ TOPICS = [
 ]
 
 
-def seed(db: Session) -> None:
-    if db.scalar(select(Domain).limit(1)):
-        return  # already seeded
-
-    domain_by_name: dict[str, Domain] = {}
+def seed_or_enrich(db: Session) -> None:
+    """Idempotently ensure domains, topics, and learning points exist."""
+    # --- domains ---
+    domains = {d.name: d for d in db.scalars(select(Domain)).all()}
     for order, (name, color) in enumerate(DOMAINS):
-        d = Domain(name=name, color=color, order=order)
-        db.add(d)
-        domain_by_name[name] = d
-    db.flush()  # assign ids
+        if name not in domains:
+            d = Domain(name=name, color=color, order=order)
+            db.add(d)
+            domains[name] = d
+    db.flush()
 
+    # --- base topics (the original 56, with curated priority/effort/pinned) ---
+    topics = {(t.domain_id, t.title): t for t in db.scalars(select(Topic)).all()}
     for domain_name, title, priority, effort, pinned, notes in TOPICS:
-        db.add(
-            Topic(
-                domain_id=domain_by_name[domain_name].id,
+        dom = domains[domain_name]
+        if (dom.id, title) not in topics:
+            t = Topic(
+                domain_id=dom.id,
                 title=title,
                 priority=priority,
                 effort_hours=effort,
@@ -109,5 +119,54 @@ def seed(db: Session) -> None:
                 notes=notes,
                 status="not-started",
             )
-        )
+            db.add(t)
+    db.flush()
+    topics = {(t.domain_id, t.title): t for t in db.scalars(select(Topic)).all()}
+
+    # --- content: extra topics, note backfill, and learning points ---
+    for domain_name, specs in CONTENT_BY_DOMAIN.items():
+        dom = domains[domain_name]
+        for spec in specs:
+            title = spec["title"]
+            topic = topics.get((dom.id, title))
+            if topic is None:
+                # a topic defined only in content.py (the extra high-value ones)
+                next_priority = (
+                    max(
+                        (t.priority for k, t in topics.items() if k[0] == dom.id),
+                        default=0,
+                    )
+                    + 1
+                )
+                topic = Topic(
+                    domain_id=dom.id,
+                    title=title,
+                    priority=spec.get("priority") or next_priority,
+                    effort_hours=spec.get("effort", 4),
+                    pinned=spec.get("pinned", False),
+                    notes=spec.get("notes", ""),
+                    status="not-started",
+                )
+                db.add(topic)
+                db.flush()
+                topics[(dom.id, title)] = topic
+            elif not topic.notes and spec.get("notes"):
+                topic.notes = spec["notes"]  # backfill only when empty
+
+            # learning points — add any that don't already exist on this topic
+            existing = {s.title for s in topic.subtopics}
+            next_order = max((s.order for s in topic.subtopics), default=0)
+            for pt_title, pt_notes in spec.get("points", []):
+                if pt_title not in existing:
+                    next_order += 1
+                    db.add(
+                        Subtopic(
+                            topic_id=topic.id,
+                            title=pt_title,
+                            notes=pt_notes,
+                            order=next_order,
+                            status="not-started",
+                        )
+                    )
+                    existing.add(pt_title)
     db.commit()

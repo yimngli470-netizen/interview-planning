@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine, SessionLocal
 from .routers import domains, topics, subtopics, sessions
-from .seed import seed
+from .seed import seed_or_enrich
 
 
 @asynccontextmanager
@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        seed(db)
+        seed_or_enrich(db)
     finally:
         db.close()
     yield
