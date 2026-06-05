@@ -45,10 +45,10 @@ function QuestionItem({
         onBlur={() => dirty && onSaveNotes(q.id, val)}
         disabled={!canTrack}
         placeholder="Your notes / answer…"
-        rows={val ? 3 : 1}
-        className="ml-6 mt-1 w-[calc(100%-1.5rem)] px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50 disabled:bg-slate-50"
+        rows={val ? 4 : 2}
+        className="ml-6 mt-1 w-[calc(100%-1.5rem)] px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50 disabled:bg-slate-50 min-h-[2.75rem]"
       />
-      {dirty && <span className="ml-6 text-[10px] text-amber-600">unsaved — click away to save</span>}
+      {dirty && <span className="ml-6 text-xs text-amber-600">unsaved — click away to save</span>}
     </div>
   );
 }
@@ -78,7 +78,16 @@ function SubtopicRow({
   onRemove: (id: number) => void;
 }) {
   const [notes, setNotes] = useState(sub.notes);
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(sub.title);
   const dirty = notes !== sub.notes;
+
+  const saveTitle = () => {
+    const t = title.trim();
+    if (t && t !== sub.title) onPatch(sub.id, { title: t });
+    setEditing(false);
+  };
+
   return (
     <div className="flex items-start gap-2 py-2 group/sub">
       <StatusButton
@@ -88,26 +97,62 @@ function SubtopicRow({
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`text-sm ${sub.status === 'done' ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-            {sub.title}
-          </span>
-          <button
-            onClick={() => onRemove(sub.id)}
-            className="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-300 hover:text-rose-600 transition"
-            title="Delete learning point"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          {editing ? (
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveTitle();
+                if (e.key === 'Escape') {
+                  setTitle(sub.title);
+                  setEditing(false);
+                }
+              }}
+              className="flex-1 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:border-slate-500"
+            />
+          ) : (
+            <>
+              <span
+                onDoubleClick={() => {
+                  setTitle(sub.title);
+                  setEditing(true);
+                }}
+                title="Double-click to edit"
+                className={`text-sm ${sub.status === 'done' ? 'line-through text-slate-400' : 'text-slate-800'}`}
+              >
+                {sub.title}
+              </span>
+              <button
+                onClick={() => {
+                  setTitle(sub.title);
+                  setEditing(true);
+                }}
+                className="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-300 hover:text-slate-700 transition"
+                title="Edit learning point"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onRemove(sub.id)}
+                className="opacity-0 group-hover/sub:opacity-100 p-1 text-slate-300 hover:text-rose-600 transition"
+                title="Delete learning point"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
         </div>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           onBlur={() => dirty && onPatch(sub.id, { notes })}
           placeholder="Notes for this learning point…"
-          rows={notes ? 3 : 1}
-          className="mt-1 w-full px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50"
+          rows={notes ? 4 : 2}
+          className="mt-1 w-full px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50 min-h-[2.75rem]"
         />
-        {dirty && <span className="text-[10px] text-amber-600">unsaved — click away to save</span>}
+        {dirty && <span className="text-xs text-amber-600">unsaved — click away to save</span>}
       </div>
     </div>
   );
