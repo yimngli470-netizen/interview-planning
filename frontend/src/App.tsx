@@ -199,6 +199,46 @@ export default function App() {
     );
   }
 
+  // Login gate: content is only accessible to a logged-in user.
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
+        <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold">SWE / MLE Interview Prep</h1>
+          <p className="text-sm text-slate-500 mt-1 mb-6">Senior SDE / MLE @ frontier AI labs</p>
+          {error && (
+            <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 text-left">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          <div className="space-y-2">
+            {users.map((u) => (
+              <button
+                key={u.id}
+                onClick={() =>
+                  login(u).catch((e) =>
+                    setError(e instanceof Error ? e.message : 'Login failed'),
+                  )
+                }
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm bg-slate-900 text-white rounded-md hover:bg-slate-800"
+              >
+                <LogIn className="w-4 h-4" /> Log in as {u.name}
+              </button>
+            ))}
+            {users.length === 0 && !error && (
+              <p className="text-sm text-slate-500">No users found.</p>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mt-6">
+            Logging in starts your study timer — your time is tracked automatically
+            until you sign out or close your laptop.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const elapsedSec = activeSession
     ? (nowTs - parseUTC(activeSession.started_at).getTime()) / 1000
     : 0;
@@ -212,33 +252,19 @@ export default function App() {
               <h1 className="text-xl font-semibold">SWE / MLE Interview Prep</h1>
               <p className="text-sm text-slate-500">Senior SDE / MLE @ frontier AI labs</p>
             </div>
-            {currentUser ? (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-sm font-mono tabular-nums">
-                  <Clock className="w-4 h-4" />
-                  {formatClock(elapsedSec)}
-                </div>
-                <span className="text-sm text-slate-600">{currentUser.name}</span>
-                <button
-                  onClick={logout}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-md hover:bg-slate-50"
-                >
-                  <LogOut className="w-4 h-4" /> Sign out
-                </button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-sm font-mono tabular-nums">
+                <Clock className="w-4 h-4" />
+                {formatClock(elapsedSec)}
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                {users.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => login(u)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-900 text-white rounded-md hover:bg-slate-800"
-                  >
-                    <LogIn className="w-4 h-4" /> Log in as {u.name}
-                  </button>
-                ))}
-              </div>
-            )}
+              <span className="text-sm text-slate-600">{currentUser.name}</span>
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-md hover:bg-slate-50"
+              >
+                <LogOut className="w-4 h-4" /> Sign out
+              </button>
+            </div>
           </div>
           <nav className="flex gap-1">
             {([
