@@ -1,7 +1,9 @@
-# Interview Planning — project state
+# Forge — project state
 
 Personal interview-prep planner + learning/note-taking platform for a senior
-SDE/MLE loop. Phase 1 = personal use, fully local in Docker.
+SDE/MLE loop. Phase 1 = personal use, fully local in Docker. (Product name
+"Forge"; repo dir is still `interview-planning`. Branding/favicon in
+`frontend/index.html` + `frontend/public/favicon.svg`.)
 
 ## Stack & how to run
 
@@ -22,7 +24,9 @@ Per-user tables (single seeded user "Zoey", no auth/password):
 - `StudySession` = auto time block: `started_at`, `last_heartbeat_at`, `ended_at`,
   `duration_min`. Created on login, kept alive by heartbeats (every 30s),
   finalized on logout or when heartbeats go stale (>120s = laptop closed/slept).
-- `QuestionProgress` = per-user done flag on a Question (unique user+question).
+- `QuestionProgress` = per-user `done` flag AND `notes` (the user's answer/notes)
+  on a Question (unique user+question). GET returns all rows; PUT upserts either
+  field. Frontend keeps a doneSet + a Map<questionId, notes>.
 
 Auth is trivial: POST `/api/login {user_id}` starts a session; `/api/logout`,
 `/api/sessions/{id}/heartbeat`, `/api/sessions?user_id=`. Question completion:

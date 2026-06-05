@@ -20,11 +20,27 @@ def _drop_legacy_sessions() -> None:
                 conn.execute(text("DROP TABLE sessions"))
 
 
+def _add_missing_columns() -> None:
+    """Lightweight, additive 'migrations' (no Alembic yet). Each is idempotent
+    and non-destructive — only adds a column when it's missing."""
+    insp = inspect(engine)
+    tables = insp.get_table_names()
+    # question_progress.notes (per-user answer/notes on a practice question)
+    if "question_progress" in tables:
+        cols = {c["name"] for c in insp.get_columns("question_progress")}
+        if "notes" not in cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE question_progress ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+                )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Phase 1: create tables directly. Swap for Alembic once the schema settles.
     _drop_legacy_sessions()
     Base.metadata.create_all(bind=engine)
+    _add_missing_columns()
     db = SessionLocal()
     try:
         seed_or_enrich(db)

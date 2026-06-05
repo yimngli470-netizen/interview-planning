@@ -134,8 +134,10 @@ class QuestionProgressOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     question_id: int
     done: bool
+    notes: str
 
 
 class QuestionProgressIn(BaseModel):
     question_id: int
-    done: bool
+    done: bool | None = None
+    notes: str | None = None

@@ -6,10 +6,12 @@ import TopicRow from './TopicRow';
 interface Props {
   domains: Domain[];
   topics: Topic[];
-  // question completion (per user)
+  // question completion + notes (per user)
   canTrack: boolean;
   doneQuestions: Set<number>;
+  questionNotes: Map<number, string>;
   onToggleQuestion: (questionId: number, done: boolean) => void;
+  onSaveQuestionNotes: (questionId: number, notes: string) => void;
   // Filters are owned by App so they persist when switching tabs.
   search: string;
   setSearch: Dispatch<SetStateAction<string>>;
@@ -30,7 +32,9 @@ export default function TopicsView({
   topics,
   canTrack,
   doneQuestions,
+  questionNotes,
   onToggleQuestion,
+  onSaveQuestionNotes,
   search,
   setSearch,
   domainFilter,
@@ -181,7 +185,9 @@ export default function TopicsView({
                 domain={domainById[t.domain_id]}
                 canTrack={canTrack}
                 doneQuestions={doneQuestions}
+                questionNotes={questionNotes}
                 onToggleQuestion={onToggleQuestion}
+                onSaveQuestionNotes={onSaveQuestionNotes}
                 onPatchTopic={onPatchTopic}
                 onRemoveTopic={onRemoveTopic}
                 onAddSubtopic={onAddSubtopic}

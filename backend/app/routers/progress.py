@@ -13,12 +13,10 @@ router = APIRouter(prefix="/api/users", tags=["progress"])
 def get_progress(user_id: int, db: Session = Depends(get_db)):
     if not db.get(User, user_id):
         raise HTTPException(404, "User not found")
-    rows = db.scalars(
-        select(QuestionProgress).where(
-            QuestionProgress.user_id == user_id, QuestionProgress.done.is_(True)
-        )
+    # all rows (done and/or with notes) so the client has both flags + notes
+    return db.scalars(
+        select(QuestionProgress).where(QuestionProgress.user_id == user_id)
     ).all()
-    return rows
 
 
 @router.put("/{user_id}/question-progress", response_model=QuestionProgressOut)
@@ -36,12 +34,12 @@ def set_progress(
         )
     )
     if row is None:
-        row = QuestionProgress(
-            user_id=user_id, question_id=payload.question_id, done=payload.done
-        )
+        row = QuestionProgress(user_id=user_id, question_id=payload.question_id)
         db.add(row)
-    else:
+    if payload.done is not None:
         row.done = payload.done
+    if payload.notes is not None:
+        row.notes = payload.notes
     db.commit()
     db.refresh(row)
     return row

@@ -1,16 +1,66 @@
-import { useState, type MouseEvent } from 'react';
+import { useState, useEffect, type MouseEvent } from 'react';
 import {
   Pin, Edit2, Trash2, Save, ChevronRight, ChevronDown, Plus, X,
 } from 'lucide-react';
-import type { Domain, Topic, Subtopic } from '../types';
+import type { Domain, Topic, Subtopic, Question } from '../types';
 import { domainClasses, StatusButton, nextStatus } from '../lib/ui';
+
+function QuestionItem({
+  q,
+  done,
+  notes,
+  canTrack,
+  onToggle,
+  onSaveNotes,
+}: {
+  q: Question;
+  done: boolean;
+  notes: string;
+  canTrack: boolean;
+  onToggle: (questionId: number, done: boolean) => void;
+  onSaveNotes: (questionId: number, notes: string) => void;
+}) {
+  const [val, setVal] = useState(notes);
+  // sync when the saved value arrives/changes (e.g. after login loads progress)
+  useEffect(() => setVal(notes), [notes]);
+  const dirty = val !== notes;
+  return (
+    <div className="py-1">
+      <label
+        className={`flex items-start gap-2 text-sm ${canTrack ? 'cursor-pointer' : ''}`}
+        title={canTrack ? '' : 'Log in to track'}
+      >
+        <input
+          type="checkbox"
+          checked={done}
+          disabled={!canTrack}
+          onChange={(e) => onToggle(q.id, e.target.checked)}
+          className="mt-1 accent-slate-900 disabled:opacity-40"
+        />
+        <span className={done ? 'line-through text-slate-400' : 'text-slate-700'}>{q.prompt}</span>
+      </label>
+      <textarea
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={() => dirty && onSaveNotes(q.id, val)}
+        disabled={!canTrack}
+        placeholder="Your notes / answer…"
+        rows={val ? 3 : 1}
+        className="ml-6 mt-1 w-[calc(100%-1.5rem)] px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50 disabled:bg-slate-50"
+      />
+      {dirty && <span className="ml-6 text-[10px] text-amber-600">unsaved — click away to save</span>}
+    </div>
+  );
+}
 
 interface Props {
   topic: Topic;
   domain: Domain | undefined;
   canTrack: boolean;
   doneQuestions: Set<number>;
+  questionNotes: Map<number, string>;
   onToggleQuestion: (questionId: number, done: boolean) => void;
+  onSaveQuestionNotes: (questionId: number, notes: string) => void;
   onPatchTopic: (id: number, patch: Partial<Topic>) => void;
   onRemoveTopic: (id: number) => void;
   onAddSubtopic: (topicId: number, title: string) => void;
@@ -68,7 +118,9 @@ export default function TopicRow({
   domain,
   canTrack,
   doneQuestions,
+  questionNotes,
   onToggleQuestion,
+  onSaveQuestionNotes,
   onPatchTopic,
   onRemoveTopic,
   onAddSubtopic,
@@ -240,28 +292,18 @@ export default function TopicRow({
                     <div className="text-[11px] text-slate-400 mb-0.5">
                       {kind === 'example' ? 'Example problems' : 'Common questions'}
                     </div>
-                    <div className="space-y-0.5">
-                      {qs.map((q) => {
-                        const done = doneQuestions.has(q.id);
-                        return (
-                          <label
-                            key={q.id}
-                            className={`flex items-start gap-2 text-sm py-0.5 ${canTrack ? 'cursor-pointer' : ''}`}
-                            title={canTrack ? '' : 'Log in to track'}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={done}
-                              disabled={!canTrack}
-                              onChange={(e) => onToggleQuestion(q.id, e.target.checked)}
-                              className="mt-1 accent-slate-900 disabled:opacity-40"
-                            />
-                            <span className={done ? 'line-through text-slate-400' : 'text-slate-700'}>
-                              {q.prompt}
-                            </span>
-                          </label>
-                        );
-                      })}
+                    <div className="space-y-1">
+                      {qs.map((q) => (
+                        <QuestionItem
+                          key={q.id}
+                          q={q}
+                          done={doneQuestions.has(q.id)}
+                          notes={questionNotes.get(q.id) ?? ''}
+                          canTrack={canTrack}
+                          onToggle={onToggleQuestion}
+                          onSaveNotes={onSaveQuestionNotes}
+                        />
+                      ))}
                     </div>
                   </div>
                 );

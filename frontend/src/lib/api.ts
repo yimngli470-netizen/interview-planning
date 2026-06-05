@@ -11,6 +11,7 @@ export interface HeartbeatResult {
 export interface QuestionProgress {
   question_id: number;
   done: boolean;
+  notes: string;
 }
 
 // Talk to the backend on the SAME host that served this page, port 8001.
@@ -82,9 +83,13 @@ export const api = {
   // Question progress (per user)
   getProgress: (userId: number) =>
     req<QuestionProgress[]>(`/users/${userId}/question-progress`),
-  setProgress: (userId: number, questionId: number, done: boolean) =>
+  setProgress: (
+    userId: number,
+    questionId: number,
+    patch: { done?: boolean; notes?: string },
+  ) =>
     req<QuestionProgress>(`/users/${userId}/question-progress`, {
       method: 'PUT',
-      body: JSON.stringify({ question_id: questionId, done }),
+      body: JSON.stringify({ question_id: questionId, ...patch }),
     }),
 };

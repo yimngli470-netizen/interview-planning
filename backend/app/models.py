@@ -120,6 +120,7 @@ class QuestionProgress(Base):
         ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     done: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str] = mapped_column(Text, default="")  # user's answer/notes
 
 
 class StudySession(Base):

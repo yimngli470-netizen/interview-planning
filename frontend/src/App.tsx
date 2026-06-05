@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  BarChart3, BookOpen, Calendar, Loader2, AlertTriangle, LogIn, LogOut, Clock,
+  BarChart3, BookOpen, Calendar, Loader2, AlertTriangle, LogIn, LogOut, Clock, Flame,
 } from 'lucide-react';
 import type { Domain, Topic, StudySession, Subtopic, User } from './types';
 import { api } from './lib/api';
@@ -33,6 +33,7 @@ export default function App() {
   const [activeSession, setActiveSession] = useState<StudySession | null>(null);
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [doneQ, setDoneQ] = useState<Set<number>>(new Set());
+  const [qNotes, setQNotes] = useState<Map<number, string>>(new Map());
   const [nowTs, setNowTs] = useState(Date.now());
 
   // Topics-tab filters live here so they persist across tab switches.
@@ -48,6 +49,7 @@ export default function App() {
     const [s, p] = await Promise.all([api.listSessions(userId), api.getProgress(userId)]);
     setSessions(s);
     setDoneQ(new Set(p.filter((x) => x.done).map((x) => x.question_id)));
+    setQNotes(new Map(p.filter((x) => x.notes).map((x) => [x.question_id, x.notes])));
   }, []);
 
   const removeSession = async (id: number) => {
@@ -65,6 +67,7 @@ export default function App() {
     setActiveSession(null);
     setSessions([]);
     setDoneQ(new Set());
+    setQNotes(new Map());
   }, []);
 
   // --- initial load + resume a saved login ---
@@ -188,7 +191,7 @@ export default function App() {
       return next;
     });
     try {
-      await api.setProgress(currentUser.id, questionId, done);
+      await api.setProgress(currentUser.id, questionId, { done });
     } catch {
       setDoneQ((prev) => {
         const next = new Set(prev);
@@ -196,6 +199,21 @@ export default function App() {
         else next.add(questionId);
         return next;
       });
+    }
+  };
+
+  const saveQuestionNotes = async (questionId: number, notes: string) => {
+    if (!currentUser) return;
+    setQNotes((prev) => {
+      const next = new Map(prev);
+      if (notes) next.set(questionId, notes);
+      else next.delete(questionId);
+      return next;
+    });
+    try {
+      await api.setProgress(currentUser.id, questionId, { notes });
+    } catch {
+      /* keep optimistic value; will reconcile on next load */
     }
   };
 
@@ -212,8 +230,13 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
         <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
-          <h1 className="text-xl font-semibold">SWE / MLE Interview Prep</h1>
-          <p className="text-sm text-slate-500 mt-1 mb-6">Senior SDE / MLE @ frontier AI labs</p>
+          <div className="flex justify-center mb-3">
+            <span className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-rose-600 text-white shadow-sm">
+              <Flame className="w-6 h-6" />
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Forge</h1>
+          <p className="text-sm text-slate-500 mt-1 mb-6">Senior SDE / MLE interview prep</p>
           {error && (
             <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 text-left">
               <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -256,9 +279,14 @@ export default function App() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-semibold">SWE / MLE Interview Prep</h1>
-              <p className="text-sm text-slate-500">Senior SDE / MLE @ frontier AI labs</p>
+            <div className="flex items-center gap-2.5">
+              <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-rose-600 text-white shadow-sm">
+                <Flame className="w-5 h-5" />
+              </span>
+              <div>
+                <h1 className="text-xl font-semibold leading-tight">Forge</h1>
+                <p className="text-sm text-slate-500">Senior SDE / MLE interview prep</p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-sm font-mono tabular-nums">
@@ -322,7 +350,9 @@ export default function App() {
             topics={topics}
             canTrack={!!currentUser}
             doneQuestions={doneQ}
+            questionNotes={qNotes}
             onToggleQuestion={toggleQuestion}
+            onSaveQuestionNotes={saveQuestionNotes}
             search={topicSearch}
             setSearch={setTopicSearch}
             domainFilter={topicDomainFilter}
