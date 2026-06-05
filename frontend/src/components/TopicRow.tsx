@@ -1,6 +1,6 @@
 import { useState, useEffect, type MouseEvent } from 'react';
 import {
-  Pin, Edit2, Trash2, Save, ChevronRight, ChevronDown, Plus, X,
+  Pin, Edit2, Trash2, Save, ChevronRight, ChevronDown, Plus, X, Maximize2,
 } from 'lucide-react';
 import type { Domain, Topic, Subtopic, Question } from '../types';
 import { domainClasses, StatusButton, nextStatus } from '../lib/ui';
@@ -12,6 +12,7 @@ function QuestionItem({
   canTrack,
   onToggle,
   onSaveNotes,
+  onExpand,
 }: {
   q: Question;
   done: boolean;
@@ -19,11 +20,17 @@ function QuestionItem({
   canTrack: boolean;
   onToggle: (questionId: number, done: boolean) => void;
   onSaveNotes: (questionId: number, notes: string) => void;
+  onExpand: (title: string, value: string, onSave: (v: string) => void) => void;
 }) {
   const [val, setVal] = useState(notes);
   // sync when the saved value arrives/changes (e.g. after login loads progress)
   useEffect(() => setVal(notes), [notes]);
   const dirty = val !== notes;
+  const expand = () =>
+    onExpand(q.prompt, val, (v) => {
+      setVal(v);
+      onSaveNotes(q.id, v);
+    });
   return (
     <div className="py-1">
       <label
@@ -39,15 +46,26 @@ function QuestionItem({
         />
         <span className={done ? 'line-through text-slate-400' : 'text-slate-700'}>{q.prompt}</span>
       </label>
-      <textarea
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onBlur={() => dirty && onSaveNotes(q.id, val)}
-        disabled={!canTrack}
-        placeholder="Your notes / answer…"
-        rows={val ? 4 : 2}
-        className="ml-6 mt-1 w-[calc(100%-1.5rem)] px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50 disabled:bg-slate-50 min-h-[2.75rem]"
-      />
+      <div className="relative ml-6 mt-1 w-[calc(100%-1.5rem)]">
+        <textarea
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onBlur={() => dirty && onSaveNotes(q.id, val)}
+          disabled={!canTrack}
+          placeholder="Your notes / answer…"
+          rows={val ? 4 : 2}
+          className="w-full px-3 py-2 pr-9 text-sm text-slate-700 border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50 disabled:bg-slate-50 min-h-[2.75rem]"
+        />
+        {canTrack && (
+          <button
+            onClick={expand}
+            title="Open large editor"
+            className="absolute top-1.5 right-1.5 p-1 text-slate-400 hover:text-slate-700 hover:bg-white rounded"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
       {dirty && <span className="ml-6 text-xs text-amber-600">unsaved — click away to save</span>}
     </div>
   );
@@ -72,10 +90,12 @@ function SubtopicRow({
   sub,
   onPatch,
   onRemove,
+  onExpand,
 }: {
   sub: Subtopic;
   onPatch: (id: number, patch: Partial<Subtopic>) => void;
   onRemove: (id: number) => void;
+  onExpand: (title: string, value: string, onSave: (v: string) => void) => void;
 }) {
   const [notes, setNotes] = useState(sub.notes);
   const [editing, setEditing] = useState(false);
@@ -87,6 +107,12 @@ function SubtopicRow({
     if (t && t !== sub.title) onPatch(sub.id, { title: t });
     setEditing(false);
   };
+
+  const expand = () =>
+    onExpand(sub.title, notes, (v) => {
+      setNotes(v);
+      onPatch(sub.id, { notes: v });
+    });
 
   return (
     <div className="flex items-start gap-2 py-2 group/sub">
@@ -144,14 +170,23 @@ function SubtopicRow({
             </>
           )}
         </div>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={() => dirty && onPatch(sub.id, { notes })}
-          placeholder="Notes for this learning point…"
-          rows={notes ? 4 : 2}
-          className="mt-1 w-full px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50 min-h-[2.75rem]"
-        />
+        <div className="relative mt-1">
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={() => dirty && onPatch(sub.id, { notes })}
+            placeholder="Notes for this learning point…"
+            rows={notes ? 4 : 2}
+            className="w-full px-3 py-2 pr-9 text-sm text-slate-700 border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 resize-y bg-slate-50/50 min-h-[2.75rem]"
+          />
+          <button
+            onClick={expand}
+            title="Open large editor"
+            className="absolute top-1.5 right-1.5 p-1 text-slate-400 hover:text-slate-700 hover:bg-white rounded"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
         {dirty && <span className="text-xs text-amber-600">unsaved — click away to save</span>}
       </div>
     </div>
@@ -178,6 +213,18 @@ export default function TopicRow({
   const [editNotes, setEditNotes] = useState(topic.notes);
   const [editEffort, setEditEffort] = useState(topic.effort_hours);
   const [newSub, setNewSub] = useState('');
+
+  // Full-size note editor (modal). Shared by learning-point + question notes.
+  const [editor, setEditor] = useState<{ title: string; onSave: (v: string) => void } | null>(null);
+  const [editorText, setEditorText] = useState('');
+  const openEditor = (title: string, value: string, onSave: (v: string) => void) => {
+    setEditorText(value);
+    setEditor({ title, onSave });
+  };
+  const closeEditor = () => {
+    if (editor) editor.onSave(editorText);
+    setEditor(null);
+  };
 
   const subDone = topic.subtopics.filter((s) => s.status === 'done').length;
   const qDone = topic.questions.filter((q) => doneQuestions.has(q.id)).length;
@@ -308,7 +355,7 @@ export default function TopicRow({
           )}
           <div className="divide-y divide-slate-100">
             {topic.subtopics.map((s) => (
-              <SubtopicRow key={s.id} sub={s} onPatch={onPatchSubtopic} onRemove={onRemoveSubtopic} />
+              <SubtopicRow key={s.id} sub={s} onPatch={onPatchSubtopic} onRemove={onRemoveSubtopic} onExpand={openEditor} />
             ))}
           </div>
           <div className="flex items-center gap-2 mt-2">
@@ -347,6 +394,7 @@ export default function TopicRow({
                           canTrack={canTrack}
                           onToggle={onToggleQuestion}
                           onSaveNotes={onSaveQuestionNotes}
+                          onExpand={openEditor}
                         />
                       ))}
                     </div>
@@ -358,6 +406,51 @@ export default function TopicRow({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {editor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeEditor}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-3xl h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 px-5 py-3 border-b border-slate-200">
+              <div className="text-sm font-medium text-slate-800">{editor.title}</div>
+              <button
+                onClick={closeEditor}
+                title="Done (saves)"
+                className="shrink-0 p-1 text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <textarea
+              autoFocus
+              value={editorText}
+              onChange={(e) => setEditorText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') closeEditor();
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') closeEditor();
+              }}
+              placeholder="Write your notes / answer…"
+              className="flex-1 w-full px-5 py-4 text-base leading-relaxed text-slate-800 resize-none focus:outline-none"
+            />
+            <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200">
+              <span className="text-xs text-slate-400">
+                {editorText.length} chars · Esc or ⌘/Ctrl+Enter to save
+              </span>
+              <button
+                onClick={closeEditor}
+                className="px-4 py-1.5 text-sm bg-slate-900 text-white rounded-md hover:bg-slate-800"
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
