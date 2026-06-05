@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from .models import Domain, Question, Subtopic, Topic, User
 from .content import CONTENT_BY_DOMAIN, QUESTIONS
 
-DEFAULT_USERS = ["Zoey"]
+DEFAULT_USERS = ["Zoey", "Xiaoming"]
 
 DOMAINS = [
     ("Coding", "blue"),
