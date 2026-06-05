@@ -1,6 +1,12 @@
 import type { Domain, Topic, Subtopic, StudySession } from '../types';
 
-const BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
+// Talk to the backend on the SAME host that served this page, port 8001.
+// This makes it work both locally (localhost:5173 -> localhost:8001) and from
+// another device on the LAN (10.0.0.24:5173 -> 10.0.0.24:8001) without baking
+// in an address. An explicit VITE_API_BASE still overrides if you set one.
+const BASE =
+  import.meta.env.VITE_API_BASE?.trim() ||
+  `${window.location.protocol}//${window.location.hostname}:8001`;
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}/api${path}`, {

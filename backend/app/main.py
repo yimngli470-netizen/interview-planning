@@ -24,8 +24,11 @@ app = FastAPI(title="Interview Planning API", version="0.1.0", lifespan=lifespan
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
+    # Personal, local-network app: allow the Vite dev origin from any host
+    # (localhost, 127.0.0.1, or a LAN IP like http://10.0.0.24:5173) on port
+    # 5173. No cookies/credentials are used, so this is safe for LAN dev.
+    allow_origin_regex=r"http://[^/]+:5173",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

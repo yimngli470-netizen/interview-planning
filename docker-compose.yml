@@ -35,8 +35,11 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    # No VITE_API_BASE: the frontend auto-derives the API host from the URL you
+    # open it with (localhost or LAN IP), so it works from other devices too.
+    # Set VITE_API_BASE only if you need to point at a non-default backend.
     environment:
-      VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8001}
+      VITE_API_BASE: ${VITE_API_BASE:-}
     ports:
       - "5173:5173"
     volumes:
