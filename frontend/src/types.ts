@@ -10,6 +10,16 @@ export interface Subtopic {
   pinned: boolean;
 }
 
+export type QuestionKind = 'example' | 'common';
+
+export interface Question {
+  id: number;
+  topic_id: number;
+  kind: QuestionKind;
+  prompt: string;
+  order: number;
+}
+
 export interface Topic {
   id: number;
   domain_id: number;
@@ -20,6 +30,7 @@ export interface Topic {
   effort_hours: number;
   pinned: boolean;
   subtopics: Subtopic[];
+  questions: Question[];
 }
 
 export interface Domain {
@@ -29,11 +40,17 @@ export interface Domain {
   order: number;
 }
 
+export interface User {
+  id: number;
+  name: string;
+}
+
 export interface StudySession {
   id: number;
-  topic_id: number | null;
+  user_id: number;
+  started_at: string; // naive UTC ISO (no tz suffix)
+  ended_at: string | null;
   date: string;
   duration_min: number;
-  summary: string;
-  created_at: string;
+  active: boolean;
 }

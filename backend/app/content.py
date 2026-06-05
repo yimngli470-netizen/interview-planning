@@ -1119,3 +1119,462 @@ CONTENT_BY_DOMAIN = {
     "Mock Interviews": MOCK_INTERVIEWS,
     "Projects": PROJECTS,
 }
+
+# ---------------------------------------------------------------------------
+# Practice / interview questions per topic, keyed by EXACT topic title.
+#   "example" = concrete problems (LeetCode #, "Design Uber", applied scenarios)
+#   "common"  = conceptual interview questions
+# Only Coding / System Design / AI Infra / AI/ML carry questions.
+# The seeder attaches these as Question rows (idempotent by prompt).
+# ---------------------------------------------------------------------------
+QUESTIONS: dict[str, dict[str, list[str]]] = {
+    # ---------------- Coding (example = LeetCode) ----------------
+    "Arrays, Hashmaps, Two Pointers — foundation patterns": {
+        "example": [
+            "Two Sum (LC 1)", "Best Time to Buy and Sell Stock (LC 121)",
+            "3Sum (LC 15)", "Container With Most Water (LC 11)",
+            "Product of Array Except Self (LC 238)", "Group Anagrams (LC 49)",
+            "Move Zeroes (LC 283)",
+        ],
+        "common": [
+            "When do you reach for a hashmap vs sorting + two pointers?",
+            "How do you handle duplicates in 3Sum?",
+        ],
+    },
+    "BFS / DFS on graphs and trees": {
+        "example": [
+            "Number of Islands (LC 200)", "Course Schedule (LC 207)",
+            "Clone Graph (LC 133)", "Rotting Oranges (LC 994)",
+            "Word Ladder (LC 127)", "Pacific Atlantic Water Flow (LC 417)",
+            "Binary Tree Level Order Traversal (LC 102)",
+        ],
+        "common": [
+            "BFS vs DFS — when to use which?",
+            "How do you detect a cycle in a directed vs undirected graph?",
+        ],
+    },
+    "Dynamic Programming — 1D, 2D, knapsack patterns": {
+        "example": [
+            "Climbing Stairs (LC 70)", "House Robber (LC 198)",
+            "Coin Change (LC 322)", "Longest Increasing Subsequence (LC 300)",
+            "Edit Distance (LC 72)", "Longest Common Subsequence (LC 1143)",
+            "Word Break (LC 139)", "Partition Equal Subset Sum (LC 416)",
+        ],
+        "common": [
+            "How do you recognize a DP problem?",
+            "Top-down memoization vs bottom-up tabulation tradeoffs?",
+        ],
+    },
+    "Binary Search (incl. on the answer)": {
+        "example": [
+            "Binary Search (LC 704)", "Search in Rotated Sorted Array (LC 33)",
+            "Find Minimum in Rotated Sorted Array (LC 153)",
+            "Koko Eating Bananas (LC 875)", "Median of Two Sorted Arrays (LC 4)",
+            "Capacity To Ship Packages Within D Days (LC 1011)",
+            "Find First and Last Position of Element (LC 34)",
+        ],
+        "common": [
+            "How do you binary-search on the answer space?",
+            "How do you avoid off-by-one errors / infinite loops?",
+        ],
+    },
+    "Implementation-heavy problems w/ evolving requirements": {
+        "example": [
+            "LRU Cache (LC 146)", "Design Twitter (LC 355)",
+            "Time Based Key-Value Store (LC 981)", "Min Stack (LC 155)",
+            "Insert Delete GetRandom O(1) (LC 380)", "Design Tic-Tac-Toe (LC 348)",
+        ],
+        "common": [
+            "How do you keep code clean as requirements are added mid-interview?",
+            "How do you pick data structures for easy extension?",
+        ],
+    },
+    "Heap / Priority Queue patterns": {
+        "example": [
+            "Kth Largest Element in an Array (LC 215)",
+            "Top K Frequent Elements (LC 347)", "Merge k Sorted Lists (LC 23)",
+            "Find Median from Data Stream (LC 295)",
+            "K Closest Points to Origin (LC 973)", "Task Scheduler (LC 621)",
+            "Meeting Rooms II (LC 253)",
+        ],
+        "common": [
+            "When is a heap better than sorting?",
+            "Explain the two-heap running-median trick.",
+        ],
+    },
+    "Sliding Window / Prefix Sum": {
+        "example": [
+            "Longest Substring Without Repeating Characters (LC 3)",
+            "Minimum Window Substring (LC 76)",
+            "Longest Repeating Character Replacement (LC 424)",
+            "Subarray Sum Equals K (LC 560)", "Sliding Window Maximum (LC 239)",
+            "Permutation in String (LC 567)",
+        ],
+        "common": [
+            "Fixed vs variable window — how do you decide?",
+            "When does prefix sum + hashmap beat a sliding window?",
+        ],
+    },
+    "Concurrency primitives (locks, async, threads)": {
+        "example": [
+            "Print in Order (LC 1114)", "Print FooBar Alternately (LC 1115)",
+            "Building H2O (LC 1117)", "Fizz Buzz Multithreaded (LC 1195)",
+            "The Dining Philosophers (LC 1226)",
+        ],
+        "common": [
+            "Difference between mutex, semaphore, and condition variable?",
+            "How do you prevent deadlock?",
+            "Async vs threads vs processes — when each?",
+        ],
+    },
+    "Backtracking": {
+        "example": [
+            "Subsets (LC 78)", "Permutations (LC 46)", "Combination Sum (LC 39)",
+            "Word Search (LC 79)", "N-Queens (LC 51)", "Generate Parentheses (LC 22)",
+            "Palindrome Partitioning (LC 131)", "Sudoku Solver (LC 37)",
+        ],
+        "common": [
+            "How do you prune the search space?",
+            "How do you avoid generating duplicate solutions?",
+        ],
+    },
+    "Trie / Union-Find": {
+        "example": [
+            "Implement Trie / Prefix Tree (LC 208)", "Word Search II (LC 212)",
+            "Add and Search Word (LC 211)",
+            "Number of Connected Components in an Undirected Graph (LC 323)",
+            "Redundant Connection (LC 684)", "Accounts Merge (LC 721)",
+            "Number of Provinces (LC 547)",
+        ],
+        "common": [
+            "When do you use a trie vs a hashmap?",
+            "Explain union by rank + path compression.",
+        ],
+    },
+
+    # ---------------- System Design (example = real designs) ----------------
+    "System design interview framework + capacity estimation": {
+        "example": [
+            "Estimate QPS, storage, and bandwidth for a Twitter-scale feed",
+            "Estimate storage to keep 1 year of tweets",
+        ],
+        "common": [
+            "How do you structure the first 5 minutes of a design interview?",
+            "Which back-of-envelope numbers do you keep memorized?",
+            "How do you decide what to scope OUT?",
+        ],
+    },
+    "Fundamentals: load balancing, caching, sharding, replication, consistency": {
+        "example": [
+            "Design Uber / Lyft (ride-sharing & matching)",
+            "Design Netflix / YouTube (video streaming + CDN)",
+            "Design Google Drive / Dropbox (file sync)",
+        ],
+        "common": [
+            "Cache-aside vs write-through vs write-back?",
+            "How do you pick a sharding key and handle hotspots?",
+            "Strong vs eventual consistency — give an example of each.",
+            "Explain CAP / PACELC with a concrete system.",
+        ],
+    },
+    "Design LLM inference serving system (batching, KV cache, autoscaling)": {
+        "example": [
+            "Design ChatGPT/Claude-style inference serving",
+            "Design an API like the OpenAI/Anthropic completions endpoint",
+        ],
+        "common": [
+            "How do you size and manage the KV cache?",
+            "How does the prefill/decode split affect batching and autoscaling?",
+            "How do you meet a p99 TTFT SLO under load?",
+        ],
+    },
+    "Design distributed training cluster (DP/MP/PP, fault tolerance)": {
+        "example": [
+            "Design infrastructure to train a 100B+ LLM on thousands of GPUs",
+        ],
+        "common": [
+            "How do you choose between DP, TP, and PP?",
+            "How do you handle node failures mid-run?",
+            "Where does the GPU memory go during training?",
+        ],
+    },
+    "Design RAG pipeline w/ vector search + eval": {
+        "example": [
+            "Design a 'chat with your documents' product",
+            "Design enterprise search over internal wikis",
+        ],
+        "common": [
+            "How do you chunk documents, and why does it matter?",
+            "Hybrid vs dense-only retrieval — when?",
+            "How do you evaluate retrieval and generation quality?",
+        ],
+    },
+    "Design agent orchestration / tool-use system": {
+        "example": [
+            "Design a coding agent (like Claude Code)",
+            "Design an AI assistant that books travel via tools",
+        ],
+        "common": [
+            "How do you bound cost and number of steps?",
+            "How do you make tool calls reliable and idempotent?",
+        ],
+    },
+    "Design model evaluation / observability platform": {
+        "example": [
+            "Design an eval platform for an LLM product",
+            "Design monitoring/observability for a production chatbot",
+        ],
+        "common": [
+            "How do you catch quality regressions before shipping?",
+            "LLM-as-judge — what biases, and how do you mitigate them?",
+        ],
+    },
+    "Design rate limiter / distributed counter": {
+        "example": [
+            "Design an API rate limiter (like Stripe's)",
+            "Design a distributed 'likes'/view counter",
+        ],
+        "common": [
+            "Token bucket vs sliding-window counter?",
+            "How do you enforce a global limit across many servers?",
+        ],
+    },
+    "Design distributed KV store / metadata service": {
+        "example": [
+            "Design DynamoDB / a distributed cache like Redis",
+            "Design Amazon's shopping-cart store",
+        ],
+        "common": [
+            "Consistent hashing — why virtual nodes?",
+            "Quorum reads/writes — why R+W>N?",
+            "How do you resolve concurrent write conflicts?",
+        ],
+    },
+    "Design streaming chat / news feed / notification system": {
+        "example": [
+            "Design WhatsApp / Messenger",
+            "Design the Twitter/Instagram news feed",
+            "Design a push notification system",
+        ],
+        "common": [
+            "Fan-out on write vs fan-out on read?",
+            "How do you guarantee message ordering and delivery?",
+        ],
+    },
+    "Design distributed message queue / log (Kafka-style)": {
+        "example": ["Design Kafka", "Design a distributed job/task queue"],
+        "common": [
+            "How do partitions enable both parallelism and ordering?",
+            "At-least-once vs exactly-once delivery — how do you get each?",
+        ],
+    },
+    "Design URL shortener / pastebin (warmup)": {
+        "example": ["Design TinyURL / bit.ly", "Design Pastebin"],
+        "common": [
+            "How do you generate short codes without collisions?",
+            "301 vs 302 redirects — which and why?",
+        ],
+    },
+
+    # ---------------- AI Infra (common = conceptual) ----------------
+    "GPU architecture: SMs, memory hierarchy, Tensor Cores, NVLink": {
+        "common": [
+            "Walk through the GPU memory hierarchy (registers→shared→L2→HBM).",
+            "What makes a kernel memory-bound vs compute-bound?",
+            "Why keep tensor-parallel within an NVLink node?",
+            "What is occupancy and why does it matter?",
+        ],
+        "example": [
+            "Why is LLM decode memory-bound? Show the bandwidth math.",
+        ],
+    },
+    "Distributed training: DDP, FSDP, ZeRO-1/2/3, TP, PP": {
+        "common": [
+            "Explain ZeRO stages 1/2/3.",
+            "DDP vs FSDP — what's the difference?",
+            "How does ring all-reduce scale with GPU count?",
+            "When do you use TP vs PP vs DP?",
+        ],
+        "example": ["How would you shard a 70B model across 8×80GB GPUs?"],
+    },
+    "Inference optimization: KV cache, PagedAttention, continuous batching (vLLM)": {
+        "common": [
+            "What is PagedAttention and what problem does it solve?",
+            "How does continuous batching improve throughput?",
+            "Why does GQA/MQA shrink the KV cache?",
+        ],
+        "example": ["Estimate the KV cache for Llama-70B at 4K context, batch 32."],
+    },
+    "CUDA programming basics: kernels, shared memory, occupancy": {
+        "common": [
+            "What is shared memory and how does tiled GEMM use it?",
+            "What is warp divergence and why does it hurt?",
+            "How does kernel fusion reduce HBM traffic?",
+        ],
+        "example": ["How would you optimize a memory-bound elementwise kernel?"],
+    },
+    "Quantization (INT8, FP8, FP4) & speculative decoding": {
+        "common": [
+            "INT8 vs FP8 vs INT4 — tradeoffs?",
+            "Weight-only vs weight+activation quantization?",
+            "How does speculative decoding work, and when does it help?",
+        ],
+        "example": ["How would you quantize a model for cheaper serving safely?"],
+    },
+    "FlashAttention & memory-efficient attention variants": {
+        "common": [
+            "Why is FlashAttention faster without changing the math?",
+            "Why is naive attention memory-bound?",
+            "What is online softmax?",
+        ],
+        "example": ["How does FlashAttention enable much longer contexts?"],
+    },
+    "NCCL collectives & communication patterns": {
+        "common": [
+            "Name the collectives and which parallelism uses each.",
+            "Ring vs tree all-reduce — when each?",
+            "How do you overlap communication with compute?",
+        ],
+        "example": ["A distributed training run hangs — how do you debug it?"],
+    },
+    "Serving frameworks: Triton, TensorRT-LLM, SGLang": {
+        "common": [
+            "vLLM vs TensorRT-LLM vs SGLang — when each?",
+            "Triton Inference Server vs Triton (the kernel language)?",
+        ],
+        "example": ["How would you choose a serving stack for a latency-critical app?"],
+    },
+    "Checkpointing, fault tolerance, large-cluster observability": {
+        "common": [
+            "Why are failures routine at 1000-GPU scale?",
+            "How do you checkpoint without stalling training?",
+            "What is MFU and what's a good value?",
+        ],
+        "example": ["Loss spikes to NaN at step 50k — how do you debug it?"],
+    },
+    "Kubernetes / SLURM for ML workloads": {
+        "common": [
+            "SLURM vs Kubernetes for ML — when each?",
+            "What is gang scheduling and why is it needed?",
+            "MIG vs MPS for GPU sharing?",
+        ],
+        "example": ["How would you schedule a multi-node training job on K8s?"],
+    },
+    "Roofline model, arithmetic intensity & profiling": {
+        "common": [
+            "What is arithmetic intensity?",
+            "How do you tell if a kernel is memory- or compute-bound?",
+            "What is the ridge point of a roofline?",
+        ],
+        "example": ["A kernel hits 40% of peak FLOPS — how do you diagnose it?"],
+    },
+    "Mixed precision training & numerical stability": {
+        "common": [
+            "FP16 vs BF16 vs FP32?",
+            "Why is loss scaling needed (and when isn't it)?",
+            "Why keep fp32 master weights?",
+        ],
+        "example": ["Training diverges to NaN in FP16 — what do you try?"],
+    },
+
+    # ---------------- AI/ML (common = conceptual) ----------------
+    "Transformer deep dive: MHA, KV cache, RoPE, MoE routing": {
+        "common": [
+            "Walk through self-attention end to end.",
+            "Why scale attention logits by 1/√d_k?",
+            "What is RoPE and why is it better than absolute positions?",
+            "How does a Mixture-of-Experts layer work?",
+        ],
+        "example": ["Derive the tensor shapes through a multi-head attention block."],
+    },
+    "Pretraining: scaling laws, data mixing, tokenization": {
+        "common": [
+            "Explain Chinchilla / compute-optimal scaling.",
+            "Why can data quality matter more than quantity?",
+            "How does BPE tokenization work?",
+        ],
+        "example": ["Estimate the training FLOPs for 70B params on 1.4T tokens."],
+    },
+    "Post-training: SFT, RLHF, DPO, RLAIF, Constitutional AI": {
+        "common": [
+            "Walk through the post-training pipeline (SFT → preference tuning).",
+            "RLHF vs DPO — tradeoffs?",
+            "What are Constitutional AI and RLAIF?",
+            "What is reward hacking and how do you mitigate it?",
+        ],
+        "example": ["How would you turn a base model into a helpful, harmless assistant?"],
+    },
+    "Evaluation: benchmarks, human eval, hallucination detection": {
+        "common": [
+            "How do you design a high-signal eval set?",
+            "What are benchmarks' limitations (e.g. contamination)?",
+            "LLM-as-judge — biases and mitigations?",
+        ],
+        "example": ["How would you measure hallucination in a RAG system?"],
+    },
+    "Agentic systems: tool use, planning, MCP, multi-step reasoning": {
+        "common": [
+            "What makes a model 'agentic'?",
+            "ReAct vs plan-then-execute?",
+            "What is MCP (Model Context Protocol)?",
+        ],
+        "example": ["How would you build a reliable multi-step research agent?"],
+    },
+    "AI safety: alignment, interpretability, red-teaming": {
+        "common": [
+            "What is the alignment problem (inner vs outer alignment)?",
+            "What is mechanistic interpretability / superposition?",
+            "What is scalable oversight (debate, weak-to-strong)?",
+            "What is sycophancy and why does it arise?",
+        ],
+        "example": ["How would you red-team a model before release?"],
+    },
+    "RAG architectures vs fine-tuning tradeoffs": {
+        "common": [
+            "When do you choose RAG vs fine-tuning?",
+            "What are LoRA and QLoRA?",
+            "How (and why) would you combine RAG and fine-tuning?",
+        ],
+        "example": ["A customer wants the model to 'know' their docs — RAG or fine-tune?"],
+    },
+    "Probability/stats fundamentals (Bayes, MLE, distributions)": {
+        "common": [
+            "State Bayes' theorem and give the medical-test false-positive example.",
+            "MLE vs MAP — and how does MAP relate to regularization?",
+            "Why is cross-entropy loss the same as negative log-likelihood?",
+        ],
+        "example": ["Design and size an A/B test for a model change."],
+    },
+    "Classical ML refresher: regression, trees, gradient boosting": {
+        "common": [
+            "Bagging vs boosting (Random Forest vs GBM)?",
+            "Explain the bias-variance tradeoff.",
+            "Precision/recall vs ROC-AUC vs PR-AUC — when each?",
+        ],
+        "example": ["You have a tabular dataset with class imbalance — how do you approach it?"],
+    },
+    "Diffusion models & multimodal architectures": {
+        "common": [
+            "Explain the forward and reverse diffusion processes.",
+            "What is classifier-free guidance?",
+            "How do vision-language models fuse image and text?",
+        ],
+        "example": ["How does Stable Diffusion (latent diffusion) work?"],
+    },
+    "Decoding & sampling strategies (greedy, temperature, top-k/p, speculative)": {
+        "common": [
+            "Temperature vs top-k vs top-p (nucleus)?",
+            "Why is beam search poor for open-ended generation?",
+            "What is constrained / structured (JSON/grammar) decoding?",
+        ],
+        "example": ["Your model keeps repeating itself — which decoding knobs do you tune?"],
+    },
+    "Long-context & attention variants (GQA/MQA, sliding-window, context extension)": {
+        "common": [
+            "Why is long context expensive (compute AND memory)?",
+            "How do GQA/MQA help serving long contexts?",
+            "What is RoPE position interpolation / YaRN?",
+        ],
+        "example": ["Does a 1M-token context window make RAG obsolete? Discuss."],
+    },
+}

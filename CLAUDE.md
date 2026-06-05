@@ -13,9 +13,22 @@ SDE/MLE loop. Phase 1 = personal use, fully local in Docker.
 ## Data model
 
 `Domain` 1—* `Topic` 1—* `Subtopic` (a "learning point", carries its own notes).
-`StudySession` references a topic (nullable, SET NULL on delete).
+`Topic` 1—* `Question` (practice/interview question; `kind` = `example` | `common`).
 Status is a string on Topic and Subtopic: `not-started | in-progress | done`,
 validated at the API layer (`schemas.STATUSES`).
+
+Per-user tables (single seeded user "Zoey", no auth/password):
+- `User`.
+- `StudySession` = auto time block: `started_at`, `last_heartbeat_at`, `ended_at`,
+  `duration_min`. Created on login, kept alive by heartbeats (every 30s),
+  finalized on logout or when heartbeats go stale (>120s = laptop closed/slept).
+- `QuestionProgress` = per-user done flag on a Question (unique user+question).
+
+Auth is trivial: POST `/api/login {user_id}` starts a session; `/api/logout`,
+`/api/sessions/{id}/heartbeat`, `/api/sessions?user_id=`. Question completion:
+GET/PUT `/api/users/{id}/question-progress`. Frontend persists the active login
+in `localStorage` (`prep-auth-v1`) and resumes via heartbeat on reload.
+Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
 
 ## Content
 
@@ -23,6 +36,9 @@ validated at the API layer (`schemas.STATUSES`).
   content: 62 topics, ~347 learning points with detailed notes (numbers,
   tradeoffs, worked examples). Deep on System Design / AI Infra / AI/ML
   (~6-8 points each); crisper on Coding / Mock / Projects (~4-6).
+- `content.QUESTIONS` (keyed by exact topic title) = practice questions for
+  Coding / System Design / AI Infra / AI/ML: `example` (LeetCode #, "Design
+  Uber", applied scenarios) + `common` (conceptual). ~245 questions.
 - To add/edit content, edit `content.py` and restart the backend — the enricher
   tops up the DB on the next start. Topic titles for the original 56 must stay
   byte-identical so they match existing rows.

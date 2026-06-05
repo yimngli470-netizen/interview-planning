@@ -2,15 +2,28 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 
 from .database import Base, engine, SessionLocal
-from .routers import domains, topics, subtopics, sessions
+from .routers import domains, topics, subtopics, sessions, progress
 from .seed import seed_or_enrich
+
+
+def _drop_legacy_sessions() -> None:
+    """The old manual `sessions` table was replaced by `study_sessions`.
+    Drop it if present and empty (no Alembic yet). Safe: never drops data."""
+    insp = inspect(engine)
+    if "sessions" in insp.get_table_names():
+        with engine.begin() as conn:
+            count = conn.execute(text("SELECT count(*) FROM sessions")).scalar()
+            if not count:
+                conn.execute(text("DROP TABLE sessions"))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Phase 1: create tables directly. Swap for Alembic once the schema settles.
+    _drop_legacy_sessions()
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -37,6 +50,7 @@ app.include_router(domains.router)
 app.include_router(topics.router)
 app.include_router(subtopics.router)
 app.include_router(sessions.router)
+app.include_router(progress.router)
 
 
 @app.get("/api/health")

@@ -56,11 +56,22 @@ class TopicUpdate(BaseModel):
     domain_id: int | None = None
 
 
+# ---------- Question (practice / interview question) ----------
+class QuestionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    topic_id: int
+    kind: str
+    prompt: str
+    order: int
+
+
 class TopicOut(TopicBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     domain_id: int
     subtopics: list[SubtopicOut] = []
+    questions: list[QuestionOut] = []
 
 
 # ---------- Domain ----------
@@ -85,19 +96,46 @@ class DomainOut(DomainBase):
     id: int
 
 
-# ---------- Session ----------
-class SessionBase(BaseModel):
-    topic_id: int | None = None
-    date: date
-    duration_min: int = 0
-    summary: str = ""
-
-
-class SessionCreate(SessionBase):
-    pass
-
-
-class SessionOut(SessionBase):
+# ---------- User / auth ----------
+class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    created_at: datetime
+    name: str
+
+
+class LoginIn(BaseModel):
+    user_id: int
+
+
+# ---------- Study session (auto time tracking) ----------
+class SessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    started_at: datetime
+    ended_at: datetime | None
+    date: date
+    duration_min: int  # computed/finalized minutes
+    active: bool
+
+
+class LoginOut(BaseModel):
+    user: UserOut
+    session: SessionOut
+
+
+class HeartbeatOut(BaseModel):
+    active: bool
+    session: SessionOut | None = None
+
+
+# ---------- Question progress (per user) ----------
+class QuestionProgressOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    question_id: int
+    done: bool
+
+
+class QuestionProgressIn(BaseModel):
+    question_id: int
+    done: bool

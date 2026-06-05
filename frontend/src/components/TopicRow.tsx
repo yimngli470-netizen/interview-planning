@@ -8,6 +8,9 @@ import { domainClasses, StatusButton, nextStatus } from '../lib/ui';
 interface Props {
   topic: Topic;
   domain: Domain | undefined;
+  canTrack: boolean;
+  doneQuestions: Set<number>;
+  onToggleQuestion: (questionId: number, done: boolean) => void;
   onPatchTopic: (id: number, patch: Partial<Topic>) => void;
   onRemoveTopic: (id: number) => void;
   onAddSubtopic: (topicId: number, title: string) => void;
@@ -63,6 +66,9 @@ function SubtopicRow({
 export default function TopicRow({
   topic,
   domain,
+  canTrack,
+  doneQuestions,
+  onToggleQuestion,
   onPatchTopic,
   onRemoveTopic,
   onAddSubtopic,
@@ -77,6 +83,7 @@ export default function TopicRow({
   const [newSub, setNewSub] = useState('');
 
   const subDone = topic.subtopics.filter((s) => s.status === 'done').length;
+  const qDone = topic.questions.filter((q) => doneQuestions.has(q.id)).length;
 
   const saveEdit = () => {
     onPatchTopic(topic.id, {
@@ -163,6 +170,11 @@ export default function TopicRow({
                 · {subDone}/{topic.subtopics.length} points
               </span>
             )}
+            {topic.questions.length > 0 && (
+              <span className="text-xs text-slate-400">
+                · {qDone}/{topic.questions.length} Qs
+              </span>
+            )}
           </div>
           {topic.notes && !expanded && (
             <div className="text-xs text-slate-500 mt-1 whitespace-pre-wrap">{topic.notes}</div>
@@ -214,6 +226,51 @@ export default function TopicRow({
               <Plus className="w-3.5 h-3.5" /> Add
             </button>
           </div>
+
+          {topic.questions.length > 0 && (
+            <div className="mt-4">
+              <div className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">
+                Practice questions
+              </div>
+              {(['example', 'common'] as const).map((kind) => {
+                const qs = topic.questions.filter((q) => q.kind === kind);
+                if (qs.length === 0) return null;
+                return (
+                  <div key={kind} className="mb-2">
+                    <div className="text-[11px] text-slate-400 mb-0.5">
+                      {kind === 'example' ? 'Example problems' : 'Common questions'}
+                    </div>
+                    <div className="space-y-0.5">
+                      {qs.map((q) => {
+                        const done = doneQuestions.has(q.id);
+                        return (
+                          <label
+                            key={q.id}
+                            className={`flex items-start gap-2 text-sm py-0.5 ${canTrack ? 'cursor-pointer' : ''}`}
+                            title={canTrack ? '' : 'Log in to track'}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={done}
+                              disabled={!canTrack}
+                              onChange={(e) => onToggleQuestion(q.id, e.target.checked)}
+                              className="mt-1 accent-slate-900 disabled:opacity-40"
+                            />
+                            <span className={done ? 'line-through text-slate-400' : 'text-slate-700'}>
+                              {q.prompt}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {!canTrack && (
+                <p className="text-[11px] text-slate-400">Log in to check off questions as you solve them.</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

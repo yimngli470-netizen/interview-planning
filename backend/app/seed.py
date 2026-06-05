@@ -13,8 +13,10 @@ So re-running never overwrites your edits, and it tops up new content on deploy.
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Domain, Subtopic, Topic
-from .content import CONTENT_BY_DOMAIN
+from .models import Domain, Question, Subtopic, Topic, User
+from .content import CONTENT_BY_DOMAIN, QUESTIONS
+
+DEFAULT_USERS = ["Zoey"]
 
 DOMAINS = [
     ("Coding", "blue"),
@@ -169,4 +171,31 @@ def seed_or_enrich(db: Session) -> None:
                         )
                     )
                     existing.add(pt_title)
+
+            # practice / interview questions (idempotent by prompt)
+            qspec = QUESTIONS.get(title)
+            if qspec:
+                have = {q.prompt for q in topic.questions}
+                q_order = max((q.order for q in topic.questions), default=0)
+                # examples first, then common — order field drives display order
+                for kind in ("example", "common"):
+                    for prompt in qspec.get(kind, []):
+                        if prompt not in have:
+                            q_order += 1
+                            db.add(
+                                Question(
+                                    topic_id=topic.id,
+                                    kind=kind,
+                                    prompt=prompt,
+                                    order=q_order,
+                                )
+                            )
+                            have.add(prompt)
+
+    # --- users ---
+    existing_users = {u.name for u in db.scalars(select(User)).all()}
+    for name in DEFAULT_USERS:
+        if name not in existing_users:
+            db.add(User(name=name))
+
     db.commit()

@@ -1,4 +1,17 @@
-import type { Domain, Topic, Subtopic, StudySession } from '../types';
+import type { Domain, Topic, Subtopic, StudySession, User } from '../types';
+
+export interface LoginResult {
+  user: User;
+  session: StudySession;
+}
+export interface HeartbeatResult {
+  active: boolean;
+  session: StudySession | null;
+}
+export interface QuestionProgress {
+  question_id: number;
+  done: boolean;
+}
 
 // Talk to the backend on the SAME host that served this page, port 8001.
 // This makes it work both locally (localhost:5173 -> localhost:8001) and from
@@ -51,10 +64,25 @@ export const api = {
   deleteSubtopic: (id: number) =>
     req<void>(`/subtopics/${id}`, { method: 'DELETE' }),
 
-  // Sessions
-  listSessions: () => req<StudySession[]>('/sessions'),
-  createSession: (s: Partial<StudySession>) =>
-    req<StudySession>('/sessions', { method: 'POST', body: JSON.stringify(s) }),
-  deleteSession: (id: number) =>
-    req<void>(`/sessions/${id}`, { method: 'DELETE' }),
+  // Users / auth
+  listUsers: () => req<User[]>('/users'),
+  login: (userId: number) =>
+    req<LoginResult>('/login', { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+  logout: (sessionId: number) =>
+    req<StudySession>('/logout', { method: 'POST', body: JSON.stringify({ session_id: sessionId }) }),
+  heartbeat: (sessionId: number) =>
+    req<HeartbeatResult>(`/sessions/${sessionId}/heartbeat`, { method: 'POST' }),
+
+  // Study sessions (auto, per user)
+  listSessions: (userId: number) =>
+    req<StudySession[]>(`/sessions?user_id=${userId}`),
+
+  // Question progress (per user)
+  getProgress: (userId: number) =>
+    req<QuestionProgress[]>(`/users/${userId}/question-progress`),
+  setProgress: (userId: number, questionId: number, done: boolean) =>
+    req<QuestionProgress>(`/users/${userId}/question-progress`, {
+      method: 'PUT',
+      body: JSON.stringify({ question_id: questionId, done }),
+    }),
 };

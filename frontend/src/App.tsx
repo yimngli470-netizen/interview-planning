@@ -1,23 +1,41 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BarChart3, BookOpen, Calendar, Loader2, AlertTriangle } from 'lucide-react';
-import type { Domain, Topic, StudySession, Status, Subtopic } from './types';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  BarChart3, BookOpen, Calendar, Loader2, AlertTriangle, LogIn, LogOut, Clock,
+} from 'lucide-react';
+import type { Domain, Topic, StudySession, Status, Subtopic, User } from './types';
 import { api } from './lib/api';
+import { parseUTC, formatClock } from './lib/time';
 import Dashboard from './components/Dashboard';
 import TopicsView from './components/TopicsView';
 import SessionsView from './components/SessionsView';
 
 type Tab = 'dashboard' | 'topics' | 'sessions';
 
+const AUTH_KEY = 'prep-auth-v1';
+const HEARTBEAT_MS = 30_000;
+
+interface SavedAuth {
+  userId: number;
+  userName: string;
+  sessionId: number;
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [domains, setDomains] = useState<Domain[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [sessions, setSessions] = useState<StudySession[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Topics-tab filters live here (not in TopicsView) so they persist across
-  // tab switches instead of resetting when the view unmounts.
+  // auth / time tracking
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [activeSession, setActiveSession] = useState<StudySession | null>(null);
+  const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [doneQ, setDoneQ] = useState<Set<number>>(new Set());
+  const [nowTs, setNowTs] = useState(Date.now());
+
+  // Topics-tab filters live here so they persist across tab switches.
   const [topicSearch, setTopicSearch] = useState('');
   const [topicDomainFilter, setTopicDomainFilter] = useState<number | 'all'>('all');
   const [topicStatusFilter, setTopicStatusFilter] = useState<string>('all');
@@ -25,28 +43,103 @@ export default function App() {
   const reloadTopics = useCallback(async () => {
     setTopics(await api.listTopics());
   }, []);
-  const reloadSessions = useCallback(async () => {
-    setSessions(await api.listSessions());
+
+  const loadUserData = useCallback(async (userId: number) => {
+    const [s, p] = await Promise.all([api.listSessions(userId), api.getProgress(userId)]);
+    setSessions(s);
+    setDoneQ(new Set(p.filter((x) => x.done).map((x) => x.question_id)));
   }, []);
 
+  const clearAuth = useCallback(() => {
+    localStorage.removeItem(AUTH_KEY);
+    setCurrentUser(null);
+    setActiveSession(null);
+    setSessions([]);
+    setDoneQ(new Set());
+  }, []);
+
+  // --- initial load + resume a saved login ---
   useEffect(() => {
     (async () => {
       try {
-        const [d, t, s] = await Promise.all([
+        const [d, t, u] = await Promise.all([
           api.listDomains(),
           api.listTopics(),
-          api.listSessions(),
+          api.listUsers(),
         ]);
         setDomains(d);
         setTopics(t);
-        setSessions(s);
+        setUsers(u);
+
+        const raw = localStorage.getItem(AUTH_KEY);
+        if (raw) {
+          const saved: SavedAuth = JSON.parse(raw);
+          try {
+            const hb = await api.heartbeat(saved.sessionId);
+            if (hb.active && hb.session) {
+              setCurrentUser({ id: saved.userId, name: saved.userName });
+              setActiveSession(hb.session);
+              await loadUserData(saved.userId);
+            } else {
+              localStorage.removeItem(AUTH_KEY); // session ended while away
+            }
+          } catch {
+            localStorage.removeItem(AUTH_KEY);
+          }
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load data');
       } finally {
         setLoaded(true);
       }
     })();
-  }, []);
+  }, [loadUserData]);
+
+  // --- live clock tick while a session is active ---
+  useEffect(() => {
+    if (!activeSession) return;
+    setNowTs(Date.now());
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [activeSession]);
+
+  // --- heartbeat while a session is active ---
+  const clearAuthRef = useRef(clearAuth);
+  clearAuthRef.current = clearAuth;
+  useEffect(() => {
+    if (!activeSession) return;
+    const id = setInterval(async () => {
+      try {
+        const hb = await api.heartbeat(activeSession.id);
+        if (!hb.active) clearAuthRef.current(); // laptop slept / went stale
+      } catch {
+        /* transient network error — keep trying */
+      }
+    }, HEARTBEAT_MS);
+    return () => clearInterval(id);
+  }, [activeSession]);
+
+  // --- auth handlers ---
+  const login = async (user: User) => {
+    const res = await api.login(user.id);
+    setCurrentUser(res.user);
+    setActiveSession(res.session);
+    localStorage.setItem(
+      AUTH_KEY,
+      JSON.stringify({ userId: res.user.id, userName: res.user.name, sessionId: res.session.id }),
+    );
+    await loadUserData(res.user.id);
+  };
+  const logout = async () => {
+    if (activeSession) {
+      try {
+        await api.logout(activeSession.id);
+      } catch {
+        /* ignore */
+      }
+    }
+    clearAuth();
+  };
 
   // --- topic mutations ---
   const addTopic = async (domainId: number, title: string, effortHours: number) => {
@@ -63,7 +156,7 @@ export default function App() {
   };
   const cycleTopicStatus = (t: Topic, next: Status) => patchTopic(t.id, { status: next });
 
-  // --- subtopic (learning point) mutations ---
+  // --- subtopic mutations ---
   const addSubtopic = async (topicId: number, title: string) => {
     await api.createSubtopic(topicId, { title });
     await reloadTopics();
@@ -77,14 +170,25 @@ export default function App() {
     await reloadTopics();
   };
 
-  // --- session mutations ---
-  const addSession = async (s: Partial<StudySession>) => {
-    await api.createSession(s);
-    await reloadSessions();
-  };
-  const removeSession = async (id: number) => {
-    await api.deleteSession(id);
-    await reloadSessions();
+  // --- question completion (per user) ---
+  const toggleQuestion = async (questionId: number, done: boolean) => {
+    if (!currentUser) return;
+    setDoneQ((prev) => {
+      const next = new Set(prev);
+      if (done) next.add(questionId);
+      else next.delete(questionId);
+      return next;
+    });
+    try {
+      await api.setProgress(currentUser.id, questionId, done);
+    } catch {
+      setDoneQ((prev) => {
+        const next = new Set(prev);
+        if (done) next.delete(questionId);
+        else next.add(questionId);
+        return next;
+      });
+    }
   };
 
   if (!loaded) {
@@ -95,13 +199,46 @@ export default function App() {
     );
   }
 
+  const elapsedSec = activeSession
+    ? (nowTs - parseUTC(activeSession.started_at).getTime()) / 1000
+    : 0;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="mb-4">
-            <h1 className="text-xl font-semibold">SWE / MLE Interview Prep</h1>
-            <p className="text-sm text-slate-500">Senior SDE / MLE @ frontier AI labs</p>
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h1 className="text-xl font-semibold">SWE / MLE Interview Prep</h1>
+              <p className="text-sm text-slate-500">Senior SDE / MLE @ frontier AI labs</p>
+            </div>
+            {currentUser ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-sm font-mono tabular-nums">
+                  <Clock className="w-4 h-4" />
+                  {formatClock(elapsedSec)}
+                </div>
+                <span className="text-sm text-slate-600">{currentUser.name}</span>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-md hover:bg-slate-50"
+                >
+                  <LogOut className="w-4 h-4" /> Sign out
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {users.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => login(u)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-900 text-white rounded-md hover:bg-slate-800"
+                  >
+                    <LogIn className="w-4 h-4" /> Log in as {u.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <nav className="flex gap-1">
             {([
@@ -139,6 +276,8 @@ export default function App() {
             domains={domains}
             topics={topics}
             sessions={sessions}
+            currentUser={currentUser}
+            nowTs={nowTs}
             onCycleStatus={cycleTopicStatus}
           />
         )}
@@ -147,6 +286,9 @@ export default function App() {
           <TopicsView
             domains={domains}
             topics={topics}
+            canTrack={!!currentUser}
+            doneQuestions={doneQ}
+            onToggleQuestion={toggleQuestion}
             search={topicSearch}
             setSearch={setTopicSearch}
             domainFilter={topicDomainFilter}
@@ -164,11 +306,9 @@ export default function App() {
 
         {tab === 'sessions' && (
           <SessionsView
-            domains={domains}
-            topics={topics}
             sessions={sessions}
-            onAddSession={addSession}
-            onRemoveSession={removeSession}
+            currentUser={currentUser}
+            nowTs={nowTs}
           />
         )}
       </main>

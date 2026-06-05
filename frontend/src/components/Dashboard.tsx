@@ -1,12 +1,15 @@
 import { useMemo } from 'react';
 import { Target, Loader2, Clock, Flame, Pin } from 'lucide-react';
-import type { Domain, Topic, StudySession, Status } from '../types';
+import type { Domain, Topic, StudySession, Status, User } from '../types';
 import { domainClasses, StatusButton, nextStatus } from '../lib/ui';
+import { parseUTC, localDateKey, formatHM } from '../lib/time';
 
 interface Props {
   domains: Domain[];
   topics: Topic[];
   sessions: StudySession[];
+  currentUser: User | null;
+  nowTs: number;
   onCycleStatus: (t: Topic, next: Status) => void;
 }
 
@@ -33,15 +36,28 @@ function StatCard({
   );
 }
 
-export default function Dashboard({ domains, topics, sessions, onCycleStatus }: Props) {
-  const stats = useMemo(() => {
-    const byDomain: Record<number, { total: number; done: number; totalHours: number; doneHours: number; pct: number }> = {};
+// minutes for a session: live elapsed if active, else its finalized duration
+function sessionMinutes(s: StudySession, nowTs: number): number {
+  if (s.active) return (nowTs - parseUTC(s.started_at).getTime()) / 60000;
+  return s.duration_min;
+}
+
+export default function Dashboard({
+  domains,
+  topics,
+  sessions,
+  currentUser,
+  nowTs,
+  onCycleStatus,
+}: Props) {
+  const byDomain = useMemo(() => {
+    const m: Record<number, { total: number; done: number; totalHours: number; doneHours: number; pct: number }> = {};
     for (const d of domains) {
       const items = topics.filter((t) => t.domain_id === d.id);
       const done = items.filter((t) => t.status === 'done');
       const totalHours = items.reduce((s, t) => s + (t.effort_hours || 0), 0);
       const doneHours = done.reduce((s, t) => s + (t.effort_hours || 0), 0);
-      byDomain[d.id] = {
+      m[d.id] = {
         total: items.length,
         done: done.length,
         totalHours,
@@ -49,20 +65,27 @@ export default function Dashboard({ domains, topics, sessions, onCycleStatus }: 
         pct: items.length ? Math.round((done.length / items.length) * 100) : 0,
       };
     }
-    const totalDone = topics.filter((t) => t.status === 'done').length;
-    const totalInProg = topics.filter((t) => t.status === 'in-progress').length;
-    const totalSessionMin = sessions.reduce((s, x) => s + (x.duration_min || 0), 0);
+    return m;
+  }, [domains, topics]);
 
-    // streak: consecutive days from today with >=1 session
-    const dates = new Set(sessions.map((s) => s.date));
-    let streak = 0;
+  const totalDone = topics.filter((t) => t.status === 'done').length;
+  const totalInProg = topics.filter((t) => t.status === 'in-progress').length;
+
+  const totalMin = useMemo(
+    () => sessions.reduce((sum, s) => sum + sessionMinutes(s, nowTs), 0),
+    [sessions, nowTs],
+  );
+
+  const streak = useMemo(() => {
+    const dates = new Set(sessions.map((s) => localDateKey(parseUTC(s.started_at))));
+    let n = 0;
     const cur = new Date();
-    while (dates.has(cur.toISOString().slice(0, 10))) {
-      streak++;
+    while (dates.has(localDateKey(cur))) {
+      n++;
       cur.setDate(cur.getDate() - 1);
     }
-    return { byDomain, totalDone, totalInProg, total: topics.length, totalSessionMin, streak };
-  }, [domains, topics, sessions]);
+    return n;
+  }, [sessions]);
 
   const domainById = useMemo(
     () => Object.fromEntries(domains.map((d) => [d.id, d])),
@@ -76,21 +99,21 @@ export default function Dashboard({ domains, topics, sessions, onCycleStatus }: 
         <StatCard
           Icon={Target}
           label="Completed"
-          value={`${stats.totalDone} / ${stats.total}`}
-          sub={stats.total ? `${Math.round((stats.totalDone / stats.total) * 100)}% of plan` : 'no topics'}
+          value={`${totalDone} / ${topics.length}`}
+          sub={topics.length ? `${Math.round((totalDone / topics.length) * 100)}% of plan` : 'no topics'}
         />
-        <StatCard Icon={Loader2} label="In Progress" value={stats.totalInProg} sub="active topics" />
+        <StatCard Icon={Loader2} label="In Progress" value={totalInProg} sub="active topics" />
         <StatCard
           Icon={Clock}
           label="Logged Time"
-          value={`${Math.round(stats.totalSessionMin / 60)}h`}
-          sub={`${sessions.length} sessions`}
+          value={formatHM(totalMin)}
+          sub={currentUser ? `${sessions.length} sessions` : 'log in to track'}
         />
         <StatCard
           Icon={Flame}
           label="Day Streak"
-          value={stats.streak}
-          sub={stats.streak > 0 ? 'keep going' : 'log today'}
+          value={streak}
+          sub={streak > 0 ? 'keep going' : currentUser ? 'study today' : 'log in to track'}
         />
       </div>
 
@@ -98,7 +121,7 @@ export default function Dashboard({ domains, topics, sessions, onCycleStatus }: 
         <h2 className="font-semibold mb-4">Progress by domain</h2>
         <div className="space-y-3">
           {domains.map((d) => {
-            const s = stats.byDomain[d.id];
+            const s = byDomain[d.id];
             return (
               <div key={d.id}>
                 <div className="flex items-center justify-between mb-1">
@@ -140,20 +163,28 @@ export default function Dashboard({ domains, topics, sessions, onCycleStatus }: 
       </section>
 
       <section className="bg-white border border-slate-200 rounded-lg p-5">
-        <h2 className="font-semibold mb-3">Recent sessions</h2>
-        {sessions.length === 0 ? (
-          <p className="text-sm text-slate-500">No sessions logged yet. Log your first study block in the Sessions tab.</p>
+        <h2 className="font-semibold mb-3">Recent study sessions</h2>
+        {!currentUser ? (
+          <p className="text-sm text-slate-500">Log in to automatically track your study time.</p>
+        ) : sessions.length === 0 ? (
+          <p className="text-sm text-slate-500">No sessions yet — they're recorded automatically while you're logged in.</p>
         ) : (
           <div className="space-y-2">
-            {sessions.slice(0, 5).map((s) => {
-              const t = topics.find((x) => x.id === s.topic_id);
-              const d = t ? domainById[t.domain_id] : undefined;
+            {sessions.slice(0, 6).map((s) => {
+              const start = parseUTC(s.started_at);
+              const end = s.ended_at ? parseUTC(s.ended_at) : null;
               return (
                 <div key={s.id} className="flex items-center gap-3 p-2 rounded hover:bg-slate-50 text-sm">
-                  <span className="text-slate-500 w-24">{s.date}</span>
-                  <span className="text-slate-600 w-16">{s.duration_min}min</span>
-                  {d && <span className={`text-xs px-2 py-0.5 rounded border ${domainClasses(d.color)}`}>{d.name}</span>}
-                  <span className="text-slate-700 flex-1 truncate">{t ? t.title : '(deleted topic)'}</span>
+                  <span className="text-slate-500 w-28">{start.toLocaleDateString()}</span>
+                  <span className="text-slate-600 flex-1">
+                    {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {' – '}
+                    {end ? end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'now'}
+                  </span>
+                  {s.active && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">active</span>
+                  )}
+                  <span className="text-slate-700 w-20 text-right">{formatHM(sessionMinutes(s, nowTs))}</span>
                 </div>
               );
             })}
