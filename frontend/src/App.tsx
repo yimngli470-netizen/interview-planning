@@ -236,7 +236,13 @@ export default function App() {
             </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Forge</h1>
-          <p className="text-sm text-slate-500 mt-1 mb-6">Senior SDE / MLE interview prep</p>
+          <p className="text-sm text-slate-500 mt-1 mb-4">Senior SDE / MLE interview prep</p>
+          <p className="text-sm text-slate-600 leading-relaxed mb-6 text-left bg-slate-50 border border-slate-100 rounded-lg px-4 py-3">
+            <span className="font-medium text-slate-800">Why “Forge”?</span> A forge
+            turns raw metal into something stronger through heat and repetition. Same
+            idea here — steady, focused reps that temper your skills for the
+            interview loop.
+          </p>
           {error && (
             <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 text-left">
               <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -261,10 +267,6 @@ export default function App() {
               <p className="text-sm text-slate-500">No users found.</p>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-6">
-            Logging in starts your study timer — your time is tracked automatically
-            until you sign out or close your laptop.
-          </p>
         </div>
       </div>
     );
