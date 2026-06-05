@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BarChart3, BookOpen, Calendar, Loader2, AlertTriangle, LogIn, LogOut, Clock,
 } from 'lucide-react';
-import type { Domain, Topic, StudySession, Status, Subtopic, User } from './types';
+import type { Domain, Topic, StudySession, Subtopic, User } from './types';
 import { api } from './lib/api';
 import { parseUTC, formatClock } from './lib/time';
 import Dashboard from './components/Dashboard';
@@ -49,6 +49,15 @@ export default function App() {
     setSessions(s);
     setDoneQ(new Set(p.filter((x) => x.done).map((x) => x.question_id)));
   }, []);
+
+  const removeSession = async (id: number) => {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    try {
+      await api.deleteSession(id);
+    } catch {
+      if (currentUser) setSessions(await api.listSessions(currentUser.id));
+    }
+  };
 
   const clearAuth = useCallback(() => {
     localStorage.removeItem(AUTH_KEY);
@@ -154,7 +163,6 @@ export default function App() {
     await api.deleteTopic(id);
     await reloadTopics();
   };
-  const cycleTopicStatus = (t: Topic, next: Status) => patchTopic(t.id, { status: next });
 
   // --- subtopic mutations ---
   const addSubtopic = async (topicId: number, title: string) => {
@@ -304,7 +312,7 @@ export default function App() {
             sessions={sessions}
             currentUser={currentUser}
             nowTs={nowTs}
-            onCycleStatus={cycleTopicStatus}
+            onRemoveSession={removeSession}
           />
         )}
 

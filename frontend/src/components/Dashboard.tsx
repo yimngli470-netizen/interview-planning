@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { Target, Loader2, Clock, Flame, Pin } from 'lucide-react';
-import type { Domain, Topic, StudySession, Status, User } from '../types';
-import { domainClasses, StatusButton, nextStatus } from '../lib/ui';
+import { Target, Loader2, Clock, Flame, Trash2 } from 'lucide-react';
+import type { Domain, Topic, StudySession, User } from '../types';
+import { domainClasses } from '../lib/ui';
 import { parseUTC, localDateKey, formatHM } from '../lib/time';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
   sessions: StudySession[];
   currentUser: User | null;
   nowTs: number;
-  onCycleStatus: (t: Topic, next: Status) => void;
+  onRemoveSession: (id: number) => void;
 }
 
 function StatCard({
@@ -48,7 +48,7 @@ export default function Dashboard({
   sessions,
   currentUser,
   nowTs,
-  onCycleStatus,
+  onRemoveSession,
 }: Props) {
   const byDomain = useMemo(() => {
     const m: Record<number, { total: number; done: number; totalHours: number; doneHours: number; pct: number }> = {};
@@ -86,12 +86,6 @@ export default function Dashboard({
     }
     return n;
   }, [sessions]);
-
-  const domainById = useMemo(
-    () => Object.fromEntries(domains.map((d) => [d.id, d])),
-    [domains],
-  );
-  const pinned = topics.filter((t) => t.pinned);
 
   return (
     <div className="space-y-6">
@@ -141,38 +135,25 @@ export default function Dashboard({
       </section>
 
       <section className="bg-white border border-slate-200 rounded-lg p-5">
-        <h2 className="font-semibold mb-3 flex items-center gap-2">
-          <Pin className="w-4 h-4" /> Pinned priorities
-        </h2>
-        <div className="space-y-2">
-          {pinned.length === 0 && (
-            <p className="text-sm text-slate-500">No pinned items. Pin your top priorities in the Topics tab.</p>
-          )}
-          {pinned.map((t) => {
-            const d = domainById[t.domain_id];
-            return (
-              <div key={t.id} className="flex items-center gap-3 p-2 rounded hover:bg-slate-50">
-                <StatusButton status={t.status} onClick={() => onCycleStatus(t, nextStatus(t.status))} />
-                {d && <span className={`text-xs px-2 py-0.5 rounded border ${domainClasses(d.color)}`}>{d.name}</span>}
-                <span className={`text-sm flex-1 ${t.status === 'done' ? 'line-through text-slate-400' : ''}`}>{t.title}</span>
-                <span className="text-xs text-slate-500">{t.effort_hours}h</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="bg-white border border-slate-200 rounded-lg p-5">
         <h2 className="font-semibold mb-3">Recent study sessions</h2>
         {!currentUser ? (
           <p className="text-sm text-slate-500">Log in to automatically track your study time.</p>
         ) : sessions.length === 0 ? (
           <p className="text-sm text-slate-500">No sessions yet — they're recorded automatically while you're logged in.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {sessions.slice(0, 6).map((s) => {
               const start = parseUTC(s.started_at);
               const end = s.ended_at ? parseUTC(s.ended_at) : null;
+              const removeWithConfirm = () => {
+                if (
+                  window.confirm(
+                    `Delete this study session?\n\n${start.toLocaleDateString()}  ·  ${formatHM(sessionMinutes(s, nowTs))}\n\nThis can't be undone.`,
+                  )
+                ) {
+                  onRemoveSession(s.id);
+                }
+              };
               return (
                 <div key={s.id} className="flex items-center gap-3 p-2 rounded hover:bg-slate-50 text-sm">
                   <span className="text-slate-500 w-28">{start.toLocaleDateString()}</span>
@@ -185,6 +166,17 @@ export default function Dashboard({
                     <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">active</span>
                   )}
                   <span className="text-slate-700 w-20 text-right">{formatHM(sessionMinutes(s, nowTs))}</span>
+                  {s.active ? (
+                    <span className="w-7" />
+                  ) : (
+                    <button
+                      onClick={removeWithConfirm}
+                      title="Delete session"
+                      className="w-7 flex justify-center p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               );
             })}

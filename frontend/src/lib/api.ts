@@ -76,6 +76,8 @@ export const api = {
   // Study sessions (auto, per user)
   listSessions: (userId: number) =>
     req<StudySession[]>(`/sessions?user_id=${userId}`),
+  deleteSession: (id: number) =>
+    req<void>(`/sessions/${id}`, { method: 'DELETE' }),
 
   // Question progress (per user)
   getProgress: (userId: number) =>

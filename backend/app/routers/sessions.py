@@ -135,3 +135,12 @@ def list_sessions(user_id: int, db: Session = Depends(get_db)):
         .order_by(StudySession.started_at.desc())
     ).all()
     return [_to_out(s, now) for s in sessions]
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+def delete_session(session_id: int, db: Session = Depends(get_db)):
+    s = db.get(StudySession, session_id)
+    if not s:
+        raise HTTPException(404, "Session not found")
+    db.delete(s)
+    db.commit()
