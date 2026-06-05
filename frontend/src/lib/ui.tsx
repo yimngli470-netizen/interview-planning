@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { Circle, Loader2, Check } from 'lucide-react';
 import type { Status } from '../types';
 
@@ -16,7 +17,7 @@ export function StatusButton({
   iconClass = 'w-5 h-5',
 }: {
   status: Status;
-  onClick: () => void;
+  onClick: (e: MouseEvent<HTMLButtonElement>) => void;
   iconClass?: string;
 }) {
   const cfg = {

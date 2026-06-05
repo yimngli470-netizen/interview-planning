@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Search, Plus } from 'lucide-react';
 import type { Domain, Topic, Subtopic } from '../types';
 import TopicRow from './TopicRow';
@@ -6,6 +6,13 @@ import TopicRow from './TopicRow';
 interface Props {
   domains: Domain[];
   topics: Topic[];
+  // Filters are owned by App so they persist when switching tabs.
+  search: string;
+  setSearch: Dispatch<SetStateAction<string>>;
+  domainFilter: number | 'all';
+  setDomainFilter: Dispatch<SetStateAction<number | 'all'>>;
+  statusFilter: string;
+  setStatusFilter: Dispatch<SetStateAction<string>>;
   onAddTopic: (domainId: number, title: string, effortHours: number) => void;
   onPatchTopic: (id: number, patch: Partial<Topic>) => void;
   onRemoveTopic: (id: number) => void;
@@ -17,6 +24,12 @@ interface Props {
 export default function TopicsView({
   domains,
   topics,
+  search,
+  setSearch,
+  domainFilter,
+  setDomainFilter,
+  statusFilter,
+  setStatusFilter,
   onAddTopic,
   onPatchTopic,
   onRemoveTopic,
@@ -24,9 +37,6 @@ export default function TopicsView({
   onPatchSubtopic,
   onRemoveSubtopic,
 }: Props) {
-  const [search, setSearch] = useState('');
-  const [domainFilter, setDomainFilter] = useState<number | 'all'>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDomain, setNewDomain] = useState<number | ''>('');

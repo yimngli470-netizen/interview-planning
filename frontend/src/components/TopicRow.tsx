@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import {
   Pin, Edit2, Trash2, Save, ChevronRight, ChevronDown, Plus, X,
 } from 'lucide-react';
@@ -127,22 +127,30 @@ export default function TopicRow({
     );
   }
 
+  // The whole header row toggles expand; interactive controls stopPropagation.
+  const stop = (fn: () => void) => (e: MouseEvent) => {
+    e.stopPropagation();
+    fn();
+  };
+
   return (
     <div className="p-3 hover:bg-slate-50 group">
-      <div className="flex items-start gap-3">
+      <div
+        className="flex items-start gap-3 cursor-pointer"
+        onClick={() => setExpanded((v) => !v)}
+        role="button"
+        aria-expanded={expanded}
+        title={expanded ? 'Collapse' : 'Show learning points'}
+      >
         <StatusButton
           status={topic.status}
-          onClick={() => onPatchTopic(topic.id, { status: nextStatus(topic.status) })}
+          onClick={stop(() => onPatchTopic(topic.id, { status: nextStatus(topic.status) }))}
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              className="flex items-center gap-1 text-slate-400 hover:text-slate-700"
-              title="Show learning points"
-            >
+            <span className="flex items-center text-slate-400">
               {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            </button>
+            </span>
             {domain && (
               <span className={`text-xs px-2 py-0.5 rounded border ${domainClasses(domain.color)}`}>{domain.name}</span>
             )}
@@ -163,16 +171,16 @@ export default function TopicRow({
         <div className="flex items-center gap-1">
           <span className="text-xs text-slate-500 mr-1">{topic.effort_hours}h</span>
           <button
-            onClick={() => onPatchTopic(topic.id, { pinned: !topic.pinned })}
+            onClick={stop(() => onPatchTopic(topic.id, { pinned: !topic.pinned }))}
             className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"
             title={topic.pinned ? 'Unpin' : 'Pin'}
           >
             <Pin className={`w-3.5 h-3.5 ${topic.pinned ? 'fill-current text-amber-500' : ''}`} />
           </button>
-          <button onClick={() => setEditing(true)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded opacity-0 group-hover:opacity-100 transition">
+          <button onClick={stop(() => setEditing(true))} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded opacity-0 group-hover:opacity-100 transition" title="Edit">
             <Edit2 className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => onRemoveTopic(topic.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded opacity-0 group-hover:opacity-100 transition">
+          <button onClick={stop(() => onRemoveTopic(topic.id))} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded opacity-0 group-hover:opacity-100 transition" title="Delete">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>

@@ -16,6 +16,12 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Topics-tab filters live here (not in TopicsView) so they persist across
+  // tab switches instead of resetting when the view unmounts.
+  const [topicSearch, setTopicSearch] = useState('');
+  const [topicDomainFilter, setTopicDomainFilter] = useState<number | 'all'>('all');
+  const [topicStatusFilter, setTopicStatusFilter] = useState<string>('all');
+
   const reloadTopics = useCallback(async () => {
     setTopics(await api.listTopics());
   }, []);
@@ -141,6 +147,12 @@ export default function App() {
           <TopicsView
             domains={domains}
             topics={topics}
+            search={topicSearch}
+            setSearch={setTopicSearch}
+            domainFilter={topicDomainFilter}
+            setDomainFilter={setTopicDomainFilter}
+            statusFilter={topicStatusFilter}
+            setStatusFilter={setTopicStatusFilter}
             onAddTopic={addTopic}
             onPatchTopic={patchTopic}
             onRemoveTopic={removeTopic}
