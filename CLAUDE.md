@@ -68,8 +68,9 @@ Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
 
 - `backend/app/llm.py` — given a topic title + domain, asks Claude (Anthropic
   Python SDK, forced tool-use for structured output) for learning points +
-  example/common questions. Model = `ANTHROPIC_MODEL` (default `claude-opus-4-8`;
-  set `claude-haiku-4-5` to cut cost). Gated by `ai_configured()` (ANTHROPIC_API_KEY).
+  example/common questions. Model = `ANTHROPIC_MODEL` (default `claude-haiku-4-5`;
+  set `claude-sonnet-4-6`/`claude-opus-4-8` for higher quality). Gated by
+  `ai_configured()` (ANTHROPIC_API_KEY).
 - `POST /api/topics?...&autofill=true` runs it after creating a user-owned topic
   and attaches the generated subtopics (owner_id=user) + questions. Best-effort:
   any failure (no key, API error) leaves the topic without AI content. Synchronous

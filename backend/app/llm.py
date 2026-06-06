@@ -10,9 +10,9 @@ import os
 
 log = logging.getLogger(__name__)
 
-# Default to the most capable model; override with ANTHROPIC_MODEL (e.g.
-# claude-haiku-4-5 / claude-sonnet-4-6) to trade quality for cost/latency.
-MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-8")
+# Default to the fast/cheap model; override with ANTHROPIC_MODEL (e.g.
+# claude-sonnet-4-6 / claude-opus-4-8) for higher quality at more cost/latency.
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5")
 
 _TOOL = {
     "name": "save_topic_content",
