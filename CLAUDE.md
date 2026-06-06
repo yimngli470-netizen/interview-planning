@@ -20,7 +20,7 @@ a small set of component classes (`.card`, `.btn*`, `.field`, `.chip`, `.track`,
 `.navbtn`, `.mark`, `.display`, etc.); components style via those classes + inline
 `var(--token)` styles (not Tailwind utilities). Source design lives in
 `~/Desktop/design_handoff_hearth/`. Topics use a read-only-display-text + pencil→
-modal model (no always-on textareas). Header has a Focus toggle (dims chrome).
+modal model (no always-on textareas).
 
 ## Data model
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  ArrowRight, RefreshCw, Loader, LogOut, Moon, Sun,
+  ArrowRight, RefreshCw, Loader, LogOut,
   BarChart3, BookOpen, CalendarDays,
 } from 'lucide-react';
 import type { Domain, Topic, StudySession, Subtopic, User } from './types';
@@ -92,7 +92,6 @@ export default function App() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [focus, setFocus] = useState(false);
 
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -131,7 +130,6 @@ export default function App() {
     setTopics([]);
     setDoneQ(new Set());
     setQNotes(new Map());
-    setFocus(false);
   }, []);
 
   useEffect(() => {
@@ -350,8 +348,8 @@ export default function App() {
   ];
 
   return (
-    <div className={`app-shell ${focus ? 'focus-on' : ''}`}>
-      <header className="focus-dim" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 20, backdropFilter: 'blur(8px)' }}>
+    <div className="app-shell">
+      <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 20, backdropFilter: 'blur(8px)' }}>
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: '16px 28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -376,9 +374,6 @@ export default function App() {
                 <t.Icon size={17} strokeWidth={2} /> {t.label}
               </button>
             ))}
-            <button onClick={() => setFocus((v) => !v)} title="Focus mode dims everything but your work" className={`navbtn focusbtn ${focus ? 'on' : ''}`}>
-              {focus ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />} {focus ? 'Focus on' : 'Focus'}
-            </button>
           </nav>
         </div>
       </header>
