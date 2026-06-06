@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Sparkles, Loader } from 'lucide-react';
 import type { Domain, Topic, Subtopic } from '../types';
 import TopicRow from './TopicRow';
 
@@ -8,6 +8,7 @@ interface Props {
   domains: Domain[];
   topics: Topic[];
   currentUserId: number;
+  aiConfigured: boolean;
   doneQuestions: Set<number>;
   questionNotes: Map<number, string>;
   onToggleQuestion: (questionId: number, done: boolean) => void;
@@ -18,7 +19,7 @@ interface Props {
   setDomainFilter: Dispatch<SetStateAction<number | 'all'>>;
   statusFilter: string;
   setStatusFilter: Dispatch<SetStateAction<string>>;
-  onAddTopic: (domainId: number, title: string, effortHours: number) => void;
+  onAddTopic: (domainId: number, title: string, effortHours: number, autofill: boolean) => Promise<void> | void;
   onPatchTopic: (id: number, patch: Partial<Topic>) => void;
   onRemoveTopic: (id: number) => void;
   onAddSubtopic: (topicId: number, title: string) => void;
@@ -28,13 +29,15 @@ interface Props {
 
 export default function TopicsView(props: Props) {
   const {
-    domains, topics, search, setSearch, domainFilter, setDomainFilter,
+    domains, topics, aiConfigured, search, setSearch, domainFilter, setDomainFilter,
     statusFilter, setStatusFilter, onAddTopic,
   } = props;
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDomain, setNewDomain] = useState<number | ''>(domains[0]?.id ?? '');
   const [newEffort, setNewEffort] = useState(4);
+  const [aiFill, setAiFill] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const domainById = useMemo(() => Object.fromEntries(domains.map((d) => [d.id, d])), [domains]);
   const domainOrder = useMemo(() => Object.fromEntries(domains.map((d, i) => [d.id, i])), [domains]);
@@ -59,12 +62,18 @@ export default function TopicsView(props: Props) {
     });
   }, [topics, domainFilter, statusFilter, search, domainOrder]);
 
-  const submitAdd = () => {
+  const submitAdd = async () => {
     const domainId = newDomain === '' ? domains[0]?.id : newDomain;
-    if (!newTitle.trim() || !domainId) return;
-    onAddTopic(domainId, newTitle.trim(), Number(newEffort) || 4);
-    setNewTitle('');
-    setShowAdd(false);
+    if (!newTitle.trim() || !domainId || submitting) return;
+    const useAi = aiConfigured && aiFill;
+    setSubmitting(true);
+    try {
+      await onAddTopic(domainId, newTitle.trim(), Number(newEffort) || 4, useAi);
+      setNewTitle('');
+      setShowAdd(false);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -98,9 +107,31 @@ export default function TopicsView(props: Props) {
             </select>
             <input className="field" type="number" placeholder="Hours" value={newEffort} onChange={(e) => setNewEffort(Number(e.target.value))} />
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-primary btn-sm" onClick={submitAdd}>Add topic</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowAdd(false)}>Cancel</button>
+
+          <label
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, color: aiConfigured ? 'var(--text)' : 'var(--faint)', cursor: aiConfigured ? 'pointer' : 'default' }}
+            title={aiConfigured ? '' : 'Add an Anthropic API key to enable'}
+          >
+            <input
+              type="checkbox"
+              checked={aiConfigured && aiFill}
+              disabled={!aiConfigured || submitting}
+              onChange={(e) => setAiFill(e.target.checked)}
+              style={{ marginTop: 2, accentColor: 'var(--accent)' }}
+            />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Sparkles size={14} strokeWidth={2} style={{ color: 'var(--accent)' }} />
+              Use AI to auto-fill learning points & practice questions
+              {!aiConfigured && <span className="faint" style={{ fontSize: 12 }}>— add an Anthropic API key to enable</span>}
+            </span>
+          </label>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button className="btn btn-primary btn-sm" onClick={submitAdd} disabled={submitting}>
+              {submitting ? <><Loader size={14} className="spin" strokeWidth={2.4} /> {aiConfigured && aiFill ? 'Generating…' : 'Adding…'}</> : 'Add topic'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowAdd(false)} disabled={submitting}>Cancel</button>
+            {submitting && aiConfigured && aiFill && <span className="faint" style={{ fontSize: 12.5 }}>Claude is writing the content — this can take a few seconds.</span>}
           </div>
         </div>
       )}

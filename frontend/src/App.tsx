@@ -92,6 +92,7 @@ export default function App() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiConfigured, setAiConfigured] = useState(false);
 
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -135,9 +136,10 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [d, u] = await Promise.all([api.listDomains(), api.listUsers()]);
+        const [d, u, ai] = await Promise.all([api.listDomains(), api.listUsers(), api.aiStatus()]);
         setDomains(d);
         setUsers(u);
+        setAiConfigured(ai.configured);
         const raw = localStorage.getItem(AUTH_KEY);
         if (raw) {
           const saved: SavedAuth = JSON.parse(raw);
@@ -204,9 +206,9 @@ export default function App() {
   };
 
   // topic mutations (user-scoped; default content is rejected server-side)
-  const addTopic = async (domainId: number, title: string, effortHours: number) => {
+  const addTopic = async (domainId: number, title: string, effortHours: number, autofill: boolean) => {
     if (!currentUser) return;
-    await api.createTopic(currentUser.id, { domain_id: domainId, title, effort_hours: effortHours });
+    await api.createTopic(currentUser.id, { domain_id: domainId, title, effort_hours: effortHours }, autofill);
     await reloadTopics(currentUser.id);
   };
   const patchTopic = async (id: number, patch: Partial<Topic>) => {
@@ -389,6 +391,7 @@ export default function App() {
           <TopicsView
             domains={domains} topics={topics}
             currentUserId={currentUser.id}
+            aiConfigured={aiConfigured}
             doneQuestions={doneQ} questionNotes={qNotes}
             onToggleQuestion={toggleQuestion} onSaveQuestionNotes={saveQuestionNotes}
             search={topicSearch} setSearch={setTopicSearch}

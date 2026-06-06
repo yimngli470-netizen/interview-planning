@@ -45,10 +45,16 @@ export const api = {
   deleteDomain: (id: number) =>
     req<void>(`/domains/${id}`, { method: 'DELETE' }),
 
+  // AI auto-fill availability
+  aiStatus: () => req<{ configured: boolean }>('/ai/status'),
+
   // Topics (user-scoped: defaults + that user's own; defaults are read-only)
   listTopics: (userId: number) => req<Topic[]>(`/topics?user_id=${userId}`),
-  createTopic: (userId: number, t: Partial<Topic>) =>
-    req<Topic>(`/topics?user_id=${userId}`, { method: 'POST', body: JSON.stringify(t) }),
+  createTopic: (userId: number, t: Partial<Topic>, autofill = false) =>
+    req<Topic>(`/topics?user_id=${userId}&autofill=${autofill ? 'true' : 'false'}`, {
+      method: 'POST',
+      body: JSON.stringify(t),
+    }),
   updateTopic: (userId: number, id: number, t: Partial<Topic>) =>
     req<Topic>(`/topics/${id}?user_id=${userId}`, { method: 'PATCH', body: JSON.stringify(t) }),
   deleteTopic: (userId: number, id: number) =>

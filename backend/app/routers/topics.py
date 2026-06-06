@@ -1,10 +1,15 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
 
+from .. import llm
 from ..database import get_db
-from ..models import Subtopic, Topic
+from ..models import Domain, Question, Subtopic, Topic
 from ..schemas import STATUSES, SubtopicOut, TopicCreate, TopicOut, TopicUpdate
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/topics", tags=["topics"])
 
@@ -48,9 +53,44 @@ def list_topics(
     return [_serialize(t, user_id) for t in db.scalars(stmt).all()]
 
 
+def _autofill_topic(db: Session, topic: Topic, user_id: int) -> None:
+    """Best-effort: ask Claude for learning points + questions and attach them
+    to this (user-owned) topic. Any failure leaves the topic without AI content."""
+    dom = db.get(Domain, topic.domain_id)
+    content = llm.generate_topic_content(topic.title, dom.name if dom else "")
+    if not content:
+        return
+    try:
+        order = 0
+        for lp in content.get("learning_points", []):
+            title = (lp.get("title") or "").strip()
+            if not title:
+                continue
+            order += 1
+            db.add(Subtopic(
+                topic_id=topic.id, owner_id=user_id, title=title[:500],
+                notes=lp.get("details", "") or "", order=order, status="not-started",
+            ))
+        q_order = 0
+        for kind, key in (("example", "example_questions"), ("common", "common_questions")):
+            for prompt in content.get(key, []):
+                p = (prompt or "").strip()
+                if not p:
+                    continue
+                q_order += 1
+                db.add(Question(topic_id=topic.id, kind=kind, prompt=p[:1000], order=q_order))
+        db.commit()
+    except Exception:
+        log.exception("AI autofill: failed to persist content for topic %s", topic.id)
+        db.rollback()
+
+
 @router.post("", response_model=TopicOut, status_code=201)
 def create_topic(
-    payload: TopicCreate, user_id: int | None = None, db: Session = Depends(get_db)
+    payload: TopicCreate,
+    user_id: int | None = None,
+    autofill: bool = False,
+    db: Session = Depends(get_db),
 ):
     _validate_status(payload.status)
     data = payload.model_dump()
@@ -65,6 +105,9 @@ def create_topic(
     db.add(topic)
     db.commit()
     db.refresh(topic)
+    if autofill and user_id is not None and llm.ai_configured():
+        _autofill_topic(db, topic, user_id)
+        db.refresh(topic)
     return _serialize(topic, user_id)
 
 

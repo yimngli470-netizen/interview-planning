@@ -24,6 +24,9 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-prep}:${POSTGRES_PASSWORD:-prep}@db:5432/${POSTGRES_DB:-prep}
+      # AI auto-fill (optional): set ANTHROPIC_API_KEY in .env to enable.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-4-8}
     ports:
       - "8001:8000"   # host 8001 to avoid clashing with another local backend on 8000
     volumes:

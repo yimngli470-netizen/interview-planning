@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 
 from .database import Base, engine, SessionLocal
-from .routers import domains, topics, subtopics, sessions, progress
+from .routers import domains, topics, subtopics, sessions, progress, ai
 from .seed import seed_or_enrich
 
 
@@ -76,6 +76,7 @@ app.include_router(topics.router)
 app.include_router(subtopics.router)
 app.include_router(sessions.router)
 app.include_router(progress.router)
+app.include_router(ai.router)
 
 
 @app.get("/api/health")
