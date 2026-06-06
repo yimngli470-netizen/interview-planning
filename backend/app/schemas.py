@@ -30,6 +30,7 @@ class SubtopicOut(SubtopicBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     topic_id: int
+    owner_id: int | None = None
 
 
 # ---------- Topic ----------
@@ -70,6 +71,7 @@ class TopicOut(TopicBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     domain_id: int
+    owner_id: int | None = None
     subtopics: list[SubtopicOut] = []
     questions: list[QuestionOut] = []
 

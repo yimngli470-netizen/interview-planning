@@ -1,4 +1,5 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { Search, Plus } from 'lucide-react';
 import type { Domain, Topic, Subtopic } from '../types';
 import TopicRow from './TopicRow';
@@ -6,13 +7,11 @@ import TopicRow from './TopicRow';
 interface Props {
   domains: Domain[];
   topics: Topic[];
-  // question completion + notes (per user)
-  canTrack: boolean;
+  currentUserId: number;
   doneQuestions: Set<number>;
   questionNotes: Map<number, string>;
   onToggleQuestion: (questionId: number, done: boolean) => void;
   onSaveQuestionNotes: (questionId: number, notes: string) => void;
-  // Filters are owned by App so they persist when switching tabs.
   search: string;
   setSearch: Dispatch<SetStateAction<string>>;
   domainFilter: number | 'all';
@@ -27,40 +26,18 @@ interface Props {
   onRemoveSubtopic: (id: number) => void;
 }
 
-export default function TopicsView({
-  domains,
-  topics,
-  canTrack,
-  doneQuestions,
-  questionNotes,
-  onToggleQuestion,
-  onSaveQuestionNotes,
-  search,
-  setSearch,
-  domainFilter,
-  setDomainFilter,
-  statusFilter,
-  setStatusFilter,
-  onAddTopic,
-  onPatchTopic,
-  onRemoveTopic,
-  onAddSubtopic,
-  onPatchSubtopic,
-  onRemoveSubtopic,
-}: Props) {
+export default function TopicsView(props: Props) {
+  const {
+    domains, topics, search, setSearch, domainFilter, setDomainFilter,
+    statusFilter, setStatusFilter, onAddTopic,
+  } = props;
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newDomain, setNewDomain] = useState<number | ''>('');
+  const [newDomain, setNewDomain] = useState<number | ''>(domains[0]?.id ?? '');
   const [newEffort, setNewEffort] = useState(4);
 
-  const domainById = useMemo(
-    () => Object.fromEntries(domains.map((d) => [d.id, d])),
-    [domains],
-  );
-  const domainOrder = useMemo(
-    () => Object.fromEntries(domains.map((d, i) => [d.id, i])),
-    [domains],
-  );
+  const domainById = useMemo(() => Object.fromEntries(domains.map((d) => [d.id, d])), [domains]);
+  const domainOrder = useMemo(() => Object.fromEntries(domains.map((d, i) => [d.id, i])), [domains]);
 
   const filtered = useMemo(() => {
     let list = topics;
@@ -72,16 +49,12 @@ export default function TopicsView({
         (t) =>
           t.title.toLowerCase().includes(q) ||
           t.notes.toLowerCase().includes(q) ||
-          t.subtopics.some(
-            (s) => s.title.toLowerCase().includes(q) || s.notes.toLowerCase().includes(q),
-          ),
+          t.subtopics.some((s) => s.title.toLowerCase().includes(q) || s.notes.toLowerCase().includes(q)),
       );
     }
-    // pinned first, then by domain order, then priority
     return [...list].sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-      if (a.domain_id !== b.domain_id)
-        return (domainOrder[a.domain_id] ?? 0) - (domainOrder[b.domain_id] ?? 0);
+      if (a.domain_id !== b.domain_id) return (domainOrder[a.domain_id] ?? 0) - (domainOrder[b.domain_id] ?? 0);
       return a.priority - b.priority;
     });
   }, [topics, domainFilter, statusFilter, search, domainOrder]);
@@ -95,104 +68,63 @@ export default function TopicsView({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white border border-slate-200 rounded-lg p-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search topics, learning points, notes…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-slate-400"
-          />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="card" style={{ padding: 14, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 11 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+          <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--faint)', display: 'inline-flex' }}><Search size={17} strokeWidth={2} /></span>
+          <input className="field" style={{ paddingLeft: 38 }} placeholder="Search topics, learning points, notes…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <select
-          value={domainFilter}
-          onChange={(e) => setDomainFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          className="px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 bg-white"
-        >
+        <select className="field" style={{ width: 'auto' }} value={domainFilter} onChange={(e) => setDomainFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
           <option value="all">All domains</option>
-          {domains.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
+          {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 bg-white"
-        >
+        <select className="field" style={{ width: 'auto' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All status</option>
           <option value="not-started">Not started</option>
           <option value="in-progress">In progress</option>
           <option value="done">Done</option>
         </select>
-        <button
-          onClick={() => {
-            setShowAdd((v) => !v);
-            if (newDomain === '') setNewDomain(domains[0]?.id ?? '');
-          }}
-          className="flex items-center gap-1 px-3 py-2 text-sm bg-slate-900 text-white rounded-md hover:bg-slate-800"
-        >
-          <Plus className="w-4 h-4" /> Add topic
+        <button className="btn btn-primary" onClick={() => { setShowAdd((v) => !v); if (newDomain === '') setNewDomain(domains[0]?.id ?? ''); }}>
+          <Plus size={17} strokeWidth={2.4} /> Add topic
         </button>
       </div>
 
       {showAdd && (
-        <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_100px] gap-2">
-            <input
-              type="text"
-              placeholder="Topic title…"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submitAdd()}
-              className="px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-slate-400"
-            />
-            <select
-              value={newDomain}
-              onChange={(e) => setNewDomain(Number(e.target.value))}
-              className="px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 bg-white"
-            >
-              {domains.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
+        <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 190px 110px', gap: 10 }}>
+            <input className="field" placeholder="Topic title…" value={newTitle} autoFocus onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submitAdd()} />
+            <select className="field" value={newDomain} onChange={(e) => setNewDomain(Number(e.target.value))}>
+              {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
-            <input
-              type="number"
-              placeholder="Hours"
-              value={newEffort}
-              onChange={(e) => setNewEffort(Number(e.target.value))}
-              className="px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-slate-400"
-            />
+            <input className="field" type="number" placeholder="Hours" value={newEffort} onChange={(e) => setNewEffort(Number(e.target.value))} />
           </div>
-          <div className="flex gap-2">
-            <button onClick={submitAdd} className="px-3 py-1.5 text-sm bg-slate-900 text-white rounded-md hover:bg-slate-800">Add</button>
-            <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-md">Cancel</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-primary btn-sm" onClick={submitAdd}>Add topic</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowAdd(false)}>Cancel</button>
           </div>
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
         {filtered.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">No topics match your filters.</div>
+          <div style={{ padding: 48, textAlign: 'center' }} className="muted">No topics match your filters.</div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide">
             {filtered.map((t) => (
               <TopicRow
                 key={t.id}
                 topic={t}
                 domain={domainById[t.domain_id]}
-                canTrack={canTrack}
-                doneQuestions={doneQuestions}
-                questionNotes={questionNotes}
-                onToggleQuestion={onToggleQuestion}
-                onSaveQuestionNotes={onSaveQuestionNotes}
-                onPatchTopic={onPatchTopic}
-                onRemoveTopic={onRemoveTopic}
-                onAddSubtopic={onAddSubtopic}
-                onPatchSubtopic={onPatchSubtopic}
-                onRemoveSubtopic={onRemoveSubtopic}
+                currentUserId={props.currentUserId}
+                doneQuestions={props.doneQuestions}
+                questionNotes={props.questionNotes}
+                onToggleQuestion={props.onToggleQuestion}
+                onSaveQuestionNotes={props.onSaveQuestionNotes}
+                onPatchTopic={props.onPatchTopic}
+                onRemoveTopic={props.onRemoveTopic}
+                onAddSubtopic={props.onAddSubtopic}
+                onPatchSubtopic={props.onPatchSubtopic}
+                onRemoveSubtopic={props.onRemoveSubtopic}
               />
             ))}
           </div>

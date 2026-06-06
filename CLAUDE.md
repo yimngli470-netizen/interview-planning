@@ -12,12 +12,29 @@ SDE/MLE loop. Phase 1 = personal use, fully local in Docker. (Product name
 - `docker compose up --build` → frontend :5173, API :8000 (`/docs`), Postgres host :5433.
 - `cp .env.example .env` first (defaults work).
 
+## Theme / design
+
+Frontend uses the **"Hearth"** design (warm paper + terracotta, Spectral display
++ Figtree UI). Theme tokens are CSS variables on `:root` in `src/index.css` plus
+a small set of component classes (`.card`, `.btn*`, `.field`, `.chip`, `.track`,
+`.navbtn`, `.mark`, `.display`, etc.); components style via those classes + inline
+`var(--token)` styles (not Tailwind utilities). Source design lives in
+`~/Desktop/design_handoff_hearth/`. Topics use a read-only-display-text + pencil→
+modal model (no always-on textareas). Header has a Focus toggle (dims chrome).
+
 ## Data model
 
-`Domain` 1—* `Topic` 1—* `Subtopic` (a "learning point", carries its own notes).
-`Topic` 1—* `Question` (practice/interview question; `kind` = `example` | `common`).
-Status is a string on Topic and Subtopic: `not-started | in-progress | done`,
-validated at the API layer (`schemas.STATUSES`).
+`Domain` 1—* `Topic` 1—* `Subtopic` (a "learning point") and 1—* `Question`
+(`kind` = `example` | `common`). Status string on Topic/Subtopic:
+`not-started | in-progress | done` (`schemas.STATUSES`).
+
+**Ownership (`owner_id` on topics + subtopics):** `NULL` = default/curated
+content — shared, **read-only** (only `status`/`pinned` may change; title/notes/
+delete are 403). `owner_id = user` = that user's own item — only they see it, and
+only they can edit/delete it. API endpoints take a `user_id` query param to scope
+listing (defaults + my own) and authorize mutations. So Zoey adding/editing a
+learning point never affects Xiaoming. (Status/pins are still global on defaults —
+genuine per-user *progress* is the remaining follow-up.)
 
 Per-user tables (single seeded user "Zoey", no auth/password):
 - `User`.

@@ -8,6 +8,7 @@ export interface Subtopic {
   status: Status;
   order: number;
   pinned: boolean;
+  owner_id: number | null; // null = default/shared (read-only); set = user's own
 }
 
 export type QuestionKind = 'example' | 'common';
@@ -29,6 +30,7 @@ export interface Topic {
   priority: number;
   effort_hours: number;
   pinned: boolean;
+  owner_id: number | null; // null = default/shared (read-only); set = user's own
   subtopics: Subtopic[];
   questions: Question[];
 }

@@ -15,7 +15,6 @@ function sessionMinutes(s: StudySession, nowTs: number): number {
 }
 
 export default function SessionsView({ sessions, currentUser, nowTs }: Props) {
-  // group by local day, newest first
   const byDay = useMemo(() => {
     const groups: { key: string; label: string; total: number; items: StudySession[] }[] = [];
     const index: Record<string, number> = {};
@@ -24,7 +23,7 @@ export default function SessionsView({ sessions, currentUser, nowTs }: Props) {
       const key = localDateKey(d);
       if (!(key in index)) {
         index[key] = groups.length;
-        groups.push({ key, label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }), total: 0, items: [] });
+        groups.push({ key, label: d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }), total: 0, items: [] });
       }
       const g = groups[index[key]];
       g.items.push(s);
@@ -34,48 +33,38 @@ export default function SessionsView({ sessions, currentUser, nowTs }: Props) {
   }, [sessions, nowTs]);
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div>
-        <h2 className="font-semibold">Session log</h2>
-        <p className="text-sm text-slate-500">
-          Study time is recorded automatically while you're logged in — it starts when
-          you log in and stops when you sign out (or close your laptop).
+        <h2 className="display" style={{ fontSize: 24, margin: '0 0 6px' }}>Session log</h2>
+        <p className="muted" style={{ fontSize: 14.5, margin: 0, lineHeight: 1.55, maxWidth: 640 }}>
+          Study time is recorded automatically while you're logged in — it starts when you log in and stops when you sign out.
         </p>
       </div>
 
       {!currentUser ? (
-        <div className="bg-white border border-slate-200 rounded-lg p-8 text-center text-sm text-slate-500">
-          Log in to start tracking your study time.
-        </div>
+        <div className="card" style={{ padding: 48, textAlign: 'center' }}><span className="muted">Log in to start tracking your study time.</span></div>
       ) : sessions.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-lg p-8 text-center text-sm text-slate-500">
-          No sessions yet — your current session will appear here as you study.
-        </div>
+        <div className="card" style={{ padding: 48, textAlign: 'center' }}><span className="muted">No sessions yet — your current session will appear here as you study.</span></div>
       ) : (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {byDay.map((g) => (
-            <div key={g.key} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-100">
-                <span className="text-sm font-medium text-slate-700">{g.label}</span>
-                <span className="flex items-center gap-1.5 text-sm text-slate-500">
-                  <Clock className="w-3.5 h-3.5" /> {formatHM(g.total)}
+            <div key={g.key} className="card" style={{ overflow: 'hidden', padding: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                <span className="display" style={{ fontSize: 16 }}>{g.label}</span>
+                <span className="muted tnum" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 600 }}>
+                  <Clock size={15} strokeWidth={2} /> {formatHM(g.total)}
                 </span>
               </div>
-              <div className="divide-y divide-slate-100">
+              <div className="divide">
                 {g.items.map((s) => {
                   const start = parseUTC(s.started_at);
                   const end = s.ended_at ? parseUTC(s.ended_at) : null;
                   return (
-                    <div key={s.id} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50">
-                      <span className="text-slate-700">
-                        {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        {' – '}
-                        {end ? end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'now'}
-                      </span>
-                      {s.active && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">active</span>
-                      )}
-                      <span className="ml-auto text-slate-500">{formatHM(sessionMinutes(s, nowTs))}</span>
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 20px', fontSize: 14.5 }}>
+                      <Clock size={15} strokeWidth={2} style={{ color: 'var(--faint)' }} />
+                      <span className="tnum" style={{ fontWeight: 600 }}>{start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {end ? end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'now'}</span>
+                      {s.active && <span className="badge" style={{ background: 'var(--ok-soft)', color: 'var(--ok)' }}><span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--ok)' }} /> active</span>}
+                      <span className="muted tnum" style={{ marginLeft: 'auto', fontWeight: 600 }}>{formatHM(sessionMinutes(s, nowTs))}</span>
                     </div>
                   );
                 })}

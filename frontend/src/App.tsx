@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  BarChart3, BookOpen, Calendar, Loader2, AlertTriangle, LogIn, LogOut, Clock, Flame,
+  ArrowRight, RefreshCw, Loader, LogOut, Moon, Sun,
+  BarChart3, BookOpen, CalendarDays,
 } from 'lucide-react';
 import type { Domain, Topic, StudySession, Subtopic, User } from './types';
 import { api } from './lib/api';
 import { parseUTC, formatClock } from './lib/time';
+import { Mark } from './lib/ui';
+import { QUOTES } from './lib/quotes';
 import Dashboard from './components/Dashboard';
 import TopicsView from './components/TopicsView';
 import SessionsView from './components/SessionsView';
@@ -20,14 +23,77 @@ interface SavedAuth {
   sessionId: number;
 }
 
+function RotatingQuote() {
+  const [i, setI] = useState(() => Math.floor(Math.random() * QUOTES.length));
+  const [shown, setShown] = useState(true);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const advance = useCallback(() => {
+    setShown(false);
+    setI((prev) => {
+      let n = prev;
+      while (n === prev && QUOTES.length > 1) n = Math.floor(Math.random() * QUOTES.length);
+      return n;
+    });
+    if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    fadeTimer.current = setTimeout(() => setShown(true), 40);
+  }, []);
+
+  const startTimer = useCallback(() => {
+    if (timer.current) clearInterval(timer.current);
+    timer.current = setInterval(advance, 8500);
+  }, [advance]);
+
+  useEffect(() => {
+    startTimer();
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+      if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    };
+  }, [startTimer]);
+
+  const q = QUOTES[i];
+  return (
+    <div style={{ maxWidth: 460 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 26 }}>
+        <span style={{ width: 26, height: 2, background: 'var(--accent-line)', borderRadius: 2 }} />
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+          A thought before you begin
+        </span>
+      </div>
+      <div style={{ opacity: shown ? 1 : 0, transform: shown ? 'none' : 'translateY(8px)', transition: 'opacity .55s ease, transform .55s cubic-bezier(.2,.7,.2,1)' }}>
+        <blockquote className="display" style={{ margin: 0, fontSize: 34, lineHeight: 1.18, color: 'var(--text)' }}>
+          <span style={{ color: 'var(--accent)', fontSize: 44, lineHeight: 0, position: 'relative', top: 10, marginRight: 2 }}>“</span>
+          {q.text}
+        </blockquote>
+        <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ width: 18, height: 1.5, background: 'var(--faint)' }} />
+          <cite style={{ fontStyle: 'normal', fontSize: 14.5, fontWeight: 600, color: 'var(--muted)' }}>{q.author}</cite>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 40 }}>
+        <button className="btn btn-soft btn-sm" onClick={() => { advance(); startTimer(); }} title="Show another">
+          <RefreshCw size={15} strokeWidth={2.2} /> Another
+        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {QUOTES.slice(0, 6).map((_, k) => (
+            <span key={k} style={{ width: 6, height: 6, borderRadius: 999, background: i % 6 === k ? 'var(--accent)' : 'var(--accent-line)', transition: 'background .3s ease' }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [domains, setDomains] = useState<Domain[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [focus, setFocus] = useState(false);
 
-  // auth / time tracking
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeSession, setActiveSession] = useState<StudySession | null>(null);
@@ -35,54 +101,45 @@ export default function App() {
   const [doneQ, setDoneQ] = useState<Set<number>>(new Set());
   const [qNotes, setQNotes] = useState<Map<number, string>>(new Map());
   const [nowTs, setNowTs] = useState(Date.now());
+  const [loginBusy, setLoginBusy] = useState<number | null>(null);
 
-  // Topics-tab filters live here so they persist across tab switches.
   const [topicSearch, setTopicSearch] = useState('');
   const [topicDomainFilter, setTopicDomainFilter] = useState<number | 'all'>('all');
   const [topicStatusFilter, setTopicStatusFilter] = useState<string>('all');
 
-  const reloadTopics = useCallback(async () => {
-    setTopics(await api.listTopics());
+  const reloadTopics = useCallback(async (userId: number) => {
+    setTopics(await api.listTopics(userId));
   }, []);
 
   const loadUserData = useCallback(async (userId: number) => {
-    const [s, p] = await Promise.all([api.listSessions(userId), api.getProgress(userId)]);
+    const [t, s, p] = await Promise.all([
+      api.listTopics(userId),
+      api.listSessions(userId),
+      api.getProgress(userId),
+    ]);
+    setTopics(t);
     setSessions(s);
     setDoneQ(new Set(p.filter((x) => x.done).map((x) => x.question_id)));
     setQNotes(new Map(p.filter((x) => x.notes).map((x) => [x.question_id, x.notes])));
   }, []);
-
-  const removeSession = async (id: number) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
-    try {
-      await api.deleteSession(id);
-    } catch {
-      if (currentUser) setSessions(await api.listSessions(currentUser.id));
-    }
-  };
 
   const clearAuth = useCallback(() => {
     localStorage.removeItem(AUTH_KEY);
     setCurrentUser(null);
     setActiveSession(null);
     setSessions([]);
+    setTopics([]);
     setDoneQ(new Set());
     setQNotes(new Map());
+    setFocus(false);
   }, []);
 
-  // --- initial load + resume a saved login ---
   useEffect(() => {
     (async () => {
       try {
-        const [d, t, u] = await Promise.all([
-          api.listDomains(),
-          api.listTopics(),
-          api.listUsers(),
-        ]);
+        const [d, u] = await Promise.all([api.listDomains(), api.listUsers()]);
         setDomains(d);
-        setTopics(t);
         setUsers(u);
-
         const raw = localStorage.getItem(AUTH_KEY);
         if (raw) {
           const saved: SavedAuth = JSON.parse(raw);
@@ -93,7 +150,7 @@ export default function App() {
               setActiveSession(hb.session);
               await loadUserData(saved.userId);
             } else {
-              localStorage.removeItem(AUTH_KEY); // session ended while away
+              localStorage.removeItem(AUTH_KEY);
             }
           } catch {
             localStorage.removeItem(AUTH_KEY);
@@ -107,7 +164,6 @@ export default function App() {
     })();
   }, [loadUserData]);
 
-  // --- live clock tick while a session is active ---
   useEffect(() => {
     if (!activeSession) return;
     setNowTs(Date.now());
@@ -115,7 +171,6 @@ export default function App() {
     return () => clearInterval(id);
   }, [activeSession]);
 
-  // --- heartbeat while a session is active ---
   const clearAuthRef = useRef(clearAuth);
   clearAuthRef.current = clearAuth;
   useEffect(() => {
@@ -123,260 +178,232 @@ export default function App() {
     const id = setInterval(async () => {
       try {
         const hb = await api.heartbeat(activeSession.id);
-        if (!hb.active) clearAuthRef.current(); // laptop slept / went stale
+        if (!hb.active) clearAuthRef.current();
       } catch {
-        /* transient network error — keep trying */
+        /* transient */
       }
     }, HEARTBEAT_MS);
     return () => clearInterval(id);
   }, [activeSession]);
 
-  // --- auth handlers ---
   const login = async (user: User) => {
-    const res = await api.login(user.id);
-    setCurrentUser(res.user);
-    setActiveSession(res.session);
-    localStorage.setItem(
-      AUTH_KEY,
-      JSON.stringify({ userId: res.user.id, userName: res.user.name, sessionId: res.session.id }),
-    );
-    await loadUserData(res.user.id);
+    setLoginBusy(user.id);
+    try {
+      const res = await api.login(user.id);
+      setCurrentUser(res.user);
+      setActiveSession(res.session);
+      localStorage.setItem(AUTH_KEY, JSON.stringify({ userId: res.user.id, userName: res.user.name, sessionId: res.session.id }));
+      await loadUserData(res.user.id);
+    } finally {
+      setLoginBusy(null);
+    }
   };
   const logout = async () => {
     if (activeSession) {
-      try {
-        await api.logout(activeSession.id);
-      } catch {
-        /* ignore */
-      }
+      try { await api.logout(activeSession.id); } catch { /* ignore */ }
     }
     clearAuth();
   };
 
-  // --- topic mutations ---
+  // topic mutations (user-scoped; default content is rejected server-side)
   const addTopic = async (domainId: number, title: string, effortHours: number) => {
-    await api.createTopic({ domain_id: domainId, title, effort_hours: effortHours });
-    await reloadTopics();
+    if (!currentUser) return;
+    await api.createTopic(currentUser.id, { domain_id: domainId, title, effort_hours: effortHours });
+    await reloadTopics(currentUser.id);
   };
   const patchTopic = async (id: number, patch: Partial<Topic>) => {
-    await api.updateTopic(id, patch);
-    await reloadTopics();
+    if (!currentUser) return;
+    await api.updateTopic(currentUser.id, id, patch);
+    await reloadTopics(currentUser.id);
   };
   const removeTopic = async (id: number) => {
-    await api.deleteTopic(id);
-    await reloadTopics();
+    if (!currentUser) return;
+    await api.deleteTopic(currentUser.id, id);
+    await reloadTopics(currentUser.id);
   };
 
-  // --- subtopic mutations ---
   const addSubtopic = async (topicId: number, title: string) => {
-    await api.createSubtopic(topicId, { title });
-    await reloadTopics();
+    if (!currentUser) return;
+    await api.createSubtopic(currentUser.id, topicId, { title });
+    await reloadTopics(currentUser.id);
   };
   const patchSubtopic = async (id: number, patch: Partial<Subtopic>) => {
-    await api.updateSubtopic(id, patch);
-    await reloadTopics();
+    if (!currentUser) return;
+    await api.updateSubtopic(currentUser.id, id, patch);
+    await reloadTopics(currentUser.id);
   };
   const removeSubtopic = async (id: number) => {
-    await api.deleteSubtopic(id);
-    await reloadTopics();
+    if (!currentUser) return;
+    await api.deleteSubtopic(currentUser.id, id);
+    await reloadTopics(currentUser.id);
   };
 
-  // --- question completion (per user) ---
+  const removeSession = async (id: number) => {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    try {
+      await api.deleteSession(id);
+    } catch {
+      if (currentUser) setSessions(await api.listSessions(currentUser.id));
+    }
+  };
+
   const toggleQuestion = async (questionId: number, done: boolean) => {
     if (!currentUser) return;
-    setDoneQ((prev) => {
-      const next = new Set(prev);
-      if (done) next.add(questionId);
-      else next.delete(questionId);
-      return next;
-    });
+    setDoneQ((prev) => { const n = new Set(prev); done ? n.add(questionId) : n.delete(questionId); return n; });
     try {
       await api.setProgress(currentUser.id, questionId, { done });
     } catch {
-      setDoneQ((prev) => {
-        const next = new Set(prev);
-        if (done) next.delete(questionId);
-        else next.add(questionId);
-        return next;
-      });
+      setDoneQ((prev) => { const n = new Set(prev); done ? n.delete(questionId) : n.add(questionId); return n; });
     }
   };
-
   const saveQuestionNotes = async (questionId: number, notes: string) => {
     if (!currentUser) return;
-    setQNotes((prev) => {
-      const next = new Map(prev);
-      if (notes) next.set(questionId, notes);
-      else next.delete(questionId);
-      return next;
-    });
-    try {
-      await api.setProgress(currentUser.id, questionId, { notes });
-    } catch {
-      /* keep optimistic value; will reconcile on next load */
-    }
+    setQNotes((prev) => { const n = new Map(prev); notes ? n.set(questionId, notes) : n.delete(questionId); return n; });
+    try { await api.setProgress(currentUser.id, questionId, { notes }); } catch { /* keep optimistic */ }
   };
 
   if (!loaded) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+      <div className="app-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader size={26} className="spin" style={{ color: 'var(--faint)' }} />
       </div>
     );
   }
 
-  // Login gate: content is only accessible to a logged-in user.
+  // ---------- Login gate ----------
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
-        <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
-          <div className="flex justify-center mb-3">
-            <span className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-rose-600 text-white shadow-sm">
-              <Flame className="w-6 h-6" />
-            </span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Forge</h1>
-          <p className="text-sm text-slate-500 mt-1 mb-4">Senior SDE / MLE interview prep</p>
-          <p className="text-sm text-slate-600 leading-relaxed mb-6 text-left bg-slate-50 border border-slate-100 rounded-lg px-4 py-3">
-            <span className="font-medium text-slate-800">Why “Forge”?</span> A forge
-            turns raw metal into something stronger through heat and repetition. Same
-            idea here — steady, focused reps that temper your skills for the
-            interview loop.
-          </p>
-          {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 text-left">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+      <div className="app-shell">
+        <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,0.85fr)' }}>
+          {/* Left — inspiration */}
+          <div style={{
+            position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            padding: 'clamp(40px, 6vw, 80px)',
+            background:
+              'radial-gradient(130% 90% at 0% 0%, var(--accent-softer) 0%, transparent 50%),' +
+              'radial-gradient(120% 80% at 100% 100%, var(--bg-tint) 0%, transparent 55%),' +
+              'var(--bg)',
+            borderRight: '1px solid var(--border)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
+              <Mark size={46} />
+              <div>
+                <div className="display" style={{ fontSize: 25 }}>Forge</div>
+                <div className="faint" style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: '0.04em' }}>SENIOR SDE / MLE PREP</div>
+              </div>
             </div>
-          )}
-          <div className="space-y-2">
-            {users.map((u) => (
-              <button
-                key={u.id}
-                onClick={() =>
-                  login(u).catch((e) =>
-                    setError(e instanceof Error ? e.message : 'Login failed'),
-                  )
-                }
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm bg-slate-900 text-white rounded-md hover:bg-slate-800"
-              >
-                <LogIn className="w-4 h-4" /> Log in as {u.name}
-              </button>
-            ))}
-            {users.length === 0 && !error && (
-              <p className="text-sm text-slate-500">No users found.</p>
-            )}
+            <RotatingQuote />
+            <div className="faint" style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 440 }}>
+              Steady, focused reps that temper your skills for the loop. Show up, log the
+              time, and let the streak do the convincing.
+            </div>
+          </div>
+
+          {/* Right — sign in */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(28px, 4vw, 56px)', background: 'var(--surface)' }}>
+            <div style={{ width: '100%', maxWidth: 340 }}>
+              <h1 className="display" style={{ fontSize: 30, margin: '0 0 6px' }}>Welcome back</h1>
+              <p className="muted" style={{ fontSize: 15, margin: '0 0 30px', lineHeight: 1.5 }}>
+                Pick your profile to start the clock. Your session begins the moment you sign in.
+              </p>
+              {error && (
+                <div className="card-flat" style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '11px 14px', fontSize: 13.5, marginBottom: 18 }}>{error}</div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {users.map((u) => (
+                  <button
+                    key={u.id}
+                    className="btn btn-primary btn-lg btn-block"
+                    style={{ justifyContent: 'space-between', paddingLeft: 18, paddingRight: 16 }}
+                    disabled={loginBusy !== null}
+                    onClick={() => login(u).catch((e) => setError(e instanceof Error ? e.message : 'Login failed'))}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 11 }}>
+                      <span style={{ width: 28, height: 28, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.2)', fontSize: 13, fontWeight: 700 }}>{u.name[0]}</span>
+                      Continue as {u.name}
+                    </span>
+                    {loginBusy === u.id ? <Loader size={18} className="spin" strokeWidth={2.4} /> : <ArrowRight size={18} strokeWidth={2.4} />}
+                  </button>
+                ))}
+                {users.length === 0 && <p className="muted" style={{ fontSize: 14 }}>No users found.</p>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '26px 0' }}>
+                <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <span className="faint" style={{ fontSize: 12, fontWeight: 600 }}>why forge?</span>
+                <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              </div>
+              <div className="card-flat" style={{ background: 'var(--surface-2)', padding: '15px 17px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--muted)' }}>
+                A forge turns raw metal into something stronger through <span style={{ color: 'var(--accent)', fontWeight: 600 }}>heat and repetition</span>. Same idea here — steady reps that temper your skills for the interview loop.
+              </div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  const elapsedSec = activeSession
-    ? (nowTs - parseUTC(activeSession.started_at).getTime()) / 1000
-    : 0;
+  const elapsedSec = activeSession ? (nowTs - parseUTC(activeSession.started_at).getTime()) / 1000 : 0;
+  const tabs = [
+    { id: 'dashboard' as const, label: 'Dashboard', Icon: BarChart3 },
+    { id: 'topics' as const, label: 'Topics', Icon: BookOpen },
+    { id: 'sessions' as const, label: 'Sessions', Icon: CalendarDays },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-rose-600 text-white shadow-sm">
-                <Flame className="w-5 h-5" />
-              </span>
+    <div className={`app-shell ${focus ? 'focus-on' : ''}`}>
+      <header className="focus-dim" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 20, backdropFilter: 'blur(8px)' }}>
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '16px 28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Mark size={40} />
               <div>
-                <h1 className="text-xl font-semibold leading-tight">Forge</h1>
-                <p className="text-sm text-slate-500">Senior SDE / MLE interview prep</p>
+                <div className="display" style={{ fontSize: 20, lineHeight: 1 }}>Forge</div>
+                <div className="faint" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.03em', marginTop: 3 }}>Senior SDE / MLE prep</div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 text-emerald-700 text-sm font-mono tabular-nums">
-                <Clock className="w-4 h-4" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="tnum" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 13px', borderRadius: 999, background: 'var(--ok-soft)', color: 'var(--ok)', fontSize: 14.5, fontWeight: 700 }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--ok)', boxShadow: '0 0 0 4px color-mix(in oklch, var(--ok) 22%, transparent)' }} />
                 {formatClock(elapsedSec)}
               </div>
-              <span className="text-sm text-slate-600">{currentUser.name}</span>
-              <button
-                onClick={logout}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-md hover:bg-slate-50"
-              >
-                <LogOut className="w-4 h-4" /> Sign out
-              </button>
+              <span className="muted" style={{ fontSize: 14, fontWeight: 600 }}>{currentUser.name}</span>
+              <button className="btn btn-ghost btn-sm" onClick={logout}><LogOut size={16} strokeWidth={2} /> Sign out</button>
             </div>
           </div>
-          <nav className="flex gap-1">
-            {([
-              { id: 'dashboard', label: 'Dashboard', Icon: BarChart3 },
-              { id: 'topics', label: 'Topics', Icon: BookOpen },
-              { id: 'sessions', label: 'Sessions', Icon: Calendar },
-            ] as const).map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition ${
-                  tab === id
-                    ? 'bg-slate-100 text-slate-900 font-medium'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
+          <nav style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {tabs.map((t) => (
+              <button key={t.id} onClick={() => setTab(t.id)} className={`navbtn ${tab === t.id ? 'on' : ''}`}>
+                <t.Icon size={17} strokeWidth={2} /> {t.label}
               </button>
             ))}
+            <button onClick={() => setFocus((v) => !v)} title="Focus mode dims everything but your work" className={`navbtn focusbtn ${focus ? 'on' : ''}`}>
+              {focus ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />} {focus ? 'Focus on' : 'Focus'}
+            </button>
           </nav>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main style={{ maxWidth: 1080, margin: '0 auto', padding: 28 }}>
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
+          <div className="card-flat" style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '12px 16px', fontSize: 14, marginBottom: 16 }}>{error}</div>
         )}
-
         {tab === 'dashboard' && (
-          <Dashboard
-            domains={domains}
-            topics={topics}
-            sessions={sessions}
-            currentUser={currentUser}
-            nowTs={nowTs}
-            onRemoveSession={removeSession}
-          />
+          <Dashboard domains={domains} topics={topics} sessions={sessions} currentUser={currentUser} nowTs={nowTs} onRemoveSession={removeSession} />
         )}
-
         {tab === 'topics' && (
           <TopicsView
-            domains={domains}
-            topics={topics}
-            canTrack={!!currentUser}
-            doneQuestions={doneQ}
-            questionNotes={qNotes}
-            onToggleQuestion={toggleQuestion}
-            onSaveQuestionNotes={saveQuestionNotes}
-            search={topicSearch}
-            setSearch={setTopicSearch}
-            domainFilter={topicDomainFilter}
-            setDomainFilter={setTopicDomainFilter}
-            statusFilter={topicStatusFilter}
-            setStatusFilter={setTopicStatusFilter}
-            onAddTopic={addTopic}
-            onPatchTopic={patchTopic}
-            onRemoveTopic={removeTopic}
-            onAddSubtopic={addSubtopic}
-            onPatchSubtopic={patchSubtopic}
-            onRemoveSubtopic={removeSubtopic}
+            domains={domains} topics={topics}
+            currentUserId={currentUser.id}
+            doneQuestions={doneQ} questionNotes={qNotes}
+            onToggleQuestion={toggleQuestion} onSaveQuestionNotes={saveQuestionNotes}
+            search={topicSearch} setSearch={setTopicSearch}
+            domainFilter={topicDomainFilter} setDomainFilter={setTopicDomainFilter}
+            statusFilter={topicStatusFilter} setStatusFilter={setTopicStatusFilter}
+            onAddTopic={addTopic} onPatchTopic={patchTopic} onRemoveTopic={removeTopic}
+            onAddSubtopic={addSubtopic} onPatchSubtopic={patchSubtopic} onRemoveSubtopic={removeSubtopic}
           />
         )}
-
-        {tab === 'sessions' && (
-          <SessionsView
-            sessions={sessions}
-            currentUser={currentUser}
-            nowTs={nowTs}
-          />
-        )}
+        {tab === 'sessions' && <SessionsView sessions={sessions} currentUser={currentUser} nowTs={nowTs} />}
       </main>
     </div>
   );

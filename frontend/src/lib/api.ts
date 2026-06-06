@@ -45,25 +45,25 @@ export const api = {
   deleteDomain: (id: number) =>
     req<void>(`/domains/${id}`, { method: 'DELETE' }),
 
-  // Topics
-  listTopics: () => req<Topic[]>('/topics'),
-  createTopic: (t: Partial<Topic>) =>
-    req<Topic>('/topics', { method: 'POST', body: JSON.stringify(t) }),
-  updateTopic: (id: number, t: Partial<Topic>) =>
-    req<Topic>(`/topics/${id}`, { method: 'PATCH', body: JSON.stringify(t) }),
-  deleteTopic: (id: number) =>
-    req<void>(`/topics/${id}`, { method: 'DELETE' }),
+  // Topics (user-scoped: defaults + that user's own; defaults are read-only)
+  listTopics: (userId: number) => req<Topic[]>(`/topics?user_id=${userId}`),
+  createTopic: (userId: number, t: Partial<Topic>) =>
+    req<Topic>(`/topics?user_id=${userId}`, { method: 'POST', body: JSON.stringify(t) }),
+  updateTopic: (userId: number, id: number, t: Partial<Topic>) =>
+    req<Topic>(`/topics/${id}?user_id=${userId}`, { method: 'PATCH', body: JSON.stringify(t) }),
+  deleteTopic: (userId: number, id: number) =>
+    req<void>(`/topics/${id}?user_id=${userId}`, { method: 'DELETE' }),
 
   // Subtopics (learning points)
-  createSubtopic: (topicId: number, s: Partial<Subtopic>) =>
-    req<Subtopic>(`/topics/${topicId}/subtopics`, {
+  createSubtopic: (userId: number, topicId: number, s: Partial<Subtopic>) =>
+    req<Subtopic>(`/topics/${topicId}/subtopics?user_id=${userId}`, {
       method: 'POST',
       body: JSON.stringify(s),
     }),
-  updateSubtopic: (id: number, s: Partial<Subtopic>) =>
-    req<Subtopic>(`/subtopics/${id}`, { method: 'PATCH', body: JSON.stringify(s) }),
-  deleteSubtopic: (id: number) =>
-    req<void>(`/subtopics/${id}`, { method: 'DELETE' }),
+  updateSubtopic: (userId: number, id: number, s: Partial<Subtopic>) =>
+    req<Subtopic>(`/subtopics/${id}?user_id=${userId}`, { method: 'PATCH', body: JSON.stringify(s) }),
+  deleteSubtopic: (userId: number, id: number) =>
+    req<void>(`/subtopics/${id}?user_id=${userId}`, { method: 'DELETE' }),
 
   // Users / auth
   listUsers: () => req<User[]>('/users'),

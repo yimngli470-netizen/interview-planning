@@ -38,6 +38,11 @@ class Topic(Base):
     priority: Mapped[int] = mapped_column(Integer, default=0)
     effort_hours: Mapped[int] = mapped_column(Integer, default=4)
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    # NULL = default/curated content (shared, read-only). Set = a user's own
+    # topic (only they see it; only they can edit/delete it).
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
@@ -70,6 +75,11 @@ class Subtopic(Base):
     status: Mapped[str] = mapped_column(String(20), default="not-started")
     order: Mapped[int] = mapped_column(Integer, default=0)
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    # NULL = default/curated learning point (shared, read-only). Set = a user's
+    # own learning point (only they see + edit + delete it).
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

@@ -33,6 +33,15 @@ def _add_missing_columns() -> None:
                 conn.execute(
                     text("ALTER TABLE question_progress ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
                 )
+    # owner_id on topics + subtopics (NULL = default/shared content)
+    for tbl in ("topics", "subtopics"):
+        if tbl in tables:
+            cols = {c["name"] for c in insp.get_columns(tbl)}
+            if "owner_id" not in cols:
+                with engine.begin() as conn:
+                    conn.execute(
+                        text(f"ALTER TABLE {tbl} ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
+                    )
 
 
 @asynccontextmanager
