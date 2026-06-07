@@ -16,6 +16,11 @@ type Tab = 'dashboard' | 'topics' | 'sessions';
 
 const AUTH_KEY = 'prep-auth-v1';
 const HEARTBEAT_MS = 30_000;
+// No real input (or tab hidden) for this long ⇒ treat the user as away: stop the
+// heartbeat so the server caps the session, and freeze the on-screen timer. This
+// is what stops a tab left open on an awake machine from logging phantom hours.
+const IDLE_MS = 15 * 60_000;
+const ACTIVITY_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'] as const;
 
 interface SavedAuth {
   userId: number;
@@ -101,6 +106,8 @@ export default function App() {
   const [doneQ, setDoneQ] = useState<Set<number>>(new Set());
   const [qNotes, setQNotes] = useState<Map<number, string>>(new Map());
   const [nowTs, setNowTs] = useState(Date.now());
+  const [idle, setIdle] = useState(false);
+  const lastActivityRef = useRef(Date.now());
   const [loginBusy, setLoginBusy] = useState<number | null>(null);
 
   const [topicSearch, setTopicSearch] = useState('');
@@ -164,21 +171,60 @@ export default function App() {
     })();
   }, [loadUserData]);
 
+  // "Away" = Forge isn't the active window/tab, OR no real input for IDLE_MS.
+  // Requiring window focus means using another app (Forge still on screen but not
+  // focused) pauses immediately — not only after the idle timeout.
+  const isAway = () =>
+    document.hidden || !document.hasFocus() || Date.now() - lastActivityRef.current > IDLE_MS;
+
+  // Track real presence: any input — or the tab/window regaining focus — is "here".
   useEffect(() => {
     if (!activeSession) return;
-    setNowTs(Date.now());
-    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    lastActivityRef.current = Date.now();
+    const mark = () => { lastActivityRef.current = Date.now(); };
+    const onVisible = () => { if (!document.hidden) mark(); };
+    for (const ev of ACTIVITY_EVENTS) window.addEventListener(ev, mark, { passive: true });
+    window.addEventListener('focus', mark);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      for (const ev of ACTIVITY_EVENTS) window.removeEventListener(ev, mark);
+      window.removeEventListener('focus', mark);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [activeSession]);
+
+  useEffect(() => {
+    if (!activeSession) return;
+    const tick = () => {
+      setNowTs(Date.now());
+      setIdle(isAway());
+    };
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [activeSession]);
 
   const clearAuthRef = useRef(clearAuth);
   clearAuthRef.current = clearAuth;
+  const currentUserRef = useRef(currentUser);
+  currentUserRef.current = currentUser;
   useEffect(() => {
     if (!activeSession) return;
     const id = setInterval(async () => {
+      // Don't extend the session when nobody's actually here — let the server cap it.
+      if (isAway()) return;
       try {
         const hb = await api.heartbeat(activeSession.id);
-        if (!hb.active) clearAuthRef.current();
+        if (!hb.active) {
+          // The session was finalized server-side while we were away. The user is
+          // back and active now, so start a fresh block instead of logging out.
+          const u = currentUserRef.current;
+          if (!u) { clearAuthRef.current(); return; }
+          const res = await api.login(u.id);
+          setActiveSession(res.session);
+          lastActivityRef.current = Date.now();
+          localStorage.setItem(AUTH_KEY, JSON.stringify({ userId: u.id, userName: u.name, sessionId: res.session.id }));
+        }
       } catch {
         /* transient */
       }
@@ -342,7 +388,10 @@ export default function App() {
     );
   }
 
-  const elapsedSec = activeSession ? (nowTs - parseUTC(activeSession.started_at).getTime()) / 1000 : 0;
+  // When idle, freeze the clock at the last real activity (the server caps the
+  // recorded session there too), so the pill doesn't tick up while you're away.
+  const liveEnd = idle ? Math.min(nowTs, lastActivityRef.current) : nowTs;
+  const elapsedSec = activeSession ? (liveEnd - parseUTC(activeSession.started_at).getTime()) / 1000 : 0;
   const tabs = [
     { id: 'dashboard' as const, label: 'Dashboard', Icon: BarChart3 },
     { id: 'topics' as const, label: 'Topics', Icon: BookOpen },
@@ -362,9 +411,9 @@ export default function App() {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="tnum" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 13px', borderRadius: 999, background: 'var(--ok-soft)', color: 'var(--ok)', fontSize: 14.5, fontWeight: 700 }}>
-                <span style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--ok)', boxShadow: '0 0 0 4px color-mix(in oklch, var(--ok) 22%, transparent)' }} />
-                {formatClock(elapsedSec)}
+              <div className="tnum" title={idle ? 'Paused — no activity detected. Time resumes when you interact.' : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 13px', borderRadius: 999, background: idle ? 'var(--muted-soft, color-mix(in oklch, var(--ok) 8%, transparent))' : 'var(--ok-soft)', color: idle ? 'var(--muted)' : 'var(--ok)', fontSize: 14.5, fontWeight: 700, transition: 'background .3s, color .3s' }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: idle ? 'var(--muted)' : 'var(--ok)', boxShadow: idle ? 'none' : '0 0 0 4px color-mix(in oklch, var(--ok) 22%, transparent)' }} />
+                {formatClock(elapsedSec)}{idle ? ' · paused' : ''}
               </div>
               <span className="muted" style={{ fontSize: 14, fontWeight: 600 }}>{currentUser.name}</span>
               <button className="btn btn-ghost btn-sm" onClick={logout}><LogOut size={16} strokeWidth={2} /> Sign out</button>

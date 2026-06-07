@@ -41,6 +41,16 @@ Per-user tables (single seeded user "Zoey", no auth/password):
 - `StudySession` = auto time block: `started_at`, `last_heartbeat_at`, `ended_at`,
   `duration_min`. Created on login, kept alive by heartbeats (every 30s),
   finalized on logout or when heartbeats go stale (>120s = laptop closed/slept).
+  **Presence-gated:** the client only sends heartbeats while the user is actually
+  present on Forge. It pauses (stops beating, so the server caps the session at
+  the last active beat) when the page is hidden, when Forge is **not the focused
+  window/tab** (`document.hasFocus()` — so working in another app pauses
+  immediately, not just after the timeout), or after `IDLE_MS` (15 min) with no
+  input (pointer/key/scroll/wheel/touch). No phantom hours from a tab left open
+  on an awake machine, or from the browser being in the background. The header
+  timer freezes (shows "· paused") while away. When the user returns after the
+  session was capped, the client silently starts a fresh block instead of logging
+  out.
 - `QuestionProgress` = per-user `done` flag AND `notes` (the user's answer/notes)
   on a Question (unique user+question). GET returns all rows; PUT upserts either
   field. Frontend keeps a doneSet + a Map<questionId, notes>.
