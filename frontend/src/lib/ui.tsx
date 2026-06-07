@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react';
-import { Circle, Loader, CircleCheckBig, Flame } from 'lucide-react';
+import { Circle, Contrast, CircleCheckBig, Flame } from 'lucide-react';
 import type { Status, Domain } from '../types';
 
 // Warm-compatible domain chip tints keyed by the domain's stored hue name.
@@ -26,9 +26,9 @@ export function StatusButton({
   size?: number;
 }) {
   const cfg = {
-    'not-started': { Icon: Circle, color: 'var(--faint)', sw: 1.8, title: 'Not started', spin: false },
-    'in-progress': { Icon: Loader, color: 'var(--warn)', sw: 2.2, title: 'In progress', spin: true },
-    done: { Icon: CircleCheckBig, color: 'var(--ok)', sw: 2.2, title: 'Done', spin: false },
+    'not-started': { Icon: Circle, color: 'var(--faint)', sw: 1.8, title: 'Not started' },
+    'in-progress': { Icon: Contrast, color: 'var(--warn)', sw: 2.2, title: 'In progress' },
+    done: { Icon: CircleCheckBig, color: 'var(--ok)', sw: 2.2, title: 'Done' },
   }[status];
   const { Icon } = cfg;
   return (
@@ -41,7 +41,7 @@ export function StatusButton({
         color: cfg.color, display: 'inline-flex', borderRadius: 8,
       }}
     >
-      <Icon size={size} strokeWidth={cfg.sw} className={cfg.spin ? 'spin' : ''} />
+      <Icon size={size} strokeWidth={cfg.sw} />
     </button>
   );
 }

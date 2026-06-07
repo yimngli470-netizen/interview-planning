@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Target, Loader, Clock, Flame, Trash2 } from 'lucide-react';
+import { Target, Contrast, Clock, Flame, Trash2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Domain, Topic, StudySession, User } from '../types';
 import { DomainChip } from '../lib/ui';
@@ -68,7 +68,7 @@ export default function Dashboard({ domains, topics, sessions, currentUser, nowT
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
         <StatTile Icon={Target} label="Completed" value={`${totalDone}/${topics.length}`} sub={topics.length ? `${overallPct}% of plan` : 'no topics'} accent />
-        <StatTile Icon={Loader} label="In progress" value={totalInProg} sub="active topics" />
+        <StatTile Icon={Contrast} label="In progress" value={totalInProg} sub="active topics" />
         <StatTile Icon={Clock} label="Logged time" value={formatHM(totalMin)} sub={currentUser ? `${sessions.length} sessions` : 'log in to track'} />
         <StatTile Icon={Flame} label="Day streak" value={streak} sub={streak > 0 ? 'keep the heat on' : 'study today'} accent />
       </div>
