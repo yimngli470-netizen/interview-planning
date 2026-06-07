@@ -63,24 +63,35 @@ Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
 
 ## Content
 
-- `backend/app/content.py` = single source of truth for the curated prep
-  content: 62 topics, ~347 learning points with detailed notes (numbers,
-  tradeoffs, worked examples). Deep on System Design / AI Infra / AI/ML
-  (~6-8 points each); crisper on Coding / Mock / Projects (~4-6).
-- `content.QUESTIONS` (keyed by exact topic title) = practice questions for
-  Coding / System Design / AI Infra / AI/ML: `example` (LeetCode #, "Design
-  Uber", applied scenarios) + `common` (conceptual). ~245 questions.
-- To add/edit content, edit `content.py` and restart the backend — the enricher
-  tops up the DB on the next start. Topic titles for the original 56 must stay
-  byte-identical so they match existing rows.
+- `backend/app/content.py` = hand-curated source of truth: 92 topics across the
+  six domains. Mock Interviews covers every round (coding/SD/ML/AI-infra +
+  behavioral & CS-fundamentals banks); Projects covers SD/ML/AI-infra builds.
+  Six **flagship** AI topics (transformer, post-training, agentic, AI safety,
+  inference-opt, distributed-training) are hand-authored to comprehensive depth
+  (16-20 points).
+- `backend/app/content_generated.py` = AUTO-GENERATED comprehensive learning
+  points + questions (Sonnet, uncapped) for the technical-domain default topics,
+  produced by `backend/_enrich.py`. The seeder merges it **additively** on top of
+  content.py (dedup by title/prompt). `seed.SKIP_GENERATED` lists the flagship
+  topics so their hand-authored versions are used instead (no overlap). Regenerate
+  with `docker compose exec backend python _enrich.py <domains...>` (resumable via
+  the gitignored `_generated_cache.json`).
+- `content.QUESTIONS` (keyed by exact topic title): `example` (LeetCode #,
+  "Design X", applied scenarios) + `common` (conceptual); Mock/Projects carry
+  behavioral & deep-dive questions.
+- To add/edit content, edit `content.py` (or regenerate `content_generated.py`)
+  and restart the backend — the seeder tops up the DB idempotently on next start.
+  Existing topic titles must stay byte-identical to match existing rows.
 
 ## AI auto-fill (Anthropic / Claude)
 
 - `backend/app/llm.py` — given a topic title + domain, asks Claude (Anthropic
   Python SDK, forced tool-use for structured output) for learning points +
-  example/common questions. Model = `ANTHROPIC_MODEL` (default `claude-haiku-4-5`;
-  set `claude-sonnet-4-6`/`claude-opus-4-8` for higher quality). Gated by
-  `ai_configured()` (ANTHROPIC_API_KEY).
+  example/common questions. Model = `ANTHROPIC_MODEL` (default `claude-sonnet-4-6`;
+  `claude-haiku-4-5` is cheaper, `claude-opus-4-8` best). Learning points are
+  **uncapped** — the prompt/tool asks for as many as fully cover the topic, and the
+  call streams with `ANTHROPIC_MAX_TOKENS` (default 100k; must be <= the model's max
+  output: Sonnet 4.6 = 128k, Haiku 4.5 = 64k). Gated by `ai_configured()`.
 - `POST /api/topics?...&autofill=true` runs it after creating a user-owned topic
   and attaches the generated subtopics (owner_id=user) + questions. Best-effort:
   any failure (no key, API error) leaves the topic without AI content. Synchronous

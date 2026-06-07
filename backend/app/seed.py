@@ -16,6 +16,24 @@ from sqlalchemy.orm import Session
 from .models import Domain, Question, Subtopic, Topic, User
 from .content import CONTENT_BY_DOMAIN, QUESTIONS
 
+try:
+    # Comprehensive LLM-authored points/questions (app/content_generated.py),
+    # merged additively on top of the curated content above. Optional.
+    from .content_generated import GENERATED
+except Exception:  # noqa: BLE001 — module may not exist yet
+    GENERATED = {}
+
+# Flagship topics authored by hand (Opus) directly in content.py — skip the
+# generated/Sonnet versions for these so they stay clean (no overlap).
+SKIP_GENERATED = {
+    "Transformer deep dive: MHA, KV cache, RoPE, MoE routing",
+    "Post-training: SFT, RLHF, DPO, RLAIF, Constitutional AI",
+    "Agentic systems: tool use, planning, MCP, multi-step reasoning",
+    "AI safety: alignment, interpretability, red-teaming",
+    "Inference optimization: KV cache, PagedAttention, continuous batching (vLLM)",
+    "Distributed training: DDP, FSDP, ZeRO-1/2/3, TP, PP",
+}
+
 DEFAULT_USERS = ["Zoey", "Xiaoming"]
 
 DOMAINS = [
@@ -191,6 +209,32 @@ def seed_or_enrich(db: Session) -> None:
                                 )
                             )
                             have.add(prompt)
+
+    # --- merge LLM-generated comprehensive content (additive, default topics only) ---
+    if GENERATED:
+        by_title = {k[1]: t for k, t in topics.items() if t.owner_id is None}
+        for title, gen in GENERATED.items():
+            if title in SKIP_GENERATED:
+                continue
+            topic = by_title.get(title)
+            if topic is None:
+                continue
+            existing = {s.title for s in topic.subtopics}
+            next_order = max((s.order for s in topic.subtopics), default=0)
+            for pt_title, pt_notes in gen.get("points", []):
+                if pt_title and pt_title not in existing:
+                    next_order += 1
+                    db.add(Subtopic(topic_id=topic.id, title=pt_title, notes=pt_notes,
+                                    order=next_order, status="not-started"))
+                    existing.add(pt_title)
+            have = {q.prompt for q in topic.questions}
+            q_order = max((q.order for q in topic.questions), default=0)
+            for kind in ("example", "common"):
+                for prompt in gen.get(kind, []):
+                    if prompt and prompt not in have:
+                        q_order += 1
+                        db.add(Question(topic_id=topic.id, kind=kind, prompt=prompt, order=q_order))
+                        have.add(prompt)
 
     # --- users ---
     existing_users = {u.name for u in db.scalars(select(User)).all()}

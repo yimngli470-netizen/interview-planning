@@ -24,3 +24,6 @@ dist/
 
 # Postgres volume (if ever bind-mounted locally)
 pgdata/
+
+# LLM enrichment intermediate cache
+backend/app/_generated_cache.json
