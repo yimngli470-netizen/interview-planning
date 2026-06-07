@@ -173,6 +173,81 @@ CODING = [
              "Trie = string prefixes / bitwise. Union-Find = dynamic connectivity / grouping where edges arrive incrementally and you only ask 'same component?'."),
         ],
     },
+    {
+        "title": "Linked lists & in-place pointer manipulation",
+        "points": [
+            ("The dummy-head + two-pointer toolkit",
+             "A dummy node before head removes the 'delete/insert at head' special case. Fast/slow pointers find the middle (slow=1x, fast=2x), detect cycles (Floyd's), and find the cycle entry (reset one pointer to head). remove-nth-from-end = gap of n then advance both."),
+            ("Reverse in place",
+             "prev/curr/next three-pointer reversal is the core primitive; reverse-linked-list, reverse-nodes-in-k-group, reverse-between. Reversing the second half is how you do palindrome-linked-list and reorder-list in O(1) space."),
+            ("Merge & sort",
+             "Merge-two-sorted-lists (dummy + splice), merge-k (heap or divide-and-conquer), and merge-sort on a list (split via slow/fast, merge) for O(n log n) O(1)-extra sorting."),
+            ("Complex pointer problems",
+             "copy-list-with-random-pointer (interleave-clone trick or hashmap), LRU via doubly-linked-list + hashmap, flatten-multilevel-list. Draw the pointers — these are bug-prone if you don't."),
+            ("Edge cases that bite",
+             "Empty list, single node, two nodes, cycle present, and losing the rest of the list by reassigning a pointer before saving next. State your invariant and dry-run on 2-3 nodes."),
+        ],
+    },
+    {
+        "title": "Stack, queue & monotonic stack",
+        "points": [
+            ("Stack for matching & nesting",
+             "valid-parentheses, min-stack (pair value with running min), evaluate-RPN, basic-calculator (stack for numbers + signs), decode-string. Any 'innermost-first' or balanced-nesting problem screams stack."),
+            ("Monotonic stack = next greater/smaller",
+             "Keep a stack that's increasing or decreasing; pop while the invariant breaks. next-greater-element, daily-temperatures, largest-rectangle-in-histogram, trapping-rain-water, sum-of-subarray-minimums. O(n) because each element is pushed/popped once."),
+            ("Monotonic deque for sliding window",
+             "sliding-window-maximum in O(n): deque of indices, decreasing values, pop stale (out of window) from front and smaller from back. Beats the O(n log n) heap approach."),
+            ("Queue / deque uses",
+             "BFS, rate-limiter (timestamps), and implement-stack-using-queues / queue-using-stacks (amortized O(1) with two stacks). Know the amortized-analysis argument."),
+            ("Recognize the trigger",
+             "'Nearest element satisfying a relation', 'span', or 'histogram-like' → monotonic stack. Practice articulating WHY each element is O(1) amortized."),
+        ],
+    },
+    {
+        "title": "Intervals & greedy (sorting-based)",
+        "points": [
+            ("Sort, then sweep",
+             "Most interval problems start by sorting on start (or end). merge-intervals (sort by start, extend or push), insert-interval, interval-list-intersections (two-pointer on max-start/min-end)."),
+            ("Greedy choice + exchange argument",
+             "non-overlapping-intervals (sort by END, keep earliest-finishing — classic activity selection), min-arrows-to-burst-balloons, jump-game (track farthest reach), gas-station. Be ready to argue WHY greedy is optimal (exchange argument)."),
+            ("Sweep line / event counting",
+             "meeting-rooms-II (min rooms = max concurrent): +1 at starts, -1 at ends, sweep sorted events — or a min-heap of end times. my-calendar, car-pooling, the-skyline-problem are sweep-line."),
+            ("Greedy on other structures",
+             "task-scheduler (most-frequent-first), partition-labels (last-occurrence map), candy, and Huffman-style heap greedy. Greedy fails silently — sanity-check with a small counterexample or fall back to DP."),
+            ("When greedy is wrong",
+             "If a locally optimal choice can be regretted later (e.g. 0/1 knapsack, coin-change with weird denominations), greedy breaks → use DP. Stating this tradeoff is the senior signal."),
+        ],
+    },
+    {
+        "title": "Bit manipulation & math",
+        "points": [
+            ("Core bit tricks",
+             "x & (x-1) clears the lowest set bit (Brian Kernighan count); x & -x isolates it. XOR: a^a=0, a^0=a → single-number, missing-number, find two singles by partitioning on a set bit. Masks for subsets (1<<n)."),
+            ("Power-of-two & counting",
+             "n>0 and (n & (n-1))==0 tests power of two. counting-bits via dp[i]=dp[i>>1]+(i&1). reverse-bits, hamming-distance. Know shifts as ×/÷ by powers of two and watch sign extension."),
+            ("Bitmask DP & state",
+             "Represent a set of ≤~20 items as an int; travelling-salesman, partition-to-k-equal-subsets, shortest-path-visiting-all-nodes. dp[mask][i] = best ending at i having visited mask."),
+            ("Number theory & overflow",
+             "GCD (Euclid), modular arithmetic ((a*b)%m), sieve of Eratosthenes for primes, fast exponentiation (pow mod) in O(log n). Use Python big ints freely; in other languages watch 32/64-bit overflow (use long)."),
+            ("Common math problems",
+             "happy-number (cycle detection), pow(x,n) (fast exp, negative n), sqrt via binary search, excel-column, integer-to-roman. State edge cases: 0, negatives, INT_MIN."),
+        ],
+    },
+    {
+        "title": "Design data structures (LRU/LFU, iterators, stream)",
+        "points": [
+            ("Compose primitives for O(1) ops",
+             "LRU = hashmap (key→node) + doubly-linked-list (recency order); get/put O(1). LFU adds a freq→DLL map and a min-freq pointer. The interview tests whether you reach for the right combination, not exotic structures."),
+            ("Iterators & lazy evaluation",
+             "binary-search-tree-iterator (controlled inorder via a stack), peeking-iterator, flatten-nested-list-iterator, zigzag-iterator. Maintain just enough state to produce next() in O(1) amortized."),
+            ("Streaming / online structures",
+             "find-median-from-data-stream (two heaps), moving-average (queue), kth-largest-in-stream (size-k min-heap), and a Twitter-feed design (heap merge of followees). 'Data arrives one at a time' → think incremental state."),
+            ("Randomized & probabilistic",
+             "insert-delete-getRandom-O(1) (array + index map, swap-with-last on delete), reservoir sampling for unknown-length streams, and a quick word on Bloom filters / count-min-sketch for approximate membership/frequency at scale."),
+            ("Get the invariants explicit",
+             "State what each structure guarantees and the complexity of every operation up front, then maintain those invariants on each mutation. Clean, well-named methods matter more here than cleverness."),
+        ],
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -397,6 +472,81 @@ SYSTEM_DESIGN = [
              "GET /code → 301/302 → Location. Use 302 (temporary) if you want analytics on every hit; 301 (permanent) is cached by browsers and skips your server. Cache hot codes in Redis/CDN — most traffic is a small set of popular links."),
             ("Extras: analytics, expiry, abuse",
              "Click analytics via async event logging (don't block redirect). TTL-based expiry + cleanup job. Rate-limit creation, scan/blocklist malicious URLs, and avoid sequential codes to prevent scraping."),
+        ],
+    },
+    {
+        "title": "Consistent hashing & data partitioning",
+        "points": [
+            ("Why consistent hashing",
+             "Naive hash(key) % N reshuffles ~all keys when N changes. Consistent hashing maps nodes and keys onto a ring; adding/removing a node moves only ~1/N of keys. The backbone of distributed caches (Memcached), DynamoDB, Cassandra."),
+            ("Virtual nodes for balance",
+             "One point per node gives lumpy load and big movement when a node dies. Give each physical node V virtual points (e.g. 100-200) so load is even and a failure's keys spread across many nodes. Heterogeneous nodes get more vnodes."),
+            ("Partitioning strategies",
+             "Range partitioning (good for range scans, risks hot ranges) vs hash partitioning (even spread, no range scans) vs directory/lookup service (flexible, extra hop + SPOF). Pick the partition key to avoid hot keys (celebrity problem)."),
+            ("Rebalancing & resharding",
+             "Fixed number of partitions (more than nodes) that you move whole, vs dynamic splitting. Resharding is operationally painful — design the key space and partition count to avoid it; document how you'd reshard online."),
+            ("Replication on the ring",
+             "Replicate each key to the next R nodes clockwise (preference list). Combine with quorum reads/writes (W+R>N) for tunable consistency. This is the Dynamo model — know it cold."),
+        ],
+    },
+    {
+        "title": "Caching strategies, CDN & cache invalidation",
+        "points": [
+            ("Where to cache",
+             "Client → CDN/edge → API gateway → application (in-process/Redis) → database (buffer pool). Each layer trades freshness for latency. Name the layer you mean; 'add a cache' is too vague at senior level."),
+            ("Read & write patterns",
+             "Cache-aside (lazy, app manages — most common), read-through, write-through (consistent, slower writes), write-back (fast writes, risk on crash), write-around. Know the failure mode of each (stale reads, lost writes)."),
+            ("Eviction & sizing",
+             "LRU/LFU/TTL; size to the hot working set, not the whole dataset (power-law → 20% of keys serve 80% of reads). Track hit rate as the key metric; a 90%→95% hit rate can halve DB load."),
+            ("Invalidation: the hard problem",
+             "TTL (simple, allows staleness), explicit invalidation on write (consistent, complex), or versioned keys. Discuss the cache-stampede/thundering-herd fix (request coalescing, stale-while-revalidate, jittered TTLs) and the dogpile on a cold cache."),
+            ("CDN specifics",
+             "Static assets + cacheable API responses at edge PoPs; cache-control headers, origin shield, and purge on deploy. Reduces latency (closer) and origin load. Discuss what's cacheable (immutable, content-hashed URLs) vs not (personalized)."),
+        ],
+    },
+    {
+        "title": "Idempotency, retries & exactly-once semantics",
+        "points": [
+            ("Why exactly-once is a myth (mostly)",
+             "Networks fail after a request but before the ack, so clients retry → duplicates. You get at-least-once delivery + idempotent processing, which together LOOK like exactly-once. Say this explicitly — it's a senior shibboleth."),
+            ("Idempotency keys",
+             "Client sends a unique key per logical operation; server records processed keys and returns the prior result on replay. Essential for payments, order creation, any non-idempotent write. Store keys with a TTL."),
+            ("Safe retries",
+             "Exponential backoff + jitter to avoid synchronized retry storms; cap attempts; distinguish retriable (timeout, 503) from non-retriable (400, 409) errors. Circuit breakers stop hammering a downed dependency."),
+            ("Dedup & ordering in pipelines",
+             "Message queues redeliver on consumer crash; dedup via idempotency keys or an exactly-once-ish sink (transactional outbox, Kafka transactions). Ordering needs a partition key; global ordering kills throughput."),
+            ("Distributed transactions",
+             "Two-phase commit is blocking and fragile across services; prefer the saga pattern (local transactions + compensating actions) or the transactional outbox for cross-service consistency. Eventual consistency is usually the right tradeoff."),
+        ],
+    },
+    {
+        "title": "Search, typeahead & autocomplete",
+        "points": [
+            ("Inverted index basics",
+             "Tokenize → normalize (lowercase, stem) → posting lists (term → doc ids) → score with TF-IDF/BM25. Elasticsearch/Lucene under the hood. Sharded by document, scatter-gather queries, merge top-k."),
+            ("Typeahead data structures",
+             "Trie of prefixes with top-k completions cached at each node, or an FST/ternary search tree. Precompute popular completions; serve in <100ms. Weight by popularity/recency and personalize."),
+            ("Ranking & relevance",
+             "Two-phase: cheap retrieval (BM25) then a learned reranker (LTR / cross-encoder). Signals: text match, popularity, recency, personalization, location. Same retrieve-then-rank shape as recommenders and RAG."),
+            ("Scale & freshness",
+             "Index updates: near-real-time (segment-based, refresh interval) vs batch. Caching hot queries, spell correction, and handling the long tail. Discuss read vs write amplification of the index."),
+            ("Eval the quality",
+             "Offline: precision@k, nDCG on judged queries. Online: click-through, query reformulation rate, zero-result rate. Connect search relevance to a measurable product metric."),
+        ],
+    },
+    {
+        "title": "Observability: metrics, logging, distributed tracing",
+        "points": [
+            ("The three pillars",
+             "Metrics (aggregated numbers — cheap, for alerting/dashboards), logs (discrete events — rich, expensive), traces (request flow across services). You need all three; they answer different questions ('is it broken?', 'why?', 'where?')."),
+            ("What to measure (RED/USE)",
+             "RED for services: Rate, Errors, Duration (latency). USE for resources: Utilization, Saturation, Errors. Track p50/p95/p99 latency, not averages — tail latency is what users feel. SLIs → SLOs → error budgets."),
+            ("Distributed tracing",
+             "Propagate a trace/span context across service hops (OpenTelemetry); visualize the critical path to find which hop dominates latency. Essential once a request fans out to many services — you can't grep logs across 20 services."),
+            ("Alerting that doesn't page at 3am for nothing",
+             "Alert on symptoms (SLO burn rate, user-facing errors), not causes (CPU 80%). Multi-window burn-rate alerts reduce noise. Every page should be actionable; runbooks attached."),
+            ("Cardinality & cost",
+             "High-cardinality labels (user_id) explode metric storage; sample traces and logs at scale; structured logs for queryability. Observability cost can rival compute — design for it."),
         ],
     },
 ]
@@ -629,6 +779,56 @@ AI_INFRA = [
              "Symptoms: NaN/Inf loss, divergence, dead neurons. Causes: overflow, bad LR/warmup, attention-logit blow-up. Fixes: BF16 over FP16, gradient clipping, lower LR + warmup, fp32 for the unstable op, check for bad data. Monitor gradient norm and loss scale."),
         ],
     },
+    {
+        "title": "Memory math, arithmetic intensity & the roofline model",
+        "notes": "The numbers that underpin every AI-infra answer. Be able to estimate memory and decide memory- vs compute-bound on the spot.",
+        "points": [
+            ("Where the memory goes (training)",
+             "Per parameter in mixed-precision Adam: ~2 bytes (BF16 weight) + 2 (grad) + 4+4 (fp32 momentum + variance) + 4 (fp32 master) ≈ 16 bytes/param. So a 7B model ≈ 112GB of state before activations — which is why you shard (ZeRO/FSDP). Recite this breakdown."),
+            ("Where the memory goes (inference)",
+             "Weights = params × bytes (FP16=2, FP8/INT8=1). KV cache = 2 (K+V) × layers × kv_heads × head_dim × seq_len × batch × bytes — often the dominant term and the hard cap on batch size/context. Activations are small at decode."),
+            ("Arithmetic intensity",
+             "FLOPs per byte of memory traffic. Low intensity (GEMV, decode, elementwise) = memory-bound → faster memory or fewer bytes (quantization) wins. High intensity (big GEMM, prefill, training) = compute-bound → Tensor Cores / more FLOPs win."),
+            ("The roofline model",
+             "Plot performance vs arithmetic intensity: a sloped memory-bandwidth roof then a flat peak-FLOPs roof. Your kernel sits under one roof — that tells you whether to optimize bandwidth or compute. The single most useful mental model for perf work."),
+            ("FLOPs rules of thumb",
+             "Training FLOPs ≈ 6 × params × tokens (fwd+bwd). Inference ≈ 2 × params × tokens (fwd). MFU = achieved FLOPs / peak FLOPs; good large-scale training hits 40-55% MFU. Use these to sanity-check 'how long will this run take?'."),
+            ("Bandwidth & latency anchors",
+             "H100: ~3.35 TB/s HBM, ~1000 TFLOPS BF16; NVLink ~900 GB/s; PCIe5 ~64 GB/s; cross-node InfiniBand ~400 Gb/s. Knowing the gap (HBM ≫ NVLink ≫ PCIe ≫ network) explains most placement decisions."),
+        ],
+    },
+    {
+        "title": "MoE training & serving (expert & sequence parallelism)",
+        "notes": "Mixture-of-Experts is how frontier models scale params without scaling FLOPs. Know the routing, the systems pain, and the serving implications.",
+        "points": [
+            ("Why MoE",
+             "Replace the dense FFN with N experts; a router sends each token to top-k (usually 1-2). You get the capacity of a huge model at the FLOPs of a small one — sparse activation. Mixtral, DeepSeek, GPT-4-class models use it."),
+            ("Routing & load balancing",
+             "A gating network scores experts; top-k selected. The failure mode is load imbalance (all tokens to a few experts) → add an auxiliary load-balancing loss and an expert capacity factor (drop/overflow tokens past capacity). Router collapse is the classic instability."),
+            ("Expert parallelism",
+             "Experts are sharded across GPUs, so routing requires an all-to-all to send tokens to their expert's device and back. That all-to-all is the dominant comm cost and the main serving headache; it interacts with TP/PP in 3D-parallel setups."),
+            ("Serving challenges",
+             "Dynamic, input-dependent routing makes batching and memory planning harder (which experts are hot varies per batch); all experts' weights must be resident or fetched. Throughput is great, but tail latency and memory are trickier than dense."),
+            ("Tradeoffs to state",
+             "More total params (memory) for the same FLOPs (compute/latency); harder training stability and infra complexity vs better quality-per-FLOP. The senior answer weighs memory + infra cost against the compute savings."),
+        ],
+    },
+    {
+        "title": "Input pipeline & data loading at scale",
+        "notes": "GPUs starve if data can't keep up. A frequently overlooked bottleneck — and a great 'I profiled and found the real problem' story.",
+        "points": [
+            ("The starvation problem",
+             "If the dataloader can't feed batches as fast as the GPU consumes them, expensive GPUs idle. Always check GPU utilization — sub-90% on a 'compute-bound' job often means an input bottleneck, not a model one."),
+            ("Overlap and prefetch",
+             "Use multiple worker processes, prefetch N batches ahead, pin memory for faster H2D copy, and overlap data transfer with compute (CUDA streams). The goal: the next batch is ready on-GPU before the current step finishes."),
+            ("Efficient data formats",
+             "Stream from sharded, sequentially-readable formats (WebDataset/tar, TFRecord, Parquet) instead of millions of small files (kills throughput on networked/object storage). Shard across data-parallel ranks so each reads a disjoint slice."),
+            ("Preprocessing placement",
+             "Do heavy/static preprocessing offline; keep online augmentation cheap. Move tokenization/decoding off the critical path or onto spare CPU. For images, GPU-side decode (DALI) can help."),
+            ("Sharding, shuffling & determinism",
+             "Distributed sampler so each rank sees different data; shuffle buffers large enough for good mixing; and a resumable, deterministic ordering so a checkpoint restart doesn't repeat or skip data."),
+        ],
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -859,6 +1059,76 @@ AI_ML = [
              "Even with 1M tokens: cost/latency scale with context length, and quality degrades in the middle ('lost in the middle' — recency/primacy bias). RAG stays relevant for huge/changing corpora, cost control, and attribution. Often combine: retrieve, then use a long window."),
         ],
     },
+    {
+        "title": "Embeddings & representation learning",
+        "notes": "Embeddings power retrieval, recommendation, clustering, and RAG. Know how they're trained and how to use them well.",
+        "points": [
+            ("What an embedding is",
+             "A dense vector where geometric closeness ≈ semantic similarity. Compared with cosine similarity (direction) or dot product. Dimensionality (384-3072 typical) trades quality for storage/speed; normalize for cosine."),
+            ("How text embeddings are trained",
+             "Contrastive learning: pull (anchor, positive) pairs together, push negatives apart (InfoNCE loss). In-batch negatives + hard negatives are key. Dual-encoder (bi-encoder) for fast retrieval vs cross-encoder for accurate reranking — bi-encoder embeds independently so you can precompute."),
+            ("Bi-encoder vs cross-encoder",
+             "Bi-encoder: embed query and docs separately → ANN search, scalable, slightly less accurate. Cross-encoder: jointly encode (query, doc) → accurate but O(N) per query, can't precompute. Standard pattern: bi-encoder retrieve top-100, cross-encoder rerank to top-10."),
+            ("Using embeddings in practice",
+             "ANN index (HNSW/IVF-PQ) for sub-linear search; chunking strategy matters for RAG; matryoshka embeddings let you truncate dimensions. Watch domain shift — general embeddings underperform on specialized corpora (consider fine-tuning)."),
+            ("Beyond text",
+             "Multimodal (CLIP: image+text in a shared space via contrastive training), user/item embeddings in recsys, and graph embeddings. The contrastive recipe generalizes across modalities."),
+            ("Evaluation",
+             "Retrieval metrics (recall@k, MRR, nDCG) on a labeled set; MTEB-style benchmarks for general quality. 'It feels relevant' isn't enough — measure on your task."),
+        ],
+    },
+    {
+        "title": "Prompt engineering & in-context learning",
+        "notes": "The cheapest, fastest capability lever. Know what works, why it works, and its limits vs fine-tuning.",
+        "points": [
+            ("In-context learning",
+             "Models learn a task from examples in the prompt without weight updates — an emergent capability of scale. Zero-shot → few-shot generally improves accuracy; example selection and ordering matter (recency bias). It's pattern-matching, not true learning — it won't add genuinely new knowledge."),
+            ("Chain-of-thought & reasoning",
+             "Prompting the model to reason step-by-step before answering improves multi-step tasks; self-consistency (sample N reasoning paths, majority vote) improves further. Modern 'reasoning models' bake this in via RL. Tradeoff: more tokens = more latency/cost."),
+            ("Structuring effective prompts",
+             "Clear role/instructions, relevant context, examples, explicit output format, and constraints. Put the most important instructions at the start or end (lost-in-the-middle). Decompose hard tasks into steps or a pipeline of calls."),
+            ("Reliability techniques",
+             "Few-shot examples for format adherence, output schemas/structured decoding, self-critique/verification passes, and retrieval to ground facts. For agents, ReAct-style (reason + act) scaffolding."),
+            ("Prompt vs fine-tune vs RAG",
+             "Prompt first (fastest, no infra); RAG for fresh/private knowledge + attribution; fine-tune for style/format/latency or when prompts get unwieldy. Often combine. The decision framework is the senior signal."),
+            ("Failure modes & safety",
+             "Prompt injection (untrusted input overriding instructions), jailbreaks, and sensitivity to phrasing. Separate trusted instructions from untrusted data; never trust retrieved/user content as instructions."),
+        ],
+    },
+    {
+        "title": "Recommender systems & learning-to-rank",
+        "notes": "The canonical ML-system-design topic. The two-stage retrieve-then-rank shape recurs in search and RAG.",
+        "points": [
+            ("Two-stage architecture",
+             "Candidate generation (retrieval): cheaply narrow millions → hundreds (collaborative filtering, two-tower embeddings + ANN). Ranking: an expensive model scores those hundreds with rich features. Sometimes a third re-ranking/policy layer for diversity/business rules."),
+            ("Collaborative vs content-based",
+             "Collaborative filtering (matrix factorization, user/item embeddings) learns from interaction patterns — great but cold-start-prone. Content-based uses item/user features — handles cold start. Hybrid is standard."),
+            ("Features & the feature store",
+             "User (history, demographics), item (metadata, popularity), context (time, device), and cross features. Online vs batch features, point-in-time correctness (no leakage), and a feature store to serve the same features in training and serving."),
+            ("Training data & feedback loops",
+             "Implicit feedback (clicks/watches) is abundant but biased: position bias (top items get clicked more) and the feedback loop (you only see data for what you showed). Debias (inverse-propensity weighting), log exploration data, and watch for runaway popularity."),
+            ("Metrics: offline vs online",
+             "Offline: AUC, nDCG, recall@k. Online (the ones that matter): CTR, engagement, retention, revenue — measured via A/B tests with guardrails. Offline gains don't always translate; design the experiment."),
+            ("Serving constraints",
+             "Tight latency budget (tens of ms) for the ranker over hundreds of candidates, freshness (real-time vs batch features), and exploration (epsilon-greedy/bandits) to avoid filter bubbles and gather unbiased data."),
+        ],
+    },
+    {
+        "title": "Calibration, uncertainty & OOD detection",
+        "notes": "Knowing when a model is wrong is as important as accuracy — especially for safety-critical and agentic systems.",
+        "points": [
+            ("Calibration",
+             "A well-calibrated model's 70%-confidence predictions are right ~70% of the time. Modern deep nets (and LLMs post-RLHF) are often overconfident. Measure with ECE (expected calibration error) and reliability diagrams; fix with temperature scaling (cheap, post-hoc)."),
+            ("Quantifying uncertainty",
+             "Aleatoric (inherent data noise) vs epistemic (model ignorance — reducible with more data). Estimate via ensembles, MC-dropout, or for LLMs: token logprobs, sampling agreement (self-consistency), and verbalized confidence (unreliable alone)."),
+            ("Out-of-distribution detection",
+             "Inputs unlike training data → unreliable predictions. Detect via softmax confidence (weak), energy scores, Mahalanobis distance in feature space, or a dedicated OOD head. Critical before you trust a prediction in production."),
+            ("LLM hallucination as a calibration problem",
+             "Models assert false facts confidently. Mitigations: retrieval grounding + citations, abstention ('I don't know') training, consistency checks across samples, and uncertainty-gated tool use. Connect to the eval topic."),
+            ("Acting on uncertainty",
+             "Route low-confidence cases to humans, abstain, ask a clarifying question, or escalate to a stronger model/tool. For agents, uncertainty should trigger verification, not blind action. This is the responsible-deployment angle Anthropic cares about."),
+        ],
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -978,6 +1248,113 @@ MOCK_INTERVIEWS = [
              "Review pacing: too long on setup, rat-holing, or rushing the end. Build an internal clock so you self-correct during real interviews."),
             ("Iterate deliberately",
              "Pick one or two fixes per review (e.g. 'state approach before coding', 'cut ums') and target them next session. Compound small improvements."),
+        ],
+    },
+    # --- Domain-coverage mocks: rehearse the actual Q&A for every round ---
+    {
+        "title": "Coding round simulation: pattern coverage + self-scoring rubric",
+        "notes": "A full dry-run of the coding round that exercises every major pattern, scored against the rubric a senior interviewer actually uses.",
+        "points": [
+            ("Cover the pattern map in one sitting",
+             "Drill at least one problem from each family: arrays/hashmap, two-pointer/sliding-window, BFS/DFS + topo, DP (1D/2D/knapsack), heap/top-k, binary-search-on-answer, backtracking, trie/union-find, intervals/greedy, and an implementation-heavy one. If any family feels shaky under 45 min, that's your next drill target."),
+            ("Score yourself on the real rubric",
+             "Interviewers grade 5 axes: (1) problem-solving/approach, (2) correctness, (3) code quality/readability, (4) communication, (5) testing/edge cases. A correct solution with silent coding and no tests is still a weak hire. Rate each 1-4 after every mock."),
+            ("Time-box the phases",
+             "~5 min clarify + examples + brute force, state complexity and get a nod, ~20-25 min code the optimal, ~5-10 min dry-run/test. Practice the clarify-first habit until it's automatic — jumping to code is the #1 senior-loop ding."),
+            ("Handle the curveball follow-up",
+             "Strong interviewers add a constraint mid-problem ('now the stream is infinite', 'now it must be thread-safe', 'now minimize memory'). Rehearse extending clean code rather than rewriting — this is the Anthropic implementation-heavy signal."),
+            ("Build the bug-recovery muscle",
+             "Practice finding your own bug by tracing a concrete example, not by randomly editing. Narrate: 'expected X here, got Y, so the off-by-one is in the while condition.' Composure when stuck is explicitly evaluated."),
+            ("Verbalize complexity precisely",
+             "Always state time AND space, justify it, and mention the bottleneck. 'O(n log n) from the sort, O(n) space for the hashmap, dominated by the sort' beats a bare 'n log n'."),
+        ],
+    },
+    {
+        "title": "System design round: the 6-step framework on a live prompt",
+        "notes": "Rehearse driving a 45-60 min design end-to-end. Reuse the deep-dive content from the System Design and AI Infra topics here as your component library.",
+        "points": [
+            ("Run the framework every time",
+             "(1) Functional + non-functional requirements, (2) capacity estimation (QPS, storage, bandwidth), (3) API + data model, (4) high-level architecture, (5) deep-dive on 1-2 components, (6) bottlenecks/failure/tradeoffs + wrap. Lead the conversation; don't wait to be asked for each step."),
+            ("Nail back-of-envelope estimation",
+             "Memorize the anchors: 1 day ≈ 86,400 s ≈ 1e5; reads≫writes (often 100:1); 1 char = 1 byte; SSD random read ~100µs, network round-trip cross-region ~100ms. Turn 'design Twitter' into 'X writes/s, Y reads/s, Z TB/year' in two minutes — it scopes every later decision."),
+            ("Make storage + consistency choices explicit",
+             "SQL vs NoSQL, single-leader vs multi-leader vs leaderless, strong vs eventual consistency, and WHY for this workload. Name the partition key and the hot-key risk. 'I'll shard by user_id; celebrity fan-out is the hot-key problem, here's how I'd mitigate' is senior altitude."),
+            ("Pick ONE component to go deep",
+             "Seniors are expected to deep-dive: the fan-out service, the dedup/idempotency layer, the cache invalidation strategy, the KV-cache memory math for inference. Have the numbers and the explicit tradeoff ready — depth on one beats shallow coverage of ten."),
+            ("Address scale, failure, and bottlenecks proactively",
+             "What breaks at 100x? Single points of failure, thundering herd, cache stampede, backpressure, retries/idempotency, and graceful degradation. Bringing these up unprompted is the difference between mid and senior."),
+            ("Cover the AI-flavored prompts for this role",
+             "Be fluent in: LLM inference service, RAG pipeline, training data pipeline, model-eval/observability platform, feature store, vector search. These map 1:1 to the System Design + AI Infra topics — practice at least one of each."),
+        ],
+    },
+    {
+        "title": "ML/AI knowledge round: rapid-fire conceptual questions",
+        "notes": "The 'do you actually understand modern ML' round. Crisp, correct, well-calibrated answers — say 'I'm not certain, but my understanding is…' rather than bluffing.",
+        "points": [
+            ("Transformer internals on demand",
+             "Be able to explain (and whiteboard) attention, multi-head, positional encodings (absolute vs RoPE), the KV cache, MoE routing, and why O(n²) attention is the long-context bottleneck. Expect 'walk me through what happens to one token end-to-end.'"),
+            ("Training lifecycle fluency",
+             "Pretraining (next-token, scaling laws, data mixing), SFT, and preference optimization (RLHF vs DPO vs RLAIF/Constitutional AI). Know what each stage buys you and a concrete failure mode (reward hacking, sycophancy, mode collapse)."),
+            ("Evaluation & hallucination",
+             "Benchmarks vs human eval vs LLM-as-judge (and its biases), how you'd detect/measure hallucination, and why a single accuracy number is misleading. This is where Anthropic probes depth."),
+            ("RAG vs fine-tuning judgment",
+             "When to retrieve vs fine-tune vs long-context vs prompt — and the cost/freshness/quality tradeoffs. The senior answer is a decision framework, not a favorite tool."),
+            ("Classical ML + stats sanity",
+             "Bias-variance, overfitting/regularization, precision/recall/AUC, bootstrapping/MLE/Bayes basics, and reading a confusion matrix. They sometimes drop a 'why is your model's accuracy 99% but useless?' (class imbalance) check."),
+            ("Calibrate your confidence",
+             "For a safety-focused org, intellectual honesty is scored: distinguish what you know, what you infer, and what you'd need to look up. Overclaiming is a red flag; well-flagged uncertainty is a green one."),
+        ],
+    },
+    {
+        "title": "AI infra round: GPU / training / inference deep-dive questions",
+        "notes": "The systems-for-ML round. Have the memory math and the optimization narratives ready — concrete numbers are the whole signal.",
+        "points": [
+            ("GPU memory math fluency",
+             "Compute model + KV-cache + activation memory on demand: weights = params × bytes/param (FP16=2, FP8=1), KV cache = 2 × layers × heads × head_dim × seq_len × batch × bytes. Know why a 70B model needs ~140GB in FP16 and why KV cache caps batch size."),
+            ("Distributed training tradeoffs",
+             "DDP vs FSDP/ZeRO-1/2/3 vs tensor vs pipeline vs sequence parallelism — what each shards (gradients/optimizer/params/activations), the comm cost, and when you combine them (3D parallelism). Expect 'your model doesn't fit on one GPU — what do you do?'"),
+            ("Inference optimization stack",
+             "Continuous batching, PagedAttention, prefill vs decode (compute- vs memory-bound), quantization (INT8/FP8/FP4) and its quality cost, and speculative decoding. Be able to say which knob to turn for TTFT vs throughput vs cost."),
+            ("Communication & topology",
+             "NCCL collectives (all-reduce, all-gather, reduce-scatter), ring vs tree, NVLink vs PCIe vs InfiniBand bandwidth, and why all-reduce cost ≈ 2(N-1)/N × data. Overlapping comm with compute is the recurring theme."),
+            ("Profiling & bottleneck diagnosis",
+             "Roofline: is the kernel memory- or compute-bound? Compute MFU/HFU, read an Nsight/torch profiler trace, and reason about HBM bandwidth vs FLOPs. 'I'd profile first' with the right metric is the senior reflex."),
+            ("Reliability at cluster scale",
+             "Checkpointing cadence vs blast radius, fault tolerance across thousands of GPUs (elastic restart), stragglers, and silent data corruption. Long training runs fail constantly — show you'd design for it."),
+        ],
+    },
+    {
+        "title": "Behavioral & Anthropic-values round: common questions bank",
+        "notes": "Map your 6 STAR stories onto the questions actually asked. Reason transparently for values/ethics prompts — they score judgment and integrity, not a memorized answer.",
+        "points": [
+            ("The standard senior behavioral set",
+             "Rehearse: most impactful project; a hard technical decision and how you made it; a time you disagreed with your manager/peer; a failure and what you learned; influencing without authority; mentoring/leveling-up others; handling competing priorities/ambiguity. Each maps to one of your STAR stories."),
+            ("Lead with scope, decision, and impact",
+             "Senior signal = judgment under ambiguity, cross-team influence, and quantified outcomes — not task completion. 'I drove the decision to X across 3 teams, which cut Y by Z%' beats 'I implemented X.'"),
+            ("Values / ethics scenarios",
+             "Expect 'what would you do if asked to ship something you thought was unsafe / cut a corner on privacy / a model showed a concerning capability?' Surface stakeholders, tradeoffs, and risks; reason openly; land on a principled, defensible position. Steelman the other side."),
+            ("Honesty, helpfulness, harmlessness in practice",
+             "Have real examples of flagging a risk, pushing back on a bad-for-users call, handling sensitive data carefully, or choosing the harder right path. Concrete beats platitude; calibrated humility beats false confidence."),
+            ("Questions to ask them",
+             "Prepare thoughtful questions on safety practices, team scope, how decisions get made, and what success looks like in 6 months. Engaged, specific questions are themselves a positive signal."),
+            ("Tighten and time it",
+             "Each answer ~2-3 min with a crisp opening and one clear point. Practice the disagreement and failure stories most — they're the hardest to land without rambling or blaming."),
+        ],
+    },
+    {
+        "title": "CS fundamentals rapid-fire (OS, networking, databases, concurrency)",
+        "notes": "The breadth check that surfaces in senior loops and as deep-dive tangents. You don't need PhD depth — crisp, correct mental models.",
+        "points": [
+            ("Operating systems",
+             "Process vs thread, context switches, virtual memory/paging, the page cache, scheduling, and what a syscall costs. Know why fork is cheap (copy-on-write) and where time goes in an I/O-bound vs CPU-bound program."),
+            ("Networking",
+             "TCP vs UDP, the 3-way handshake, TLS, HTTP/1.1 vs 2 vs 3, DNS, and what actually happens 'when you type a URL'. Latency anchors: same-DC <1ms, cross-region ~50-100ms, and why round-trips dominate."),
+            ("Databases & transactions",
+             "ACID, isolation levels and the anomalies they prevent (dirty/non-repeatable/phantom reads), B-tree vs LSM-tree indexes, query plans, and when to denormalize. Know why an index speeds reads but slows writes."),
+            ("Concurrency & memory",
+             "Race conditions, deadlock (and the four conditions), mutex vs semaphore vs RWlock, atomics, and the GIL's implications in Python (threads for I/O, processes/async for CPU). Optimistic vs pessimistic locking."),
+            ("Caching & consistency everywhere",
+             "Cache-aside vs write-through vs write-back, TTL + invalidation (the 'two hard things' joke is real), and eventual vs strong consistency tradeoffs. These thread through nearly every system design answer."),
         ],
     },
 ]
@@ -1106,6 +1483,121 @@ PROJECTS = [
              "Keep the PR link and the technical decisions handy for the project deep-dive and behavioral rounds."),
         ],
     },
+    # --- System Design coverage: build real, scalable services ---
+    {
+        "title": "Build a scalable URL shortener / rate limiter (real service)",
+        "notes": "A small but real distributed service — the most direct way to make the System Design fundamentals concrete and earn deep-dive credibility.",
+        "points": [
+            ("Build the core service",
+             "POST a long URL → return a short code (base62 of an ID or a hashed key); GET the code → 301 redirect. Back it with Postgres/Redis. Decide ID generation (auto-increment vs Snowflake-style) and handle custom aliases + collisions."),
+            ("Add a real rate limiter",
+             "Implement token-bucket or sliding-window-log in Redis (atomic via Lua/INCR+EXPIRE). Make it distributed and per-API-key. This is the exact component you'll be asked to deep-dive in system design — building it makes the answer effortless."),
+            ("Cache and measure the read path",
+             "Reads ≫ writes, so cache hot codes (cache-aside + TTL) and measure hit rate, p50/p99 latency, and QPS under load (k6/locust). Show the cache moving the latency numbers."),
+            ("Make it horizontally scalable",
+             "Stateless app tier behind a load balancer, shared Redis/DB, and a plan for sharding the key space. Discuss the hot-key problem and how analytics (click counts) would be handled async (queue → aggregation)."),
+            ("Discuss the tradeoffs you hit",
+             "Strong vs eventual consistency for click counts, ID scheme tradeoffs, cache invalidation, and what fails at 100x. The writeup + numbers turn it into a portfolio + deep-dive piece."),
+        ],
+    },
+    {
+        "title": "Build a vector search service (sharded ANN index + API)",
+        "notes": "Bridges System Design and AI: a retrieval service that's the backbone of RAG, with the scaling and recall tradeoffs interviewers love.",
+        "points": [
+            ("Stand up an ANN index",
+             "Build embeddings → index (HNSW or IVF-PQ via FAISS/hnswlib) → a query API returning top-k with scores. Understand the recall/latency/memory tradeoff of HNSW (M, efConstruction, efSearch) vs IVF-PQ (nlist, nprobe, compression)."),
+            ("Add hybrid retrieval + rerank",
+             "Combine dense vectors with BM25/keyword and a cross-encoder reranker; measure recall@k and nDCG on a labeled query set. Quantify the lift — this is the senior 'I measured it' signal."),
+            ("Shard and replicate",
+             "Partition vectors across shards (scatter-gather query, merge top-k) and replicate for availability/throughput. Discuss how you'd rebuild/refresh an index without downtime and the memory cost of holding vectors in RAM."),
+            ("Handle freshness + filtering",
+             "Incremental upserts/deletes, metadata pre/post-filtering (e.g., per-tenant), and the consistency story for newly added docs. These are the real-world bits that separate a demo from a service."),
+            ("Benchmark recall vs latency vs cost",
+             "Sweep index params and plot the recall/latency frontier; report memory per million vectors. Being able to say 'efSearch=64 gave 98% recall at 5ms' is exactly the deep-dive content."),
+        ],
+    },
+    {
+        "title": "Build a distributed task queue / job scheduler",
+        "notes": "Exercises queues, idempotency, retries, and at-least-once semantics — the patterns behind half of all system design answers.",
+        "points": [
+            ("Build producer → broker → worker",
+             "Enqueue jobs (Redis/RabbitMQ/Postgres-as-queue), pull from a worker pool, ack on success. Start simple, then add priorities and delayed/scheduled jobs (sorted set by run-at)."),
+            ("Get the delivery semantics right",
+             "At-least-once with visibility timeouts + acks; make handlers idempotent (idempotency keys / dedup) because retries WILL double-deliver. Explain why exactly-once is effectively idempotency + at-least-once."),
+            ("Handle failure properly",
+             "Retries with exponential backoff + jitter, a dead-letter queue after N attempts, and poison-message handling. Show what happens when a worker crashes mid-job (the job reappears after the visibility timeout)."),
+            ("Scale workers + backpressure",
+             "Autoscale workers on queue depth, apply backpressure when downstream is slow, and avoid the thundering herd on retry. Measure throughput and end-to-end latency under load."),
+            ("Add observability",
+             "Per-queue depth, processing rate, failure rate, and job latency. These metrics are exactly what you'd propose monitoring in a system design round."),
+        ],
+    },
+    # --- More ML/AI coverage ---
+    {
+        "title": "Train a small language model end-to-end (data → tokenizer → pretrain → eval)",
+        "notes": "The full pretraining lifecycle in miniature. Proves you understand training, not just inference — high signal for MLE loops.",
+        "points": [
+            ("Own the data pipeline",
+             "Collect a corpus, clean/dedup it, train (or reuse) a BPE tokenizer, and pack into fixed-length sequences. Data quality and the train/val split discipline matter more than model size at this scale."),
+            ("Pretrain a nanoGPT-scale model",
+             "Train a small decoder-only transformer with a proper LR schedule (warmup + cosine), gradient clipping, and mixed precision. Watch the loss curve and verify it learns (val loss drops, samples get coherent)."),
+            ("Apply the scaling-law intuition",
+             "Experiment with model size vs data vs compute and see the tradeoff firsthand; relate it to Chinchilla-optimal token/param ratios. Even a tiny sweep makes the scaling-laws topic concrete."),
+            ("Evaluate properly",
+             "Track val perplexity and a couple of downstream probes; compare checkpoints. Avoid eval-on-train leakage. Connect to the evaluation topic — perplexity isn't capability."),
+            ("Optional: a tiny SFT/DPO step",
+             "Fine-tune your base on a small instruction set, then do a preference-optimization pass. Seeing the behavior change end-to-end is the best prep for the post-training interview questions."),
+        ],
+    },
+    {
+        "title": "Build an LLM eval / benchmark harness (LLM-as-judge + metrics)",
+        "notes": "Eval is the most undervalued and most senior-signal ML skill. A reusable harness sets you apart from everyone who only builds demos.",
+        "points": [
+            ("Design the harness",
+             "A pluggable runner: dataset → model/system under test → scorer → aggregated report. Support multiple tasks and models so you can compare apples-to-apples. Make runs reproducible (pinned prompts, seeds, versions)."),
+            ("Implement multiple scorers",
+             "Exact-match/F1 for closed tasks, LLM-as-judge with a rubric for open generation, plus retrieval metrics (recall@k, nDCG) if RAG. Know and mitigate judge biases (position, verbosity, self-preference)."),
+            ("Measure reliability of the eval itself",
+             "Run judge-vs-human agreement on a sample, report variance across runs, and use enough samples for statistical significance. 'How do you know your eval is trustworthy?' is the question that separates seniors."),
+            ("Track regressions over time",
+             "Version results so you can catch when a prompt/model change quietly regresses a slice. Slice metrics by category to find where the system actually fails."),
+            ("Report like an engineer",
+             "Clear tables, deltas vs baseline, confidence intervals, and concrete failure examples. This harness doubles as your evidence in the project deep-dive."),
+        ],
+    },
+    # --- More AI Infra coverage ---
+    {
+        "title": "Profile & optimize inference (quantization + speculative decoding)",
+        "notes": "Take a working model and make it materially faster/cheaper — a pure AI-infra optimization story with before/after numbers.",
+        "points": [
+            ("Establish a baseline + profile",
+             "Measure TTFT, TPOT (tokens/s), throughput, and GPU memory at several batch sizes. Profile to find the bottleneck (memory-bound decode vs compute-bound prefill) before changing anything — 'profile first' is the senior reflex."),
+            ("Apply quantization",
+             "Run INT8/FP8 (or 4-bit weight-only) and measure the speed/memory win against the quality cost on your eval set. Explain why decode is memory-bandwidth-bound, so smaller weights = faster."),
+            ("Add speculative decoding",
+             "Use a small draft model to propose tokens the big model verifies in parallel; measure the acceptance rate and the resulting speedup. Explain when it helps (memory-bound decode) and when it doesn't."),
+            ("Tune batching for the SLO",
+             "Show the throughput/latency frontier across batch sizes and how continuous batching shifts it. Pick the operating point for a given latency SLO and justify it."),
+            ("Tell the optimization story",
+             "End with a table: baseline → +quant → +spec-decode → +batching, with tokens/s, $/1M tokens, and quality. That narrative is exactly what the AI-infra round rewards."),
+        ],
+    },
+    {
+        "title": "Multi-GPU model serving with tensor parallelism",
+        "notes": "Serve a model too big for one GPU — the serving counterpart to the distributed-training toy.",
+        "points": [
+            ("Shard a model across GPUs",
+             "Split attention/MLP weights with tensor parallelism (column/row partitioning) so each GPU holds a slice; the all-reduce stitches outputs back. Use vLLM/TensorRT-LLM/SGLang tp, or implement a minimal version to learn it."),
+            ("Understand the communication cost",
+             "Each layer needs an all-reduce across the TP group, so intra-node NVLink bandwidth matters a lot; TP usually stays within a node. Measure the comm overhead vs single-GPU and explain why."),
+            ("Combine with batching",
+             "Layer continuous batching on top and measure aggregate throughput. Discuss how TP affects KV-cache placement and per-GPU memory headroom."),
+            ("Compare parallelism strategies",
+             "When to use TP vs pipeline vs replication for serving (latency vs throughput vs model size). Be able to recommend a topology for a given model size and SLO."),
+            ("Benchmark and reflect",
+             "Tokens/s and latency vs #GPUs and TP degree; note where scaling efficiency drops (comm overhead). The numbers + the 'why' are the deep-dive payload."),
+        ],
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -1124,7 +1616,8 @@ CONTENT_BY_DOMAIN = {
 # Practice / interview questions per topic, keyed by EXACT topic title.
 #   "example" = concrete problems (LeetCode #, "Design Uber", applied scenarios)
 #   "common"  = conceptual interview questions
-# Only Coding / System Design / AI Infra / AI/ML carry questions.
+# Coding / System Design / AI Infra / AI/ML carry technical questions; Mock
+# Interviews and Projects carry the common/behavioral and scenario questions.
 # The seeder attaches these as Question rows (idempotent by prompt).
 # ---------------------------------------------------------------------------
 QUESTIONS: dict[str, dict[str, list[str]]] = {
@@ -1576,5 +2069,402 @@ QUESTIONS: dict[str, dict[str, list[str]]] = {
             "What is RoPE position interpolation / YaRN?",
         ],
         "example": ["Does a 1M-token context window make RAG obsolete? Discuss."],
+    },
+
+    "Linked lists & in-place pointer manipulation": {
+        "example": [
+            "Reverse Linked List (LC 206)", "Linked List Cycle II (LC 142)",
+            "Merge Two Sorted Lists (LC 21)", "Remove Nth Node From End (LC 19)",
+            "Reorder List (LC 143)", "Copy List with Random Pointer (LC 138)",
+            "Reverse Nodes in k-Group (LC 25)",
+        ],
+        "common": [
+            "How do fast/slow pointers find a cycle's entry point?",
+            "Why use a dummy head node?",
+        ],
+    },
+    "Stack, queue & monotonic stack": {
+        "example": [
+            "Valid Parentheses (LC 20)", "Min Stack (LC 155)",
+            "Daily Temperatures (LC 739)", "Largest Rectangle in Histogram (LC 84)",
+            "Trapping Rain Water (LC 42)", "Sliding Window Maximum (LC 239)",
+            "Basic Calculator (LC 224)",
+        ],
+        "common": [
+            "When does a problem call for a monotonic stack?",
+            "Why is a monotonic-stack sweep O(n)?",
+        ],
+    },
+    "Intervals & greedy (sorting-based)": {
+        "example": [
+            "Merge Intervals (LC 56)", "Insert Interval (LC 57)",
+            "Non-overlapping Intervals (LC 435)", "Meeting Rooms II (LC 253)",
+            "Minimum Number of Arrows to Burst Balloons (LC 452)",
+            "Jump Game (LC 55)", "Partition Labels (LC 763)",
+        ],
+        "common": [
+            "Sort by start or by end — how do you decide?",
+            "How do you argue a greedy choice is optimal?",
+        ],
+    },
+    "Bit manipulation & math": {
+        "example": [
+            "Single Number (LC 136)", "Number of 1 Bits (LC 191)",
+            "Counting Bits (LC 338)", "Sum of Two Integers (LC 371)",
+            "Pow(x, n) (LC 50)", "Missing Number (LC 268)",
+        ],
+        "common": [
+            "What does x & (x-1) do?",
+            "How does XOR find the single non-duplicated number?",
+        ],
+    },
+    "Design data structures (LRU/LFU, iterators, stream)": {
+        "example": [
+            "LRU Cache (LC 146)", "LFU Cache (LC 460)",
+            "Insert Delete GetRandom O(1) (LC 380)",
+            "Find Median from Data Stream (LC 295)",
+            "Binary Search Tree Iterator (LC 173)", "Design Twitter (LC 355)",
+        ],
+        "common": [
+            "Which two structures combine to make LRU O(1)?",
+            "How would reservoir sampling pick a uniform random item from a stream?",
+        ],
+    },
+
+    # ---------------- AI Infra (added topics) ----------------
+    "Memory math, arithmetic intensity & the roofline model": {
+        "common": [
+            "How much memory does training a 7B model take, broken down?",
+            "Why is the KV cache often the dominant inference memory cost?",
+            "How do you decide if a kernel is memory- or compute-bound?",
+            "What's the ~6ND rule for training FLOPs?",
+        ],
+        "example": ["Estimate how long it takes to train a 7B model on 1T tokens at 50% MFU on 256 H100s."],
+    },
+    "MoE training & serving (expert & sequence parallelism)": {
+        "common": [
+            "Why does MoE give more capacity at the same FLOPs?",
+            "What is the load-balancing problem and how is it fixed?",
+            "Why does expert parallelism need an all-to-all?",
+            "What makes MoE harder to serve than a dense model?",
+        ],
+        "example": ["Design a serving stack for a sparse MoE model with expert parallelism."],
+    },
+    "Input pipeline & data loading at scale": {
+        "common": [
+            "Your GPUs sit at 60% utilization on a compute job — what do you check?",
+            "How do you overlap data loading with compute?",
+            "Why are millions of small files bad for training throughput?",
+            "How do you make data loading resumable and deterministic?",
+        ],
+        "example": ["Diagnose and fix an input-bound training run."],
+    },
+
+    # ---------------- AI/ML (added topics) ----------------
+    "Embeddings & representation learning": {
+        "common": [
+            "How are text embeddings trained (contrastive / InfoNCE)?",
+            "Bi-encoder vs cross-encoder — when each?",
+            "Cosine similarity vs dot product for embeddings?",
+            "How does CLIP put images and text in one space?",
+        ],
+        "example": ["Design a semantic search system; justify your embedding + index choices."],
+    },
+    "Prompt engineering & in-context learning": {
+        "common": [
+            "Why does few-shot in-context learning work, and what are its limits?",
+            "When does chain-of-thought help, and what does it cost?",
+            "Prompt vs RAG vs fine-tune — how do you choose?",
+            "What is prompt injection and how do you defend against it?",
+        ],
+        "example": ["Improve a flaky extraction prompt to reliably return valid JSON."],
+    },
+    "Recommender systems & learning-to-rank": {
+        "common": [
+            "Why two-stage (retrieval then ranking)?",
+            "How do you handle the cold-start problem?",
+            "What biases live in implicit click feedback, and how do you debias?",
+            "Which offline and online metrics do you track, and why can they disagree?",
+        ],
+        "example": ["Design a video recommendation system (candidate gen + ranking + eval)."],
+    },
+    "Calibration, uncertainty & OOD detection": {
+        "common": [
+            "What does it mean for a model to be well-calibrated, and how do you measure it?",
+            "Aleatoric vs epistemic uncertainty?",
+            "How would you detect out-of-distribution inputs?",
+            "How can a system know when an LLM is likely hallucinating?",
+        ],
+        "example": ["Design an uncertainty-gated agent that asks for help when unsure."],
+    },
+
+    # ---------------- System Design (added topics) ----------------
+    "Consistent hashing & data partitioning": {
+        "example": [
+            "Design a distributed cache (Memcached-style) across N nodes.",
+            "Design the partitioning for a multi-tenant database.",
+        ],
+        "common": [
+            "Why does hash(key) % N fall apart when you add a node?",
+            "What do virtual nodes solve?",
+            "Hash vs range partitioning — tradeoffs?",
+            "How do you avoid hot keys / the celebrity problem?",
+        ],
+    },
+    "Caching strategies, CDN & cache invalidation": {
+        "example": [
+            "Design caching for a read-heavy product-detail page.",
+            "Design a CDN strategy for a global media site.",
+        ],
+        "common": [
+            "Cache-aside vs write-through vs write-back?",
+            "How do you prevent a cache stampede / thundering herd?",
+            "What's the hardest part of caching, and why? (invalidation)",
+            "How do you size a cache?",
+        ],
+    },
+    "Idempotency, retries & exactly-once semantics": {
+        "example": [
+            "Design a payment API that's safe to retry.",
+            "Design an order-creation flow that tolerates client retries.",
+        ],
+        "common": [
+            "Why is true exactly-once delivery impossible, and what do you do instead?",
+            "How does an idempotency key work?",
+            "Saga vs two-phase commit — when each?",
+            "How do retries avoid a retry storm?",
+        ],
+    },
+    "Search, typeahead & autocomplete": {
+        "example": [
+            "Design search autocomplete (typeahead) for a large site.",
+            "Design a product search service with ranking.",
+        ],
+        "common": [
+            "How does an inverted index work?",
+            "What data structure powers typeahead, and how do you keep it fast?",
+            "How do you rank results (retrieve then rerank)?",
+            "How do you measure search quality offline and online?",
+        ],
+    },
+    "Observability: metrics, logging, distributed tracing": {
+        "example": [
+            "Design observability for a microservice platform.",
+            "A request is slow across 10 services — how do you find where?",
+        ],
+        "common": [
+            "Metrics vs logs vs traces — what does each answer?",
+            "Why p99 latency instead of average?",
+            "What are RED and USE metrics?",
+            "How do you write alerts that don't cause pager fatigue?",
+        ],
+    },
+
+    # ---------------- Mock Interviews (common = behavioral/conceptual) ----------------
+    "Write 6 STAR stories (impact, ambiguity, conflict, failure, leadership, ethics)": {
+        "common": [
+            "Tell me about your most impactful project.",
+            "Tell me about a time you handled significant ambiguity.",
+            "Tell me about a conflict with a teammate and how you resolved it.",
+            "Tell me about a real failure and what you learned.",
+            "Tell me about a time you led or influenced without authority.",
+            "Tell me about an ethical call you had to make.",
+        ],
+    },
+    "Project deep-dive prep (20-min present + 40-min Q&A)": {
+        "common": [
+            "Walk me through your most technically challenging project.",
+            "What was YOUR specific contribution vs the team's?",
+            "What alternative designs did you consider and why did you reject them?",
+            "What would you do differently, and how would it scale at 100x?",
+            "What broke in production, and how did you handle it?",
+        ],
+    },
+    "Coding round simulation: pattern coverage + self-scoring rubric": {
+        "example": [
+            "Run a timed 45-min mock on a medium you haven't seen, narrating throughout.",
+            "Solve LRU Cache (LC 146), then extend it to TTL eviction mid-interview.",
+            "Solve a problem, then add a constraint that breaks your approach and refactor cleanly.",
+        ],
+        "common": [
+            "What are the 5 axes an interviewer scores a coding round on?",
+            "How do you recover when you realize your approach is wrong 20 minutes in?",
+            "Why is stating complexity (time AND space) before coding important?",
+        ],
+    },
+    "System design round: the 6-step framework on a live prompt": {
+        "example": [
+            "Design a URL shortener end-to-end in 45 minutes using the framework.",
+            "Design Twitter's timeline (fan-out on read vs write).",
+            "Design an LLM inference service (reuse the AI-infra deep-dive).",
+        ],
+        "common": [
+            "What are the 6 steps you drive a system design through?",
+            "How do you do capacity estimation quickly (the anchors you memorize)?",
+            "When do you choose strong vs eventual consistency?",
+            "What breaks first when this system gets 100x traffic?",
+        ],
+    },
+    "ML/AI knowledge round: rapid-fire conceptual questions": {
+        "common": [
+            "Walk me through what happens to a single token end-to-end in a transformer.",
+            "RLHF vs DPO vs Constitutional AI — what does each buy you?",
+            "How would you detect and measure hallucination?",
+            "When do you choose RAG vs fine-tuning vs long-context vs prompting?",
+            "Your classifier is 99% accurate but useless in production — why?",
+        ],
+        "example": ["Whiteboard scaled dot-product attention and explain the KV cache."],
+    },
+    "AI infra round: GPU / training / inference deep-dive questions": {
+        "common": [
+            "How much memory does a 70B model need in FP16, and why?",
+            "Your model doesn't fit on one GPU — walk me through your options.",
+            "Prefill vs decode — which is compute-bound vs memory-bound, and why?",
+            "DDP vs FSDP vs tensor vs pipeline parallelism — what does each shard?",
+            "How would you tell if a kernel is memory- or compute-bound?",
+        ],
+        "example": ["Estimate the KV-cache size for batch=32, 8k context on a 13B model."],
+    },
+    "Behavioral & Anthropic-values round: common questions bank": {
+        "common": [
+            "Why Anthropic, and why do you care about AI safety?",
+            "What would you do if asked to ship something you believed was unsafe?",
+            "Describe a time you pushed back on a decision that was bad for users.",
+            "How do you handle disagreement with a senior engineer or your manager?",
+            "Tell me about a time you were wrong and changed your mind.",
+            "What questions do you have for us?",
+        ],
+    },
+    "CS fundamentals rapid-fire (OS, networking, databases, concurrency)": {
+        "common": [
+            "Process vs thread, and when do you use each?",
+            "What happens when you type a URL and press enter?",
+            "Explain ACID and the isolation levels.",
+            "B-tree vs LSM-tree index — tradeoffs?",
+            "What causes a deadlock and how do you prevent it?",
+            "Cache-aside vs write-through vs write-back?",
+        ],
+    },
+
+    # ---------------- Projects (common = deep-dive probes, example = build/extend) ----------------
+    "Build mini LLM inference server (continuous batching + KV cache)": {
+        "common": [
+            "Why does KV cache cap your max batch size? Show the memory math.",
+            "How does continuous batching beat static batching?",
+            "Prefill vs decode — how does each stress the GPU differently?",
+        ],
+        "example": ["Add PagedAttention-style block allocation and measure the throughput gain."],
+    },
+    "Implement attention from scratch (MHA, RoPE, KV cache, masking)": {
+        "common": [
+            "Why scale by 1/sqrt(d_k) in attention?",
+            "How does a KV cache change the compute at decode time?",
+            "What does RoPE give you over learned absolute positions?",
+        ],
+        "example": ["Extend your single-head version to GQA and explain the serving benefit."],
+    },
+    "Build a RAG app w/ eval harness (retrieval + groundedness metrics)": {
+        "common": [
+            "How do you measure retrieval quality vs end-to-end answer quality?",
+            "What did your dense-vs-hybrid-vs-rerank ablation show?",
+            "How do you stop the system from hallucinating when retrieval fails?",
+        ],
+        "example": ["Add prompt-injection defenses to retrieved content and test them."],
+    },
+    "Build an agent with tool-use (MCP-style) + eval": {
+        "common": [
+            "How do you keep the agent reliable over long, multi-step tasks?",
+            "How did you evaluate task success, and what failure modes did you find?",
+            "Why expose tools via MCP rather than hardcode them?",
+        ],
+        "example": ["Add a step/cost budget and sandboxed code execution; measure success rate."],
+    },
+    "Fine-tune a small model w/ LoRA, measure quality delta": {
+        "common": [
+            "Why LoRA/QLoRA instead of full fine-tuning here?",
+            "How did you prove the fine-tune actually improved things?",
+            "How did you check for catastrophic forgetting?",
+        ],
+        "example": ["Compare your fine-tune against a strong few-shot prompt baseline."],
+    },
+    "Write a CUDA kernel (e.g., fused softmax or matmul)": {
+        "common": [
+            "Was your kernel memory- or compute-bound, and how did you know?",
+            "Why does kernel fusion help (what does it save)?",
+            "How did tiling into shared memory speed up your matmul?",
+        ],
+        "example": ["Benchmark your kernel vs cuBLAS/PyTorch and report achieved bandwidth/TFLOPS."],
+    },
+    "Distributed training toy: DDP/FSDP on multi-GPU": {
+        "common": [
+            "What does FSDP shard that DDP replicates?",
+            "How do you scale the learning rate with effective batch size?",
+            "Where did scaling efficiency drop, and why?",
+        ],
+        "example": ["Add sharded checkpoint save/resume and verify loss continuity."],
+    },
+    "Contribute to open-source ML repo (PR merged)": {
+        "common": [
+            "What tradeoff did you navigate with the maintainers?",
+            "How did you ramp on an unfamiliar large codebase?",
+            "What did the review process teach you about the project's design?",
+        ],
+        "example": ["Pick a 'good first issue' in vLLM or transformers and get a PR merged."],
+    },
+    "Build a scalable URL shortener / rate limiter (real service)": {
+        "common": [
+            "How do you generate short codes, and how do you avoid collisions?",
+            "Walk me through your distributed rate limiter (which algorithm and why).",
+            "Reads ≫ writes here — how did you design the read path?",
+        ],
+        "example": ["Load-test it and show the cache moving p99 latency."],
+    },
+    "Build a vector search service (sharded ANN index + API)": {
+        "common": [
+            "HNSW vs IVF-PQ — what tradeoff did you pick and why?",
+            "How do you query across shards and merge results?",
+            "How do you handle freshly added documents (freshness/consistency)?",
+        ],
+        "example": ["Sweep efSearch/nprobe and plot the recall-vs-latency frontier."],
+    },
+    "Build a distributed task queue / job scheduler": {
+        "common": [
+            "What delivery semantics did you implement, and how is exactly-once achieved?",
+            "How do you handle a worker crashing mid-job?",
+            "How do retries avoid a thundering herd?",
+        ],
+        "example": ["Add a dead-letter queue and exponential backoff with jitter; demonstrate it."],
+    },
+    "Train a small language model end-to-end (data → tokenizer → pretrain → eval)": {
+        "common": [
+            "Why does data quality dominate model size at this scale?",
+            "What LR schedule did you use and why?",
+            "Why is perplexity not the same as capability?",
+        ],
+        "example": ["Run a tiny size-vs-data sweep and relate it to Chinchilla-optimal ratios."],
+    },
+    "Build an LLM eval / benchmark harness (LLM-as-judge + metrics)": {
+        "common": [
+            "How do you know your LLM-judge is trustworthy?",
+            "Which judge biases did you mitigate, and how?",
+            "How many samples do you need for a significant comparison?",
+        ],
+        "example": ["Measure judge-vs-human agreement on a labeled slice and report it."],
+    },
+    "Profile & optimize inference (quantization + speculative decoding)": {
+        "common": [
+            "Why is decode memory-bandwidth-bound, and how does quantization help?",
+            "When does speculative decoding help vs hurt?",
+            "How did you pick the batch size for your latency SLO?",
+        ],
+        "example": ["Produce a baseline→+quant→+spec-decode table with tokens/s, $/1M, and quality."],
+    },
+    "Multi-GPU model serving with tensor parallelism": {
+        "common": [
+            "Why does tensor parallelism usually stay within a single node?",
+            "What communication does each layer require under TP?",
+            "TP vs pipeline vs replication for serving — when each?",
+        ],
+        "example": ["Benchmark tokens/s vs TP degree and find where scaling efficiency drops."],
     },
 }
