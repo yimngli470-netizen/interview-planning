@@ -10,9 +10,12 @@ import os
 
 log = logging.getLogger(__name__)
 
-# Default to the fast/cheap model; override with ANTHROPIC_MODEL (e.g.
-# claude-sonnet-4-6 / claude-opus-4-8) for higher quality at more cost/latency.
-MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5")
+# Default to Sonnet for high-quality, comprehensive content; override with
+# ANTHROPIC_MODEL (e.g. claude-haiku-4-5 for cheaper/faster, claude-opus-4-8 for
+# the best). Note: MAX_TOKENS must be <= the chosen model's max output (Sonnet 4.6
+# = 128k, Haiku 4.5 = 64k) — lower it if you switch to Haiku.
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+MAX_TOKENS = int(os.getenv("ANTHROPIC_MAX_TOKENS", "100000"))
 
 _TOOL = {
     "name": "save_topic_content",
@@ -22,7 +25,12 @@ _TOOL = {
         "properties": {
             "learning_points": {
                 "type": "array",
-                "description": "5-7 key learning points (the things to actually learn) for this topic.",
+                "description": (
+                    "ALL the key learning points needed to fully cover this topic — as many as "
+                    "are genuinely important. Do NOT cap the count: a narrow topic might need 4-5, "
+                    "a broad one 15-20+. Include every important sub-concept, technique, tradeoff, "
+                    "and gotcha rather than artificially summarizing into a fixed number."
+                ),
                 "items": {
                     "type": "object",
                     "properties": {
@@ -57,9 +65,11 @@ _TOOL = {
 }
 
 _SYSTEM = (
-    "You generate concise, high-quality study content for a SENIOR-level SDE/MLE "
-    "interview-prep app (frontier AI labs). Be specific and technical: include "
-    "numbers, tradeoffs, and concrete worked examples. No fluff, no filler."
+    "You generate high-quality study content for a SENIOR-level SDE/MLE interview-prep "
+    "app (frontier AI labs). Be specific and technical: include numbers, tradeoffs, and "
+    "concrete worked examples. No fluff, no filler. Be COMPREHENSIVE: cover the entire "
+    "topic with as many learning points as it genuinely warrants — never cap or pad to a "
+    "fixed number. It is better to have 20 well-chosen points than to omit important ones."
 )
 
 
@@ -81,21 +91,26 @@ def generate_topic_content(topic_title: str, domain_name: str) -> dict | None:
     user = (
         f"Domain: {domain_name}\nTopic: {topic_title}\n\n"
         "Produce study content for this exact topic:\n"
-        "1) 5-7 key learning points, each a short title + 2-4 sentences of specific detail.\n"
+        "1) ALL the key learning points needed to fully cover the topic — as many as are "
+        "genuinely important (do NOT cap the number), each a short title + 2-4 sentences of "
+        "specific detail.\n"
         "2) example practice questions (see the tool's field description for the format per domain).\n"
         "3) common conceptual interview questions.\n"
         "Call the save_topic_content tool with your result."
     )
     try:
         client = Anthropic()  # reads ANTHROPIC_API_KEY from env
-        msg = client.messages.create(
+        # Stream: required once max_tokens is large (a non-streaming request would be
+        # rejected for timeout risk). get_final_message() reassembles the tool_use block.
+        with client.messages.stream(
             model=MODEL,
-            max_tokens=8000,
+            max_tokens=MAX_TOKENS,  # headroom for comprehensive, uncapped learning-point lists
             system=_SYSTEM,
             tools=[_TOOL],
             tool_choice={"type": "tool", "name": "save_topic_content"},
             messages=[{"role": "user", "content": user}],
-        )
+        ) as stream:
+            msg = stream.get_final_message()
         for block in msg.content:
             if getattr(block, "type", None) == "tool_use" and block.name == "save_topic_content":
                 return block.input  # type: ignore[return-value]
