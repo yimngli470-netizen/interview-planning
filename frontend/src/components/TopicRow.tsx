@@ -1,8 +1,59 @@
 import { useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
-import { ChevronRight, Pin, Trash2, Pencil, X, Plus, Check } from 'lucide-react';
-import type { Domain, Topic, Subtopic, Question } from '../types';
+import {
+  ChevronRight, ChevronDown, Pin, Trash2, Pencil, X, Plus, Check,
+  BookOpen, Sparkles, Loader, Youtube, GraduationCap, FileText, Link2,
+} from 'lucide-react';
+import type { Domain, Topic, Subtopic, Question, Resource, Level } from '../types';
 import { DomainChip, StatusButton, nextStatus } from '../lib/ui';
+import { api } from '../lib/api';
+import Markdown from '../lib/Markdown';
+
+const LEVEL_META: Record<Exclude<Level, ''>, { label: string; bg: string; fg: string }> = {
+  foundational: { label: 'Foundational', bg: 'oklch(0.93 0.06 155)', fg: 'oklch(0.42 0.10 155)' },
+  intermediate: { label: 'Intermediate', bg: 'var(--warn-soft)', fg: 'oklch(0.50 0.12 66)' },
+  advanced: { label: 'Advanced', bg: 'var(--accent-soft)', fg: 'var(--accent-strong)' },
+};
+
+function LevelChip({ level }: { level: Level }) {
+  if (!level || !(level in LEVEL_META)) return null;
+  const m = LEVEL_META[level as Exclude<Level, ''>];
+  return (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 6, background: m.bg, color: m.fg }}>
+      {m.label}
+    </span>
+  );
+}
+
+const RES_ICON = { video: Youtube, course: GraduationCap, article: FileText, docs: BookOpen, book: BookOpen } as const;
+
+function resourceHref(r: Resource): string {
+  if (r.url) return r.url;
+  const q = encodeURIComponent(r.query || r.title);
+  return r.kind === 'video'
+    ? `https://www.youtube.com/results?search_query=${q}`
+    : `https://www.google.com/search?q=${q}`;
+}
+
+function ResourceLinks({ resources }: { resources: Resource[] }) {
+  if (!resources?.length) return null;
+  return (
+    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--faint)' }}>Free resources</div>
+      {resources.map((r, i) => {
+        const Icon = RES_ICON[r.kind] ?? Link2;
+        return (
+          <a key={i} href={resourceHref(r)} target="_blank" rel="noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, color: 'var(--accent-strong)', textDecoration: 'none' }}>
+            <Icon size={14} strokeWidth={2} style={{ flexShrink: 0, color: 'var(--faint)' }} />
+            <span style={{ textDecoration: 'underline', textUnderlineOffset: 2 }}>{r.title}</span>
+            {!r.url && <span className="faint" style={{ fontSize: 11 }}>(search)</span>}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
 
 const iconBtn: CSSProperties = {
   width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -71,14 +122,24 @@ function QuestionItem({
 }
 
 function SubtopicRow({
-  sub, owned, onPatch, onRemove, onExpand,
+  sub, owned, aiConfigured, topicTitle, domainName, onPatch, onRemove, onExpand,
 }: {
   sub: Subtopic;
   owned: boolean;
+  aiConfigured: boolean;
+  topicTitle: string;
+  domainName: string;
   onPatch: (id: number, patch: Partial<Subtopic>) => void;
   onRemove: (id: number) => void;
   onExpand: (cfg: EditorCfg) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  // On-demand "simpler/deeper" explanations (session-cached, client-side only —
+  // default content is read-only so we never persist these).
+  const [extra, setExtra] = useState<{ simpler?: string; deeper?: string }>({});
+  const [loading, setLoading] = useState<'simpler' | 'deeper' | null>(null);
+  const [err, setErr] = useState('');
+
   const openEdit = () =>
     onExpand({
       label: 'Learning point',
@@ -93,6 +154,29 @@ function SubtopicRow({
         if (Object.keys(patch).length) onPatch(sub.id, patch);
       },
     });
+
+  const ask = async (mode: 'simpler' | 'deeper') => {
+    if (loading || extra[mode]) { setOpen(true); return; }
+    setLoading(mode); setErr('');
+    try {
+      const { markdown } = await api.explain({ point_title: sub.title, topic_title: topicTitle, domain_name: domainName, mode, subtopic_id: sub.id });
+      setExtra((e) => ({ ...e, [mode]: markdown }));
+      setOpen(true);
+    } catch (e) {
+      // Surface the real reason (status + body) so it's debuggable, not a silent spinner.
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(/Failed to fetch|NetworkError/i.test(msg)
+        ? 'Network/timeout — the AI may be busy generating bulk content right now. Try again shortly.'
+        : `Couldn't generate: ${msg}`);
+      console.error('explain failed:', e);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const hasDepth = Boolean(sub.explanation) || sub.resources?.length > 0;
+  const canExplain = aiConfigured;
+
   return (
     <div className="row-hover" style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 0' }}>
       <StatusButton status={sub.status} size={19} onClick={() => onPatch(sub.id, { status: nextStatus(sub.status) })} />
@@ -114,7 +198,60 @@ function SubtopicRow({
           )}
         </div>
         <NoteDisplay value={sub.notes} />
+
+        {/* Disclosure controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 7, flexWrap: 'wrap' }}>
+          {hasDepth && (
+            <button onClick={() => setOpen((v) => !v)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: 'var(--accent-strong)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: 0 }}>
+              {open ? <ChevronDown size={14} strokeWidth={2.4} /> : <ChevronRight size={14} strokeWidth={2.4} />}
+              {open ? 'Hide explanation' : 'Learn more'}
+            </button>
+          )}
+          {canExplain && (
+            <>
+              <button onClick={() => ask('simpler')} disabled={loading !== null}
+                title="Plain-English explanation for someone new to this domain"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: 0 }}>
+                {loading === 'simpler' ? <Loader size={13} className="spin" strokeWidth={2.4} /> : <Sparkles size={13} strokeWidth={2} />}
+                Explain simpler
+              </button>
+              <button onClick={() => ask('deeper')} disabled={loading !== null}
+                title="Advanced, in-depth explanation"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: 0 }}>
+                {loading === 'deeper' ? <Loader size={13} className="spin" strokeWidth={2.4} /> : <Sparkles size={13} strokeWidth={2} />}
+                Go deeper
+              </button>
+            </>
+          )}
+        </div>
+        {err && <div style={{ marginTop: 6, fontSize: 12.5, color: 'var(--accent)' }}>{err}</div>}
+
+        {/* Expanded depth */}
+        {open && (
+          <div style={{ marginTop: 10, padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            {sub.explanation && <Markdown>{sub.explanation}</Markdown>}
+            <ResourceLinks resources={sub.resources} />
+          </div>
+        )}
+        {extra.simpler && (
+          <ExtraBlock label="Simpler explanation" md={extra.simpler} />
+        )}
+        {extra.deeper && (
+          <ExtraBlock label="Deeper dive" md={extra.deeper} />
+        )}
       </div>
+    </div>
+  );
+}
+
+function ExtraBlock({ label, md }: { label: string; md: string }) {
+  return (
+    <div style={{ marginTop: 10, padding: '12px 14px', background: 'var(--accent-softer)', border: '1px solid var(--accent-line)', borderRadius: 10 }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--accent-strong)', marginBottom: 6 }}>
+        <Sparkles size={12} strokeWidth={2} /> {label}
+      </div>
+      <Markdown>{md}</Markdown>
     </div>
   );
 }
@@ -123,6 +260,7 @@ interface Props {
   topic: Topic;
   domain: Domain | undefined;
   currentUserId: number;
+  aiConfigured: boolean;
   doneQuestions: Set<number>;
   questionNotes: Map<number, string>;
   onToggleQuestion: (questionId: number, done: boolean) => void;
@@ -135,7 +273,7 @@ interface Props {
 }
 
 export default function TopicRow({
-  topic, domain, currentUserId, doneQuestions, questionNotes,
+  topic, domain, currentUserId, aiConfigured, doneQuestions, questionNotes,
   onToggleQuestion, onSaveQuestionNotes,
   onPatchTopic, onRemoveTopic, onAddSubtopic, onPatchSubtopic, onRemoveSubtopic,
 }: Props) {
@@ -168,6 +306,7 @@ export default function TopicRow({
             </span>
             {topic.pinned && <Pin size={14} strokeWidth={2} fill="var(--warn)" style={{ color: 'var(--warn)' }} />}
             <DomainChip domain={domain} small />
+            <LevelChip level={topic.level} />
             <span className="display" style={{ fontSize: 17, color: topic.status === 'done' ? 'var(--faint)' : 'var(--text)', textDecoration: topic.status === 'done' ? 'line-through' : 'none' }}>{topic.title}</span>
             <span style={{ display: 'inline-flex', gap: 8 }}>
               {topic.subtopics.length > 0 && <span className="faint" style={{ fontSize: 12.5 }}>{subDone}/{topic.subtopics.length} points</span>}
@@ -197,7 +336,9 @@ export default function TopicRow({
           {topic.subtopics.length === 0 && <p className="faint" style={{ fontSize: 13, padding: '4px 0' }}>No learning points yet — add your own below.</p>}
           <div className="divide">
             {topic.subtopics.map((s) => (
-              <SubtopicRow key={s.id} sub={s} owned={s.owner_id === currentUserId} onPatch={onPatchSubtopic} onRemove={onRemoveSubtopic} onExpand={openEditor} />
+              <SubtopicRow key={s.id} sub={s} owned={s.owner_id === currentUserId}
+                aiConfigured={aiConfigured} topicTitle={topic.title} domainName={domain?.name ?? ''}
+                onPatch={onPatchSubtopic} onRemove={onRemoveSubtopic} onExpand={openEditor} />
             ))}
           </div>
           <div style={{ display: 'flex', gap: 9, marginTop: 12 }}>

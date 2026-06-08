@@ -20,6 +20,17 @@ def _drop_legacy_sessions() -> None:
                 conn.execute(text("DROP TABLE sessions"))
 
 
+def _ensure_columns(insp, tables, table: str, col_to_ddl: dict[str, str]) -> None:
+    """Add each missing column on `table` via its DDL. Idempotent."""
+    if table not in tables:
+        return
+    cols = {c["name"] for c in insp.get_columns(table)}
+    for col, ddl in col_to_ddl.items():
+        if col not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(ddl))
+
+
 def _add_missing_columns() -> None:
     """Lightweight, additive 'migrations' (no Alembic yet). Each is idempotent
     and non-destructive — only adds a column when it's missing."""
@@ -42,6 +53,15 @@ def _add_missing_columns() -> None:
                     conn.execute(
                         text(f"ALTER TABLE {tbl} ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
                     )
+    # learning-path ordering + level on topics; rich depth on subtopics
+    _ensure_columns(insp, tables, "topics", {
+        "path_order": "ALTER TABLE topics ADD COLUMN path_order INTEGER NOT NULL DEFAULT 0",
+        "level": "ALTER TABLE topics ADD COLUMN level VARCHAR(20) NOT NULL DEFAULT ''",
+    })
+    _ensure_columns(insp, tables, "subtopics", {
+        "explanation": "ALTER TABLE subtopics ADD COLUMN explanation TEXT NOT NULL DEFAULT ''",
+        "resources_json": "ALTER TABLE subtopics ADD COLUMN resources_json TEXT NOT NULL DEFAULT ''",
+    })
     # study_sessions.last_active_at (counted-time boundary; backfill from last_heartbeat_at)
     if "study_sessions" in tables:
         cols = {c["name"] for c in insp.get_columns("study_sessions")}

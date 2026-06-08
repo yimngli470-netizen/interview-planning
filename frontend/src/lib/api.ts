@@ -47,6 +47,10 @@ export const api = {
 
   // AI auto-fill availability
   aiStatus: () => req<{ configured: boolean }>('/ai/status'),
+  // On-demand explanation of one learning point (mode: 'simpler' | 'deeper').
+  // Pass subtopic_id so the server caches/reuses the result across users & sessions.
+  explain: (body: { point_title: string; topic_title?: string; domain_name?: string; mode?: 'simpler' | 'deeper'; subtopic_id?: number; refresh?: boolean }) =>
+    req<{ markdown: string; cached: boolean }>('/ai/explain', { method: 'POST', body: JSON.stringify(body) }),
 
   // Topics (user-scoped: defaults + that user's own; defaults are read-only)
   listTopics: (userId: number) => req<Topic[]>(`/topics?user_id=${userId}`),

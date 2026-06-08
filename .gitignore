@@ -27,3 +27,6 @@ pgdata/
 
 # LLM enrichment intermediate cache
 backend/app/_generated_cache.json
+
+# TS incremental build info
+frontend/tsconfig.tsbuildinfo

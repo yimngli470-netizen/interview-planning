@@ -36,6 +36,11 @@ class Topic(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(20), default="not-started")
     priority: Mapped[int] = mapped_column(Integer, default=0)
+    # pedagogical sequence within a domain (1,2,3…; 0 = unset). Drives the
+    # "Learning path" sort so a newcomer knows what to study first.
+    path_order: Mapped[int] = mapped_column(Integer, default=0)
+    # difficulty tier for the curve at a glance: foundational|intermediate|advanced|""
+    level: Mapped[str] = mapped_column(String(20), default="")
     effort_hours: Mapped[int] = mapped_column(Integer, default=4)
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     # NULL = default/curated content (shared, read-only). Set = a user's own
@@ -72,6 +77,12 @@ class Subtopic(Base):
     )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     notes: Mapped[str] = mapped_column(Text, default="")
+    # long-form markdown explanation (intro → intuition → formal), may contain
+    # KaTeX math ($…$) and ```mermaid``` diagrams. The terse `notes` stays the
+    # headline; this is the expandable "learn more" body.
+    explanation: Mapped[str] = mapped_column(Text, default="")
+    # JSON array of {title, url, kind, query} curated free learning resources.
+    resources_json: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(20), default="not-started")
     order: Mapped[int] = mapped_column(Integer, default=0)
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -106,6 +117,24 @@ class Question(Base):
     order: Mapped[int] = mapped_column(Integer, default=0)
 
     topic: Mapped["Topic"] = relationship(back_populates="questions")
+
+
+class ExplainCache(Base):
+    """Persistent cache of on-demand 'explain simpler / go deeper' results, keyed
+    by (subtopic, mode). The explanation of a learning point is the same for every
+    user, so the first request generates it and all later ones (any user, any
+    session) are served from here — no repeat LLM call."""
+
+    __tablename__ = "explain_cache"
+    __table_args__ = (UniqueConstraint("subtopic_id", "mode"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    subtopic_id: Mapped[int] = mapped_column(
+        ForeignKey("subtopics.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    mode: Mapped[str] = mapped_column(String(20), nullable=False)  # simpler | deeper
+    markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class User(Base):

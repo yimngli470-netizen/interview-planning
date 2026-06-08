@@ -33,6 +33,7 @@ export default function TopicsView(props: Props) {
     statusFilter, setStatusFilter, onAddTopic,
   } = props;
   const [showAdd, setShowAdd] = useState(false);
+  const [sortMode, setSortMode] = useState<'path' | 'priority'>('path');
   const [newTitle, setNewTitle] = useState('');
   const [newDomain, setNewDomain] = useState<number | ''>(domains[0]?.id ?? '');
   const [newEffort, setNewEffort] = useState(4);
@@ -56,11 +57,20 @@ export default function TopicsView(props: Props) {
       );
     }
     return [...list].sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      if (sortMode === 'priority') {
+        // Pinned float to the very top, then by domain, then priority.
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        if (a.domain_id !== b.domain_id) return (domainOrder[a.domain_id] ?? 0) - (domainOrder[b.domain_id] ?? 0);
+        return a.priority - b.priority;
+      }
+      // Learning path: keep each domain's prerequisite sequence intact (pinning
+      // doesn't reorder, so the curve stays readable). path_order 0 = unset → last.
       if (a.domain_id !== b.domain_id) return (domainOrder[a.domain_id] ?? 0) - (domainOrder[b.domain_id] ?? 0);
+      const pa = a.path_order || 9999, pb = b.path_order || 9999;
+      if (pa !== pb) return pa - pb;
       return a.priority - b.priority;
     });
-  }, [topics, domainFilter, statusFilter, search, domainOrder]);
+  }, [topics, domainFilter, statusFilter, search, domainOrder, sortMode]);
 
   const submitAdd = async () => {
     const domainId = newDomain === '' ? domains[0]?.id : newDomain;
@@ -92,6 +102,11 @@ export default function TopicsView(props: Props) {
           <option value="not-started">Not started</option>
           <option value="in-progress">In progress</option>
           <option value="done">Done</option>
+        </select>
+        <select className="field" style={{ width: 'auto' }} value={sortMode} onChange={(e) => setSortMode(e.target.value as 'path' | 'priority')}
+          title="Learning path orders topics so you know what to study first; Priority orders by interview importance.">
+          <option value="path">Sort: Learning path</option>
+          <option value="priority">Sort: Priority</option>
         </select>
         <button className="btn btn-primary" onClick={() => { setShowAdd((v) => !v); if (newDomain === '') setNewDomain(domains[0]?.id ?? ''); }}>
           <Plus size={17} strokeWidth={2.4} /> Add topic
@@ -147,6 +162,7 @@ export default function TopicsView(props: Props) {
                 topic={t}
                 domain={domainById[t.domain_id]}
                 currentUserId={props.currentUserId}
+                aiConfigured={props.aiConfigured}
                 doneQuestions={props.doneQuestions}
                 questionNotes={props.questionNotes}
                 onToggleQuestion={props.onToggleQuestion}

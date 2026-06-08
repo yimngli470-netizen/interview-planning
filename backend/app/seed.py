@@ -10,6 +10,8 @@ topics. `seed_or_enrich()` runs on every startup and:
 So re-running never overwrites your edits, and it tops up new content on deploy.
 """
 
+import json
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,11 +19,14 @@ from .models import Domain, Question, Subtopic, Topic, User
 from .content import CONTENT_BY_DOMAIN, QUESTIONS
 
 try:
-    # Comprehensive LLM-authored points/questions (app/content_generated.py),
-    # merged additively on top of the curated content above. Optional.
-    from .content_generated import GENERATED
+    # Comprehensive LLM-authored points (each with markdown explanation + free
+    # resources) / questions and a per-domain learning-path ORDER
+    # (app/content_generated.py), merged additively on top of the curated content
+    # above. Optional — module may not exist on a fresh checkout.
+    from .content_generated import GENERATED, ORDER
 except Exception:  # noqa: BLE001 — module may not exist yet
     GENERATED = {}
+    ORDER = {}
 
 # Flagship topics authored by hand (Opus) directly in content.py — skip the
 # generated/Sonnet versions for these so they stay clean (no overlap).
@@ -219,14 +224,32 @@ def seed_or_enrich(db: Session) -> None:
             topic = by_title.get(title)
             if topic is None:
                 continue
-            existing = {s.title for s in topic.subtopics}
+            existing = {s.title: s for s in topic.subtopics}
             next_order = max((s.order for s in topic.subtopics), default=0)
-            for pt_title, pt_notes in gen.get("points", []):
-                if pt_title and pt_title not in existing:
+            for p in gen.get("points", []):
+                pt_title = (p.get("title") or "").strip()
+                if not pt_title:
+                    continue
+                explanation = p.get("explanation", "") or ""
+                resources = p.get("resources") or []
+                res_json = json.dumps(resources) if resources else ""
+                if pt_title in existing:
+                    # backfill depth onto an existing curated/older point — only
+                    # when empty, so user/hand edits are never overwritten.
+                    s = existing[pt_title]
+                    if explanation and not s.explanation:
+                        s.explanation = explanation
+                    if res_json and not (s.resources_json or ""):
+                        s.resources_json = res_json
+                else:
                     next_order += 1
-                    db.add(Subtopic(topic_id=topic.id, title=pt_title, notes=pt_notes,
-                                    order=next_order, status="not-started"))
-                    existing.add(pt_title)
+                    ns = Subtopic(
+                        topic_id=topic.id, title=pt_title, notes=p.get("notes", "") or "",
+                        explanation=explanation, resources_json=res_json,
+                        order=next_order, status="not-started",
+                    )
+                    db.add(ns)
+                    existing[pt_title] = ns
             have = {q.prompt for q in topic.questions}
             q_order = max((q.order for q in topic.questions), default=0)
             for kind in ("example", "common"):
@@ -235,6 +258,20 @@ def seed_or_enrich(db: Session) -> None:
                         q_order += 1
                         db.add(Question(topic_id=topic.id, kind=kind, prompt=prompt, order=q_order))
                         have.add(prompt)
+
+    # --- apply learning-path ordering + level (default topics; backfill only) ---
+    if ORDER:
+        for domain_name, items in ORDER.items():
+            dom = domains.get(domain_name)
+            if dom is None:
+                continue
+            for i, it in enumerate(items, start=1):
+                topic = topics.get((dom.id, it["title"]))
+                if topic is not None and topic.owner_id is None:
+                    if not topic.path_order:
+                        topic.path_order = i
+                    if not topic.level:
+                        topic.level = it.get("level", "") or ""
 
     # --- users ---
     existing_users = {u.name for u in db.scalars(select(User)).all()}

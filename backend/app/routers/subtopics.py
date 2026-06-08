@@ -1,10 +1,12 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Subtopic, Topic
-from ..schemas import STATUSES, SubtopicCreate, SubtopicOut, SubtopicUpdate
+from ..schemas import STATUSES, SubtopicCreate, SubtopicOut, SubtopicUpdate, to_subtopic_out
 
 router = APIRouter(prefix="/api", tags=["subtopics"])
 
@@ -26,7 +28,7 @@ def list_subtopics(
         stmt = stmt.where(Subtopic.owner_id.is_(None))
     else:
         stmt = stmt.where(or_(Subtopic.owner_id.is_(None), Subtopic.owner_id == user_id))
-    return db.scalars(stmt.order_by(Subtopic.order, Subtopic.id)).all()
+    return [to_subtopic_out(s) for s in db.scalars(stmt.order_by(Subtopic.order, Subtopic.id)).all()]
 
 
 @router.post(
@@ -53,7 +55,7 @@ def create_subtopic(
     db.add(sub)
     db.commit()
     db.refresh(sub)
-    return sub
+    return to_subtopic_out(sub)
 
 
 @router.patch("/subtopics/{subtopic_id}", response_model=SubtopicOut)
@@ -74,11 +76,13 @@ def update_subtopic(
             raise HTTPException(403, f"Default learning point is read-only (can't change {sorted(bad)})")
     elif sub.owner_id != user_id:
         raise HTTPException(403, "You can only edit your own learning points")
+    if "resources" in fields:
+        sub.resources_json = json.dumps(fields.pop("resources") or [])
     for k, v in fields.items():
         setattr(sub, k, v)
     db.commit()
     db.refresh(sub)
-    return sub
+    return to_subtopic_out(sub)
 
 
 @router.delete("/subtopics/{subtopic_id}", status_code=204)

@@ -1,3 +1,4 @@
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from .. import llm
 from ..database import get_db
 from ..models import Domain, Question, Subtopic, Topic
-from ..schemas import STATUSES, SubtopicOut, TopicCreate, TopicOut, TopicUpdate
+from ..schemas import STATUSES, TopicCreate, TopicOut, TopicUpdate, to_subtopic_out
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def _visible_subtopics(topic: Topic, user_id: int | None) -> list[Subtopic]:
 
 def _serialize(topic: Topic, user_id: int | None) -> TopicOut:
     out = TopicOut.model_validate(topic)
-    out.subtopics = [SubtopicOut.model_validate(s) for s in _visible_subtopics(topic, user_id)]
+    out.subtopics = [to_subtopic_out(s) for s in _visible_subtopics(topic, user_id)]
     return out
 
 
@@ -67,9 +68,13 @@ def _autofill_topic(db: Session, topic: Topic, user_id: int) -> None:
             if not title:
                 continue
             order += 1
+            resources = lp.get("resources") or []
             db.add(Subtopic(
                 topic_id=topic.id, owner_id=user_id, title=title[:500],
-                notes=lp.get("details", "") or "", order=order, status="not-started",
+                notes=lp.get("details", "") or "",
+                explanation=lp.get("explanation", "") or "",
+                resources_json=json.dumps(resources) if resources else "",
+                order=order, status="not-started",
             ))
         q_order = 0
         for kind, key in (("example", "example_questions"), ("common", "common_questions")):
