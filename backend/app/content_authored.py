@@ -399,6 +399,324 @@ AUTHORED: dict[str, dict] = {
             "How do you support fuzzy/typo-tolerant matching efficiently at scale?",
         ],
     },
+
+    # ------------------------------------------------------------- AI Infra ---
+    "NCCL collectives & communication patterns": {
+        "points": [
+            {
+                "title": "What NCCL is and why collective communication dominates at scale",
+                "notes": "NCCL is NVIDIA's library for fast multi-GPU/multi-node collectives; comm is often the scaling bottleneck.",
+                "explanation": (
+                    "### The library behind every distributed run\n"
+                    "**NCCL** (NVIDIA Collective Communications Library) implements the group communication primitives that parallel training/inference depend on, tuned for GPU interconnects (NVLink, PCIe, InfiniBand). "
+                    "A **collective** is an operation involving *all* GPUs in a group — e.g. summing every GPU's gradients. As you add GPUs, computation per GPU stays roughly fixed but communication grows, so **collectives become the scaling bottleneck**. "
+                    "Understanding which collective each parallelism strategy uses — and how fast the interconnect runs it — is the key to predicting and improving throughput. Frameworks (PyTorch DDP/FSDP, Megatron) call NCCL under the hood."
+                ),
+                "resources": [
+                    {"title": "NVIDIA NCCL user guide", "url": "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/index.html", "kind": "docs", "query": "NVIDIA NCCL user guide collectives"},
+                ],
+            },
+            {
+                "title": "All-Reduce — the workhorse of data-parallel training",
+                "notes": "Every GPU ends with the summed (then averaged) gradient: reduce + broadcast in one op.",
+                "explanation": (
+                    "### The operation you'll see most\n"
+                    "In data-parallel training each GPU computes gradients on its own minibatch; they must be **averaged across all GPUs** before the optimizer step. **All-Reduce** does exactly that: it sums each GPU's tensor element-wise and leaves the result on *every* GPU.\n\n"
+                    "$$g_{\\text{final}} = \\frac{1}{N}\\sum_{i=1}^{N} g_i \\quad\\text{on every GPU}$$\n\n"
+                    "It's logically a **Reduce** (combine) followed by a **Broadcast** (distribute), but NCCL fuses them into one bandwidth-efficient pass. Because it runs every step on the full gradient, its speed largely determines data-parallel scaling efficiency."
+                ),
+                "resources": [
+                    {"title": "Ring All-Reduce explained (Uber Horovod)", "url": "", "kind": "article", "query": "ring allreduce horovod bringing distributed training"},
+                ],
+            },
+            {
+                "title": "Ring All-Reduce and bandwidth optimality",
+                "notes": "Arranged in a ring, each GPU sends 2(N−1)/N × data — independent of N, so it scales.",
+                "explanation": (
+                    "### Why the ring algorithm scales\n"
+                    "A naive all-reduce (everyone sends to one root) makes the root a bottleneck. **Ring All-Reduce** arranges GPUs in a logical ring and runs two phases — **reduce-scatter** then **all-gather** — each in N−1 steps where a GPU only talks to its neighbour.\n\n"
+                    "Total data each GPU sends is $\\approx 2\\frac{N-1}{N}\\times$ the tensor size — which **approaches a constant (2×) as N grows**, so per-GPU bandwidth cost is independent of the number of GPUs. That bandwidth-optimality is why ring (and tree/hierarchical variants for multi-node) is the default. NCCL auto-selects ring vs tree based on size and topology."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "The collective zoo: Broadcast, Reduce, All-Gather, Reduce-Scatter, All-to-All",
+                "notes": "Each primitive moves data a different way; know which op each parallelism needs.",
+                "explanation": (
+                    "### The primitives\n"
+                    "- **Broadcast** — one GPU's data copied to all (e.g. distribute initial weights).\n"
+                    "- **Reduce** — combine all GPUs' data to one GPU.\n"
+                    "- **All-Reduce** — reduce, result on all GPUs.\n"
+                    "- **All-Gather** — each GPU contributes a shard; everyone ends with the full concatenation (FSDP gathers sharded weights before a layer).\n"
+                    "- **Reduce-Scatter** — reduce, but each GPU keeps only its shard of the result (FSDP scatters gradients).\n"
+                    "- **All-to-All** — every GPU sends a distinct chunk to every other GPU (MoE token routing to experts).\n\n"
+                    "All-Reduce = Reduce-Scatter + All-Gather, which is why those two appear together in sharded training."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Mapping collectives to parallelism strategies",
+                "notes": "DP→all-reduce, FSDP→all-gather+reduce-scatter, TP→all-reduce, MoE→all-to-all, PP→point-to-point.",
+                "explanation": (
+                    "### Which strategy triggers which op\n"
+                    "| Parallelism | Communication |\n|---|---|\n"
+                    "| **Data parallel (DDP)** | All-Reduce of gradients each step |\n"
+                    "| **FSDP / ZeRO-3** | All-Gather weights (fwd/bwd) + Reduce-Scatter gradients |\n"
+                    "| **Tensor parallel (TP)** | All-Reduce of partial activations within each layer |\n"
+                    "| **Pipeline parallel (PP)** | Point-to-point send/recv of activations between stages |\n"
+                    "| **Expert parallel (MoE)** | All-to-All to route tokens to expert GPUs |\n\n"
+                    "TP is the most communication-intensive (all-reduce *inside* every layer), which is why it's kept within a high-bandwidth NVLink node, while DP can span nodes over slower InfiniBand."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Interconnects & transports: NVLink, NVSwitch, PCIe, InfiniBand, GPUDirect RDMA",
+                "notes": "Intra-node NVLink (~100s GB/s) ≫ PCIe; inter-node InfiniBand/RoCE; RDMA skips the CPU.",
+                "explanation": (
+                    "### The physical layer sets the ceiling\n"
+                    "- **NVLink / NVSwitch** — high-bandwidth GPU-to-GPU links *within* a node (hundreds of GB/s, e.g. ~900 GB/s on H100 NVSwitch). Far faster than PCIe.\n"
+                    "- **PCIe** — host/GPU bus, ~32–64 GB/s; a fallback when no NVLink.\n"
+                    "- **InfiniBand / RoCE** — the *inter-node* fabric (e.g. 400 Gb/s NDR), used to scale beyond one box.\n"
+                    "- **GPUDirect RDMA** — lets the NIC read/write GPU memory directly, bypassing the CPU and extra copies.\n\n"
+                    "NCCL discovers this topology and routes collectives accordingly. Placement matters: keep the chattiest parallelism (TP) on NVLink, span the cheaper one (DP/PP) across the slower inter-node fabric."
+                ),
+                "resources": [
+                    {"title": "NVLink / NVSwitch overview", "url": "", "kind": "article", "query": "NVLink NVSwitch bandwidth H100 explained"},
+                ],
+            },
+            {
+                "title": "Bus bandwidth, message size, and latency",
+                "notes": "Small messages are latency-bound; fuse into large buffers to hit peak 'busbw'.",
+                "explanation": (
+                    "### Big messages win\n"
+                    "Every collective pays a fixed **latency** plus a per-byte **bandwidth** cost. Tiny messages are dominated by latency and kernel-launch overhead, so effective bandwidth is poor; large messages amortize the fixed cost and approach peak. "
+                    "NCCL reports **bus bandwidth (busbw)** — a topology-normalized number you can compare against the hardware peak with `nccl-tests`. The practical lever: **fuse many small tensors into few large buffers** before communicating (see gradient bucketing). The roofline intuition applies to comm too — you want to be bandwidth-bound, not latency-bound."
+                ),
+                "resources": [
+                    {"title": "nccl-tests (benchmarking)", "url": "https://github.com/NVIDIA/nccl-tests", "kind": "docs", "query": "nccl-tests github bus bandwidth"},
+                ],
+            },
+            {
+                "title": "Overlapping communication with computation",
+                "notes": "Run collectives on a separate CUDA stream during backprop so comm hides under compute.",
+                "explanation": (
+                    "### Hide the comm under the math\n"
+                    "If a GPU computes, then stops to communicate, then computes, the comm time is pure overhead. The fix is **overlap**: launch collectives on a separate CUDA stream so they run *concurrently* with computation. "
+                    "In backprop, gradients for early layers become available while later layers are still computing — DDP kicks off the all-reduce for a gradient bucket the moment it's ready, overlapping it with the rest of the backward pass. "
+                    "Effective overlap can hide most communication, which is what keeps data-parallel scaling efficiency high. It requires enough compute per step to hide behind; tiny models/batches can't overlap and become comm-bound."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Gradient bucketing and fusion",
+                "notes": "Group many small gradient tensors into fixed-size buckets so each all-reduce is large and overlappable.",
+                "explanation": (
+                    "### Why DDP buckets gradients\n"
+                    "A model has hundreds of parameter tensors; all-reducing each separately means hundreds of tiny, latency-bound collectives. **Bucketing** groups gradients into fixed-size buffers (e.g. 25 MB) and all-reduces a full bucket at once. "
+                    "Benefits: (1) each collective is large → near-peak bandwidth; (2) a bucket fires as soon as its gradients are ready during backprop → maximal overlap with computation. "
+                    "Bucket size is a tunable tradeoff — too small loses bandwidth and overlap; too large delays the first launch. This is a standard knob in DDP/FSDP performance tuning."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Debugging hangs, mismatches, and stragglers",
+                "notes": "Collectives are barriers — one slow/misordered rank stalls all; use NCCL_DEBUG and watch for stragglers.",
+                "explanation": (
+                    "### When the whole job freezes\n"
+                    "Because every rank must participate, collectives act as **barriers** — the cluster runs at the speed of its slowest GPU. Common failure modes:\n\n"
+                    "- **Mismatched collectives** — ranks call ops in different order / with different sizes → deadlock or corruption.\n"
+                    "- **A dead or hung rank** → everyone waits forever (watch for NCCL timeout errors).\n"
+                    "- **Stragglers** — one slow GPU (thermal throttling, bad NIC, noisy neighbour) drags down every step.\n\n"
+                    "Tools: set `NCCL_DEBUG=INFO` to see topology/algorithm choices, `nccl-tests` to validate raw bandwidth, and per-rank step-time monitoring to catch stragglers. Many large-run incidents are network/straggler issues, not model bugs."
+                ),
+                "resources": [
+                    {"title": "NCCL troubleshooting & env vars", "url": "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/troubleshooting.html", "kind": "docs", "query": "NCCL_DEBUG troubleshooting environment variables"},
+                ],
+            },
+            {
+                "title": "Communication as the scaling bottleneck (compute vs comm)",
+                "notes": "Scaling efficiency = compute / (compute + exposed comm); grow batch or overlap to stay compute-bound.",
+                "explanation": (
+                    "### The number that decides whether more GPUs help\n"
+                    "Adding GPUs only helps if communication doesn't eat the gains. **Scaling efficiency** ≈ useful compute ÷ (compute + *exposed* communication). Levers to keep it high:\n\n"
+                    "- **Overlap** comm with compute (separate streams, bucketing).\n"
+                    "- **Larger per-GPU work** (bigger batch / more compute) so there's more to hide comm behind.\n"
+                    "- **Right topology** — chatty parallelism on NVLink, cheap parallelism across nodes.\n"
+                    "- **Fewer/larger messages** to hit peak bandwidth.\n\n"
+                    "When efficiency drops at scale, the cause is almost always exposed communication — diagnose with a profiler timeline showing comm vs compute gaps."
+                ),
+                "resources": [],
+            },
+        ],
+        "example": [
+            "Your data-parallel training scales to 8 GPUs at 95% efficiency but only 60% at 64 GPUs — diagnose and fix.",
+            "Which NCCL collective(s) does FSDP use in the forward and backward pass, and why?",
+            "Estimate per-GPU bytes moved by ring all-reduce of a 1 GB gradient across 32 GPUs.",
+            "A 256-GPU job hangs intermittently with no error — how do you debug it?",
+            "Why is tensor parallelism usually confined to a single NVLink node while data parallelism spans nodes?",
+        ],
+        "common": [
+            "What is All-Reduce and why is it central to data-parallel training?",
+            "Explain ring all-reduce and why its per-GPU bandwidth cost is independent of GPU count.",
+            "Map each parallelism strategy (DP, FSDP, TP, PP, MoE) to the collective(s) it uses.",
+            "How do you overlap communication with computation, and why does bucketing help?",
+            "Compare NVLink, PCIe, and InfiniBand — where does each sit in a cluster?",
+            "How would you debug a NCCL hang or a straggler in a large training run?",
+        ],
+    },
+
+    "Roofline model, arithmetic intensity & profiling": {
+        "points": [
+            {
+                "title": "The roofline model: compute roof vs memory-bandwidth roof",
+                "notes": "Attainable FLOP/s = min(peak compute, arithmetic_intensity × memory bandwidth).",
+                "explanation": (
+                    "### One picture for 'what's limiting me'\n"
+                    "The roofline plots attainable performance against **arithmetic intensity** (x-axis, FLOPs per byte) on log-log axes. Two ceilings bound you:\n\n"
+                    "$$\\text{attainable FLOP/s} = \\min\\big(\\underbrace{\\text{peak compute}}_{\\text{flat roof}},\\ \\underbrace{\\text{AI} \\times \\text{peak memory BW}}_{\\text{slanted roof}}\\big)$$\n\n"
+                    "At low intensity you're on the **slanted (memory) roof** — limited by how fast you can move bytes. Past the **ridge point** you hit the **flat (compute) roof** — limited by raw FLOP/s. "
+                    "The model tells you, for a given kernel, whether to optimize memory traffic or arithmetic — and the ceiling you could reach if you did."
+                ),
+                "resources": [
+                    {"title": "Roofline model (Berkeley) — overview", "url": "", "kind": "article", "query": "roofline model arithmetic intensity Williams Berkeley"},
+                ],
+            },
+            {
+                "title": "Arithmetic intensity (FLOPs per byte)",
+                "notes": "AI = total FLOPs ÷ bytes moved to/from DRAM; it places a kernel on the roofline.",
+                "explanation": (
+                    "### The single most useful ratio\n"
+                    "**Arithmetic intensity** is the work done per byte of memory traffic:\n\n"
+                    "$$\\text{AI} = \\frac{\\text{FLOPs}}{\\text{bytes moved to/from DRAM}}$$\n\n"
+                    "High AI (reuses data many times in registers/cache) → compute-bound, good GPU utilization. Low AI (touches each byte once) → memory-bound. "
+                    "Examples: a large dense **GEMM** has high AI (each loaded element feeds many FMAs) → compute-bound; **elementwise ops** (add, activation, layernorm) have AI ≈ a fraction → deeply memory-bound. "
+                    "Computing AI for your hot kernel immediately tells you which roof you're under and whether Tensor Cores can even help."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Compute-bound vs memory-bound and the ridge point",
+                "notes": "The ridge point AI* = peak FLOP/s ÷ peak BW; below it you're memory-bound, above it compute-bound.",
+                "explanation": (
+                    "### Where the two roofs meet\n"
+                    "The **ridge point** is the arithmetic intensity at which the memory roof meets the compute roof:\n\n"
+                    "$$\\text{AI}^* = \\frac{\\text{peak FLOP/s}}{\\text{peak memory BW}}$$\n\n"
+                    "For modern GPUs this is high — e.g. an H100 has ~1000 TFLOP/s (BF16) and ~3.35 TB/s HBM, giving AI* ≈ 300 FLOP/byte. **You need ~300 FLOPs per byte just to be compute-bound.** "
+                    "That's a high bar, which is why so many real workloads (anything elementwise, small-batch decode) sit firmly on the memory roof. Knowing AI* for your hardware tells you the intensity you must reach to use the compute you paid for."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Why LLM inference decode is memory-bound",
+                "notes": "Autoregressive decode does tiny GEMVs per token, reloading all weights → bandwidth-limited.",
+                "explanation": (
+                    "### The defining fact of inference perf\n"
+                    "During autoregressive **decode**, each step processes a single new token: the matrix multiplies become **GEMV** (matrix × vector), so each weight is loaded from HBM and used for only *one* multiply — arithmetic intensity ≈ 1. The step time is dominated by **reading the weights**, not computing:\n\n"
+                    "$$t_{\\text{decode}} \\approx \\frac{\\text{model bytes}}{\\text{memory bandwidth}}$$\n\n"
+                    "This is why decode is **memory-bound** and why **batching** (reuse the loaded weights across many sequences) and **quantization** (fewer bytes per weight) are the big inference wins — both raise effective arithmetic intensity. Prefill, by contrast, processes many tokens at once (GEMM) and is compute-bound."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Estimating AI for common kernels (GEMM, attention, elementwise)",
+                "notes": "GEMM ∝ N (high AI); attention is memory-bound without fusion; elementwise/norm are memory-bound.",
+                "explanation": (
+                    "### Back-of-envelope per kernel\n"
+                    "- **Dense GEMM** ($M\\times K \\cdot K\\times N$): $2MKN$ FLOPs vs $\\sim(MK+KN+MN)$ elements moved → AI grows with matrix size → **compute-bound** when large; Tensor Cores apply.\n"
+                    "- **Attention**: the $QK^\\top$ and $\\cdot V$ are GEMMs, but a naive implementation materializes the $N\\times N$ scores to HBM → memory-bound. **FlashAttention** fuses it to keep scores in SRAM, raising AI and making it compute-bound.\n"
+                    "- **Elementwise / LayerNorm / softmax / activations**: a few FLOPs per element, AI ≈ O(1) → **memory-bound**; the win is **kernel fusion** to avoid round-trips to HBM.\n\n"
+                    "This is why fusing elementwise ops and using FlashAttention are such common, high-leverage optimizations."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Profiling tools: Nsight Systems vs Nsight Compute",
+                "notes": "Nsight Systems = whole-timeline view; Nsight Compute = single-kernel deep dive.",
+                "explanation": (
+                    "### Two complementary lenses\n"
+                    "- **Nsight Systems (nsys)** — a **timeline** profiler: shows CPU/GPU activity, kernel durations, memcpys, gaps, and stream overlap across the whole run. Use it first to find *where* time goes — idle GPU? bad overlap? a dominant kernel? launch-overhead gaps?\n"
+                    "- **Nsight Compute (ncu)** — a **per-kernel** profiler: for one kernel it reports achieved FLOP/s, memory throughput, occupancy, warp stalls, and **places it on a roofline**. Use it to understand *why* a specific hot kernel is slow.\n\n"
+                    "Workflow: nsys to pick the offender → ncu to diagnose it → optimize → repeat. For PyTorch, `torch.profiler` gives a similar timeline + the Chrome trace viewer / TensorBoard plugin."
+                ),
+                "resources": [
+                    {"title": "NVIDIA Nsight Systems", "url": "https://developer.nvidia.com/nsight-systems", "kind": "docs", "query": "NVIDIA Nsight Systems profiler"},
+                    {"title": "PyTorch Profiler recipe", "url": "", "kind": "docs", "query": "pytorch torch.profiler tutorial trace"},
+                ],
+            },
+            {
+                "title": "Reading a profile: kernel time, memory throughput, occupancy, stalls",
+                "notes": "Find the dominant kernels, then check if they hit memory-BW or compute peak, and why not.",
+                "explanation": (
+                    "### What to look at\n"
+                    "1. **Top kernels by total time** — optimize the few that dominate (Amdahl).\n"
+                    "2. **Achieved vs peak** — is the kernel near peak memory bandwidth (memory-bound, expected for elementwise) or near peak FLOP/s (compute-bound)? The gap is your headroom.\n"
+                    "3. **Occupancy** — are enough warps resident to hide latency? Low occupancy from register/shared-memory pressure leaves the GPU stalling.\n"
+                    "4. **Warp stall reasons** — memory dependency, sync, instruction fetch — point at the specific fix.\n"
+                    "5. **Gaps / low GPU utilization** on the timeline — CPU-bound dataloader, kernel-launch overhead, or missing overlap.\n\n"
+                    "The roofline view in ncu ties it together: a dot far below both roofs means there's real headroom to chase."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "A roofline-driven optimization workflow",
+                "notes": "Memory-bound → fuse / cut traffic / raise reuse; compute-bound → Tensor Cores, better GEMM, lower precision.",
+                "explanation": (
+                    "### Let the roof tell you what to do\n"
+                    "**If memory-bound** (most elementwise/decode work):\n"
+                    "- **Fuse kernels** to avoid HBM round-trips (e.g. fused LayerNorm, FlashAttention).\n"
+                    "- **Reduce bytes** — lower precision (FP16/FP8), in-place ops, smaller dtypes.\n"
+                    "- **Increase reuse** — batch to amortize weight loads; tile to keep data in SRAM.\n\n"
+                    "**If compute-bound** (large GEMMs):\n"
+                    "- Use **Tensor Cores** (right dtype/shapes), pick good GEMM tiling (cuBLAS/CUTLASS), align dimensions.\n"
+                    "- Consider lower-precision math if accuracy allows.\n\n"
+                    "Always raising **arithmetic intensity** (more work per byte) moves you up the slanted roof toward the compute ceiling."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "MFU / HFU: model FLOPs utilization as a north-star metric",
+                "notes": "MFU = achieved model FLOP/s ÷ hardware peak; a single number for how well you use the GPU.",
+                "explanation": (
+                    "### The headline efficiency number\n"
+                    "**Model FLOPs Utilization (MFU)** is the fraction of peak compute your training/inference actually achieves:\n\n"
+                    "$$\\text{MFU} = \\frac{\\text{model FLOPs/s actually done}}{\\text{hardware peak FLOP/s}}$$\n\n"
+                    "Compute model FLOPs from the architecture (e.g. $\\approx 6 \\cdot N_{\\text{params}} \\cdot \\text{tokens}$ for a transformer training step) and divide by measured time × peak. "
+                    "Good large-scale training runs reach ~**40–55% MFU**; much lower means time is lost to memory traffic, communication, or pipeline bubbles. **HFU** (hardware FLOPs utilization) counts redundant recompute (activation checkpointing) too. MFU is the one number to track when scaling — it captures compute, memory, *and* comm inefficiencies at once."
+                ),
+                "resources": [
+                    {"title": "PaLM / MFU definition", "url": "", "kind": "article", "query": "model FLOPs utilization MFU definition transformer"},
+                ],
+            },
+            {
+                "title": "Common pitfalls: small batches, launch overhead, false peaks",
+                "notes": "Tiny batches → memory-bound & low occupancy; many small kernels → launch-overhead-bound.",
+                "explanation": (
+                    "### Traps that waste the GPU\n"
+                    "- **Too-small batch** — low arithmetic intensity and low occupancy; you sit on the memory roof and underuse compute. Increasing batch is often the single biggest win.\n"
+                    "- **Kernel-launch overhead** — thousands of tiny kernels mean the GPU spends time launching, not computing; timeline shows gaps. Fix with fusion or **CUDA graphs**.\n"
+                    "- **CPU-bound dataloader** — GPU idles waiting for input; the timeline shows GPU gaps aligned with host work.\n"
+                    "- **Chasing peak FLOP/s on a memory-bound kernel** — pointless; the roofline tells you the real ceiling is the memory roof.\n\n"
+                    "Always measure before optimizing: the profile usually contradicts your first guess about where the time goes."
+                ),
+                "resources": [],
+            },
+        ],
+        "example": [
+            "Your training run shows 18% MFU on H100s — list the likely causes in priority order and how you'd confirm each.",
+            "Compute the arithmetic intensity of a LayerNorm over a [8192, 4096] tensor and say which roof it's on.",
+            "Estimate decode tokens/sec for a 13B FP16 model on a GPU with 2 TB/s memory bandwidth (single sequence).",
+            "Given an Nsight Compute report showing 80% memory throughput and 12% SM utilization, what do you optimize?",
+            "Where is the ridge point for an accelerator with 500 TFLOP/s and 2 TB/s bandwidth, and what does it imply?",
+        ],
+        "common": [
+            "Explain the roofline model and how it tells you whether to optimize compute or memory.",
+            "What is arithmetic intensity, and why is LLM decode memory-bound while prefill is compute-bound?",
+            "When do you reach for Nsight Systems vs Nsight Compute?",
+            "What is MFU, what's a good value at scale, and what drags it down?",
+            "How does kernel fusion (or FlashAttention) change a kernel's position on the roofline?",
+            "Name three reasons a GPU shows low utilization in a profile and the fix for each.",
+        ],
+    },
 }
 
 
@@ -421,5 +739,22 @@ AUTHORED_ORDER: dict[str, list[dict]] = {
         {"title": "Design RAG pipeline w/ vector search + eval", "level": "advanced"},
         {"title": "Design agent orchestration / tool-use system", "level": "advanced"},
         {"title": "Design distributed training cluster (DP/MP/PP, fault tolerance)", "level": "advanced"},
+    ],
+    "AI Infra": [
+        {"title": "GPU architecture: SMs, memory hierarchy, Tensor Cores, NVLink", "level": "foundational"},
+        {"title": "Memory math, arithmetic intensity & the roofline model", "level": "foundational"},
+        {"title": "CUDA programming basics: kernels, shared memory, occupancy", "level": "intermediate"},
+        {"title": "Roofline model, arithmetic intensity & profiling", "level": "intermediate"},
+        {"title": "Mixed precision training & numerical stability", "level": "intermediate"},
+        {"title": "NCCL collectives & communication patterns", "level": "intermediate"},
+        {"title": "Input pipeline & data loading at scale", "level": "intermediate"},
+        {"title": "Distributed training: DDP, FSDP, ZeRO-1/2/3, TP, PP", "level": "advanced"},
+        {"title": "FlashAttention & memory-efficient attention variants", "level": "advanced"},
+        {"title": "Quantization (INT8, FP8, FP4) & speculative decoding", "level": "advanced"},
+        {"title": "Inference optimization: KV cache, PagedAttention, continuous batching (vLLM)", "level": "advanced"},
+        {"title": "Serving frameworks: Triton, TensorRT-LLM, SGLang", "level": "advanced"},
+        {"title": "MoE training & serving (expert & sequence parallelism)", "level": "advanced"},
+        {"title": "Checkpointing, fault tolerance, large-cluster observability", "level": "advanced"},
+        {"title": "Kubernetes / SLURM for ML workloads", "level": "intermediate"},
     ],
 }
