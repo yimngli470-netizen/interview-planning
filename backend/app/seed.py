@@ -28,6 +28,14 @@ except Exception:  # noqa: BLE001 — module may not exist yet
     GENERATED = {}
     ORDER = {}
 
+try:
+    # Hand-authored (Opus) rich content — same shape as GENERATED but written
+    # directly rather than via the API. Merged AFTER (and so wins over) GENERATED.
+    from .content_authored import AUTHORED, AUTHORED_ORDER
+except Exception:  # noqa: BLE001
+    AUTHORED = {}
+    AUTHORED_ORDER = {}
+
 # Flagship topics authored by hand (Opus) directly in content.py — skip the
 # generated/Sonnet versions for these so they stay clean (no overlap).
 SKIP_GENERATED = {
@@ -46,16 +54,27 @@ def _has_depth(gen: dict) -> bool:
     )
 
 
-# Topics whose v2 generated set (points carry markdown explanations) is the
-# AUTHORITATIVE, comprehensive learning-point list. For these we DON'T also seed
-# the curated content.py points, and we prune any default point not in the
-# generated set — otherwise curated + older-generation points (whose titles
-# drifted) pile up as redundant, no-"Learn more" duplicates. v1/no-depth topics
-# (e.g. Coding, or topics that failed enrichment) keep the additive behaviour.
-AUTHORITATIVE = {
-    title for title, gen in GENERATED.items()
-    if title not in SKIP_GENERATED and _has_depth(gen)
-}
+# Rich content sources, lowest→highest precedence (AUTHORED wins over GENERATED).
+RICH_SOURCES = (GENERATED, AUTHORED)
+
+# Topics whose depth-bearing set is the AUTHORITATIVE, comprehensive learning-point
+# list → maps title to its canonical set of point titles. For these we DON'T also
+# seed the curated content.py points, and we prune any default point NOT in this
+# set — otherwise curated + older-generation points (whose titles drifted) pile up
+# as redundant, no-"Learn more" duplicates. v1/no-depth topics (e.g. Coding, or
+# topics that failed enrichment) keep the additive behaviour. A later source
+# (AUTHORED) overrides an earlier one's canonical set for the same title.
+AUTHORITATIVE_POINTS: dict[str, set[str]] = {}
+for _src in RICH_SOURCES:
+    for _title, _gen in _src.items():
+        if _title in SKIP_GENERATED or not _has_depth(_gen):
+            continue
+        AUTHORITATIVE_POINTS[_title] = {
+            (p.get("title") or "").strip()
+            for p in _gen.get("points", [])
+            if (p.get("title") or "").strip()
+        }
+AUTHORITATIVE = set(AUTHORITATIVE_POINTS)
 
 DEFAULT_USERS = ["Zoey", "Xiaoming"]
 
@@ -236,17 +255,21 @@ def seed_or_enrich(db: Session) -> None:
                             )
                             have.add(prompt)
 
-    # --- merge LLM-generated comprehensive content (additive, default topics only) ---
-    if GENERATED:
-        by_title = {k[1]: t for k, t in topics.items() if t.owner_id is None}
-        for title, gen in GENERATED.items():
+    # --- merge rich content (GENERATED then AUTHORED; additive, default topics) ---
+    by_title = {k[1]: t for k, t in topics.items() if t.owner_id is None}
+    for source in RICH_SOURCES:
+        for title, gen in source.items():
             if title in SKIP_GENERATED:
                 continue
             topic = by_title.get(title)
             if topic is None:
                 continue
-            existing = {s.title: s for s in topic.subtopics}
-            next_order = max((s.order for s in topic.subtopics), default=0)
+            # Re-query each pass (autoflush) so a later source sees the earlier
+            # source's just-added points and never double-adds.
+            existing = {s.title: s for s in db.scalars(
+                select(Subtopic).where(Subtopic.topic_id == topic.id)
+            ).all()}
+            next_order = max((s.order for s in existing.values()), default=0)
             for p in gen.get("points", []):
                 pt_title = (p.get("title") or "").strip()
                 if not pt_title:
@@ -255,8 +278,8 @@ def seed_or_enrich(db: Session) -> None:
                 resources = p.get("resources") or []
                 res_json = json.dumps(resources) if resources else ""
                 if pt_title in existing:
-                    # backfill depth onto an existing curated/older point — only
-                    # when empty, so user/hand edits are never overwritten.
+                    # backfill depth onto an existing point only when empty, so
+                    # user/hand edits are never overwritten.
                     s = existing[pt_title]
                     if explanation and not s.explanation:
                         s.explanation = explanation
@@ -271,8 +294,9 @@ def seed_or_enrich(db: Session) -> None:
                     )
                     db.add(ns)
                     existing[pt_title] = ns
-            have = {q.prompt for q in topic.questions}
-            q_order = max((q.order for q in topic.questions), default=0)
+            questions = db.scalars(select(Question).where(Question.topic_id == topic.id)).all()
+            have = {q.prompt for q in questions}
+            q_order = max((q.order for q in questions), default=0)
             for kind in ("example", "common"):
                 for prompt in gen.get(kind, []):
                     if prompt and prompt not in have:
@@ -280,44 +304,41 @@ def seed_or_enrich(db: Session) -> None:
                         db.add(Question(topic_id=topic.id, kind=kind, prompt=prompt, order=q_order))
                         have.add(prompt)
 
-        # prune stale/duplicate default points on authoritative topics — anything
-        # not in the generated set (curated + drifted older-generation points).
-        # User-owned points (owner_id set) are never touched. Idempotent: once
-        # converged, the generated set == the default points, so nothing deletes.
+    # prune stale/duplicate default points on authoritative topics — anything not
+    # in the canonical set (curated + drifted older-generation points). User-owned
+    # points are never touched. Idempotent: once converged, nothing deletes.
+    if AUTHORITATIVE_POINTS:
         db.flush()
-        for title in AUTHORITATIVE:
+        for title, keep_titles in AUTHORITATIVE_POINTS.items():
             topic = by_title.get(title)
-            if topic is None:
-                continue
-            gen_titles = {
-                (p.get("title") or "").strip()
-                for p in GENERATED[title].get("points", [])
-                if (p.get("title") or "").strip()
-            }
-            if not gen_titles:
+            if topic is None or not keep_titles:
                 continue
             for s in db.scalars(
                 select(Subtopic).where(
                     Subtopic.topic_id == topic.id,
                     Subtopic.owner_id.is_(None),
-                    Subtopic.title.notin_(gen_titles),
+                    Subtopic.title.notin_(keep_titles),
                 )
             ).all():
                 db.delete(s)
 
-    # --- apply learning-path ordering + level (default topics; backfill only) ---
-    if ORDER:
-        for domain_name, items in ORDER.items():
+    # --- apply learning-path ordering + level (default topics) ---
+    def _apply_order(order_map: dict, override: bool) -> None:
+        for domain_name, items in order_map.items():
             dom = domains.get(domain_name)
             if dom is None:
                 continue
             for i, it in enumerate(items, start=1):
                 topic = topics.get((dom.id, it["title"]))
-                if topic is not None and topic.owner_id is None:
-                    if not topic.path_order:
-                        topic.path_order = i
-                    if not topic.level:
-                        topic.level = it.get("level", "") or ""
+                if topic is None or topic.owner_id is not None:
+                    continue
+                if override or not topic.path_order:
+                    topic.path_order = i
+                if override or not topic.level:
+                    topic.level = it.get("level", "") or ""
+
+    _apply_order(ORDER, override=False)        # generated ordering: fill gaps only
+    _apply_order(AUTHORED_ORDER, override=True)  # hand-authored ordering wins
 
     # --- users ---
     existing_users = {u.name for u in db.scalars(select(User)).all()}

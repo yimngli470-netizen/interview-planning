@@ -18,6 +18,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app import content, llm
 from app.seed import SKIP_GENERATED  # flagship topics — hand-authored, don't regen points
+try:
+    from app.content_authored import AUTHORED  # hand-authored rich topics — never regenerate
+except Exception:  # noqa: BLE001
+    AUTHORED = {}
+# Titles we must never call the API for (hand-authored already).
+NEVER_GENERATE = set(SKIP_GENERATED) | set(AUTHORED)
 
 CACHE = "/app/app/_generated_cache.json"
 OUT = "/app/app/content_generated.py"
@@ -105,7 +111,7 @@ def main(domains: list[str]) -> None:
     for domain in domains:
         for spec in content.CONTENT_BY_DOMAIN.get(domain, []):
             title = spec["title"]
-            if title in SKIP_GENERATED:
+            if title in NEVER_GENERATE:
                 continue
             if title in cache and _is_v2(cache[title]):
                 continue

@@ -122,6 +122,13 @@ Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
   Regenerate with `docker compose exec backend python _enrich.py <domains...>`
   (defaults to the 3 conceptual domains; resumable via the gitignored
   `_generated_cache.json` — entries are re-run if they lack the v2 `explanation`).
+- `backend/app/content_authored.py` = HAND-AUTHORED (by Opus, no API) rich content
+  in the SAME shape as `content_generated.py` (`AUTHORED` + `AUTHORED_ORDER`). The
+  seeder merges all rich sources in order `(GENERATED, AUTHORED)` — AUTHORED wins —
+  and `_enrich.py` never regenerates AUTHORED titles. Use this to fill in / improve
+  topics by hand instead of spending API tokens. `AUTHORED_ORDER` sets a domain's
+  learning-path order + levels (and overrides any generated ORDER). System Design is
+  fully hand-finished here (2 topics + full 17-topic ordering).
 - `content.QUESTIONS` (keyed by exact topic title): `example` (LeetCode #,
   "Design X", applied scenarios) + `common` (conceptual); Mock/Projects carry
   behavioral & deep-dive questions.
