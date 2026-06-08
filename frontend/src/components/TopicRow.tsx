@@ -155,13 +155,16 @@ function SubtopicRow({
       },
     });
 
+  const closeExtra = (mode: 'simpler' | 'deeper') =>
+    setExtra((e) => { const n = { ...e }; delete n[mode]; return n; });
+
   const ask = async (mode: 'simpler' | 'deeper') => {
-    if (loading || extra[mode]) { setOpen(true); return; }
+    if (loading) return;
+    if (extra[mode]) { closeExtra(mode); return; }  // toggle off if already shown
     setLoading(mode); setErr('');
     try {
       const { markdown } = await api.explain({ point_title: sub.title, topic_title: topicTitle, domain_name: domainName, mode, subtopic_id: sub.id });
       setExtra((e) => ({ ...e, [mode]: markdown }));
-      setOpen(true);
     } catch (e) {
       // Surface the real reason (status + body) so it's debuggable, not a silent spinner.
       const msg = e instanceof Error ? e.message : String(e);
@@ -202,7 +205,7 @@ function SubtopicRow({
         {/* Disclosure controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 7, flexWrap: 'wrap' }}>
           {hasDepth && (
-            <button onClick={() => setOpen((v) => !v)}
+            <button type="button" onClick={() => setOpen((v) => !v)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: 'var(--accent-strong)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: 0 }}>
               {open ? <ChevronDown size={14} strokeWidth={2.4} /> : <ChevronRight size={14} strokeWidth={2.4} />}
               {open ? 'Hide explanation' : 'Learn more'}
@@ -210,17 +213,17 @@ function SubtopicRow({
           )}
           {canExplain && (
             <>
-              <button onClick={() => ask('simpler')} disabled={loading !== null}
+              <button type="button" onClick={() => ask('simpler')} disabled={loading !== null}
                 title="Plain-English explanation for someone new to this domain"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: 0 }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: extra.simpler ? 'var(--accent-strong)' : 'var(--faint)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: 0 }}>
                 {loading === 'simpler' ? <Loader size={13} className="spin" strokeWidth={2.4} /> : <Sparkles size={13} strokeWidth={2} />}
-                Explain simpler
+                {extra.simpler ? 'Hide simpler' : 'Explain simpler'}
               </button>
-              <button onClick={() => ask('deeper')} disabled={loading !== null}
+              <button type="button" onClick={() => ask('deeper')} disabled={loading !== null}
                 title="Advanced, in-depth explanation"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: 0 }}>
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: extra.deeper ? 'var(--accent-strong)' : 'var(--faint)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: 0 }}>
                 {loading === 'deeper' ? <Loader size={13} className="spin" strokeWidth={2.4} /> : <Sparkles size={13} strokeWidth={2} />}
-                Go deeper
+                {extra.deeper ? 'Hide deeper' : 'Go deeper'}
               </button>
             </>
           )}
@@ -230,26 +233,38 @@ function SubtopicRow({
         {/* Expanded depth */}
         {open && (
           <div style={{ marginTop: 10, padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 2 }}>
+              <button type="button" onClick={() => setOpen(false)} title="Close"
+                style={{ border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', padding: 2, display: 'inline-flex' }}>
+                <X size={15} strokeWidth={2.4} />
+              </button>
+            </div>
             {sub.explanation && <Markdown>{sub.explanation}</Markdown>}
             <ResourceLinks resources={sub.resources} />
           </div>
         )}
         {extra.simpler && (
-          <ExtraBlock label="Simpler explanation" md={extra.simpler} />
+          <ExtraBlock label="Simpler explanation" md={extra.simpler} onClose={() => closeExtra('simpler')} />
         )}
         {extra.deeper && (
-          <ExtraBlock label="Deeper dive" md={extra.deeper} />
+          <ExtraBlock label="Deeper dive" md={extra.deeper} onClose={() => closeExtra('deeper')} />
         )}
       </div>
     </div>
   );
 }
 
-function ExtraBlock({ label, md }: { label: string; md: string }) {
+function ExtraBlock({ label, md, onClose }: { label: string; md: string; onClose: () => void }) {
   return (
     <div style={{ marginTop: 10, padding: '12px 14px', background: 'var(--accent-softer)', border: '1px solid var(--accent-line)', borderRadius: 10 }}>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--accent-strong)', marginBottom: 6 }}>
-        <Sparkles size={12} strokeWidth={2} /> {label}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--accent-strong)' }}>
+          <Sparkles size={12} strokeWidth={2} /> {label}
+        </div>
+        <button type="button" onClick={onClose} title="Close"
+          style={{ border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', padding: 2, display: 'inline-flex', flexShrink: 0 }}>
+          <X size={15} strokeWidth={2.4} />
+        </button>
       </div>
       <Markdown>{md}</Markdown>
     </div>

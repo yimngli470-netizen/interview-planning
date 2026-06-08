@@ -17,6 +17,19 @@ function ensureMermaid() {
 
 let mermaidSeq = 0;
 
+// Off-screen sandbox so mermaid's temporary measurement node never appends to
+// document.body and shifts the page (the "jump back and forth" while opening).
+let _sandbox: HTMLElement | null = null;
+function sandbox(): HTMLElement {
+  if (!_sandbox) {
+    _sandbox = document.createElement('div');
+    _sandbox.style.cssText =
+      'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;visibility:hidden;contain:strict';
+    document.body.appendChild(_sandbox);
+  }
+  return _sandbox;
+}
+
 function Mermaid({ chart }: { chart: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState(false);
@@ -26,7 +39,7 @@ function Mermaid({ chart }: { chart: string }) {
     ensureMermaid();
     const id = `mmd-${mermaidSeq++}`;
     mermaid
-      .render(id, chart)
+      .render(id, chart, sandbox())
       .then(({ svg }) => { if (alive && ref.current) { ref.current.innerHTML = svg; setErr(false); } })
       .catch(() => { if (alive) setErr(true); });
     return () => { alive = false; };

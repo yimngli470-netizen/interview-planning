@@ -144,7 +144,7 @@ select.field {
 .spin { animation: spin 1.1s linear infinite; }
 
 /* Markdown explanation body (learning-point "learn more") */
-.md { font-size: 14px; line-height: 1.62; color: var(--text); }
+.md { font-size: 14px; line-height: 1.62; color: var(--text); overflow-anchor: none; }
 .md > *:first-child { margin-top: 0; }
 .md > *:last-child { margin-bottom: 0; }
 .md p { margin: 8px 0; }
