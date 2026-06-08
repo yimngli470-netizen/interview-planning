@@ -73,8 +73,10 @@ Per-user tables (single seeded user "Zoey", no auth/password):
   finalized on logout or when heartbeats go stale (>120s = laptop closed/slept).
   **Presence-gated (client) + server-enforced cap.** Each heartbeat carries
   `active` = is the user actually present right now (client computes
-  `!isAway()`: not hidden, Forge is the focused window/tab via
-  `document.hasFocus()`, and input within `IDLE_MS` = 15 min). The server tracks
+  `!isAway()`: real page interaction within `IDLE_MS` = 15 min). Briefly looking
+  at another window/tab does NOT pause — only 15 min of genuine inactivity does
+  (a backgrounded tab fires no input events, so it idles out naturally; returning
+  to the tab counts as activity). The server tracks
   `last_active_at` (advances ONLY on `active` beats) separately from
   `last_heartbeat_at` (connection liveness, every beat). **Counted time =
   started_at → last_active_at**, so idle/away beats — or a stale client that

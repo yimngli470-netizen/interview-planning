@@ -1,4 +1,4 @@
-import { Component, useEffect, useRef, useState } from 'react';
+import { Component, memo, useEffect, useRef, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -78,23 +78,27 @@ class MdBoundary extends Component<{ raw: string; children: ReactNode }, { faile
   }
 }
 
-export default function Markdown({ children }: { children: string }) {
+// All of these MUST be stable (module-level) identities. If they were recreated
+// per render, react-markdown would see new component/plugin references on every
+// parent re-render (the app ticks every 1s) and remount the whole markdown
+// subtree — which made Mermaid diagrams flicker out/in and the page jump.
+const PresPassthrough = ({ children }: { children?: ReactNode }) => <>{children}</>;
+const MD_COMPONENTS = { code: CodeBlock as never, pre: PresPassthrough };
+const REMARK_PLUGINS = [remarkGfm, remarkMath];
+const REHYPE_PLUGINS = [rehypeKatex];
+
+function MarkdownInner({ children }: { children: string }) {
   return (
     <div className="md">
       <MdBoundary raw={children}>
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-          components={{
-            code: CodeBlock as never,
-            // react-markdown wraps fenced code in <pre>; our CodeBlock already
-            // emits its own <pre>, so make the outer pre a passthrough.
-            pre: ({ children }) => <>{children}</>,
-          }}
-        >
+        <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
           {children}
         </ReactMarkdown>
       </MdBoundary>
     </div>
   );
 }
+
+// memo: only re-parse/re-render when the markdown text itself changes, so the
+// app's per-second re-render never touches an already-rendered explanation.
+export default memo(MarkdownInner);

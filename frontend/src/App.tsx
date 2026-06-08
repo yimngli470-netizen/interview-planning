@@ -16,9 +16,10 @@ type Tab = 'dashboard' | 'topics' | 'sessions';
 
 const AUTH_KEY = 'prep-auth-v1';
 const HEARTBEAT_MS = 30_000;
-// No real input (or tab hidden) for this long ⇒ treat the user as away: stop the
-// heartbeat so the server caps the session, and freeze the on-screen timer. This
-// is what stops a tab left open on an awake machine from logging phantom hours.
+// No real input for this long ⇒ treat the user as away: the heartbeat reports
+// "not present" so the server caps the session, and the on-screen timer freezes.
+// This is what stops a tab left open on an awake machine from logging phantom
+// hours — while still allowing brief glances at other windows without pausing.
 const IDLE_MS = 15 * 60_000;
 const ACTIVITY_EVENTS = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'] as const;
 
@@ -171,11 +172,11 @@ export default function App() {
     })();
   }, [loadUserData]);
 
-  // "Away" = Forge isn't the active window/tab, OR no real input for IDLE_MS.
-  // Requiring window focus means using another app (Forge still on screen but not
-  // focused) pauses immediately — not only after the idle timeout.
-  const isAway = () =>
-    document.hidden || !document.hasFocus() || Date.now() - lastActivityRef.current > IDLE_MS;
+  // "Away" = no real interaction with the page for IDLE_MS (15 min). Simply
+  // looking at another window/tab does NOT pause the session — only genuine
+  // inactivity does. (A backgrounded tab fires no input events, so it still
+  // idles out naturally after 15 min; returning to the tab counts as activity.)
+  const isAway = () => Date.now() - lastActivityRef.current > IDLE_MS;
 
   // Track real presence: any input — or the tab/window regaining focus — is "here".
   useEffect(() => {
