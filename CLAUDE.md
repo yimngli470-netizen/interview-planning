@@ -41,16 +41,19 @@ Per-user tables (single seeded user "Zoey", no auth/password):
 - `StudySession` = auto time block: `started_at`, `last_heartbeat_at`, `ended_at`,
   `duration_min`. Created on login, kept alive by heartbeats (every 30s),
   finalized on logout or when heartbeats go stale (>120s = laptop closed/slept).
-  **Presence-gated:** the client only sends heartbeats while the user is actually
-  present on Forge. It pauses (stops beating, so the server caps the session at
-  the last active beat) when the page is hidden, when Forge is **not the focused
-  window/tab** (`document.hasFocus()` — so working in another app pauses
-  immediately, not just after the timeout), or after `IDLE_MS` (15 min) with no
-  input (pointer/key/scroll/wheel/touch). No phantom hours from a tab left open
-  on an awake machine, or from the browser being in the background. The header
-  timer freezes (shows "· paused") while away. When the user returns after the
-  session was capped, the client silently starts a fresh block instead of logging
-  out.
+  **Presence-gated (client) + server-enforced cap.** Each heartbeat carries
+  `active` = is the user actually present right now (client computes
+  `!isAway()`: not hidden, Forge is the focused window/tab via
+  `document.hasFocus()`, and input within `IDLE_MS` = 15 min). The server tracks
+  `last_active_at` (advances ONLY on `active` beats) separately from
+  `last_heartbeat_at` (connection liveness, every beat). **Counted time =
+  started_at → last_active_at**, so idle/away beats — or a stale client that
+  sends no flag (treated as not-present) — can never accrue phantom minutes; this
+  is the authoritative guard, independent of the client loop. A session is
+  finalized when idle > `IDLE_GRACE_SECONDS` (120s) or the connection goes stale
+  (no beats > `STALE_SECONDS` 120s), always capping at `last_active_at`. The
+  header timer freezes ("· paused") while away; on return the client silently
+  starts a fresh block instead of logging out.
 - `QuestionProgress` = per-user `done` flag AND `notes` (the user's answer/notes)
   on a Question (unique user+question). GET returns all rows; PUT upserts either
   field. Frontend keeps a doneSet + a Map<questionId, notes>.

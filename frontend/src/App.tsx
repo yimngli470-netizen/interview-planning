@@ -151,7 +151,7 @@ export default function App() {
         if (raw) {
           const saved: SavedAuth = JSON.parse(raw);
           try {
-            const hb = await api.heartbeat(saved.sessionId);
+            const hb = await api.heartbeat(saved.sessionId, !document.hidden);
             if (hb.active && hb.session) {
               setCurrentUser({ id: saved.userId, name: saved.userName });
               setActiveSession(hb.session);
@@ -211,13 +211,16 @@ export default function App() {
   useEffect(() => {
     if (!activeSession) return;
     const id = setInterval(async () => {
-      // Don't extend the session when nobody's actually here — let the server cap it.
-      if (isAway()) return;
+      // Always beat, but tell the server whether the user is actually present.
+      // The server only counts time up to the last "present" beat, so an idle/
+      // away tab (or a stale client) can't accrue phantom minutes.
+      const present = !isAway();
       try {
-        const hb = await api.heartbeat(activeSession.id);
-        if (!hb.active) {
-          // The session was finalized server-side while we were away. The user is
-          // back and active now, so start a fresh block instead of logging out.
+        const hb = await api.heartbeat(activeSession.id, present);
+        if (!hb.active && present) {
+          // The server finalized the block (idle/stale) but the user is active
+          // again — start a fresh session instead of logging out. If not present,
+          // leave it finalized; we'll start a new block when activity resumes.
           const u = currentUserRef.current;
           if (!u) { clearAuthRef.current(); return; }
           const res = await api.login(u.id);

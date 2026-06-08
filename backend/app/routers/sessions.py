@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,12 +10,16 @@ from ..schemas import HeartbeatOut, LoginIn, LoginOut, SessionOut, UserOut
 
 router = APIRouter(prefix="/api", tags=["tracking"])
 
-# If we haven't heard a heartbeat in this long, the session is considered
-# abandoned (laptop closed/slept) and is finalized at its last heartbeat.
+# No heartbeat at all for this long => the client dropped (laptop closed/slept).
 STALE_SECONDS = 120
+# Heartbeats arriving but the client reports the user idle/away for this long =>
+# finalize the session. Counted time is always capped at the last ACTIVE beat, so
+# this only controls when we close the block, never how much time is counted.
+IDLE_GRACE_SECONDS = 120
 
 
 def _is_stale(s: StudySession, now: datetime) -> bool:
+    """Connection lost — no heartbeat (of any kind) for STALE_SECONDS."""
     return (now - s.last_heartbeat_at).total_seconds() > STALE_SECONDS
 
 
@@ -25,9 +29,9 @@ def _finalize(s: StudySession, end: datetime) -> None:
 
 
 def _close_if_open(s: StudySession, now: datetime) -> None:
-    """Finalize an open session: at `now` if still live, else at last heartbeat."""
+    """Finalize an open session, always capping at the last real activity."""
     if s.ended_at is None:
-        _finalize(s, s.last_heartbeat_at if _is_stale(s, now) else now)
+        _finalize(s, s.last_active_at)
 
 
 def _finalize_stale_for_user(db: Session, user_id: int, now: datetime) -> None:
@@ -39,7 +43,7 @@ def _finalize_stale_for_user(db: Session, user_id: int, now: datetime) -> None:
     changed = False
     for s in open_sessions:
         if _is_stale(s, now):
-            _finalize(s, s.last_heartbeat_at)
+            _finalize(s, s.last_active_at)
             changed = True
     if changed:
         db.commit()
@@ -48,9 +52,9 @@ def _finalize_stale_for_user(db: Session, user_id: int, now: datetime) -> None:
 def _to_out(s: StudySession, now: datetime) -> SessionOut:
     active = s.ended_at is None
     if active:
-        # live elapsed (capped at last heartbeat if it has gone stale)
-        end = s.last_heartbeat_at if _is_stale(s, now) else now
-        duration = max(0, round((end - s.started_at).total_seconds() / 60))
+        # Counted time runs to the last ACTIVE beat — idle/away beats don't extend
+        # it, so a tab left open (or a stale client) can't inflate the duration.
+        duration = max(0, round((s.last_active_at - s.started_at).total_seconds() / 60))
     else:
         duration = s.duration_min
     return SessionOut(
@@ -83,7 +87,8 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
     ).all():
         _close_if_open(s, now)
     session = StudySession(
-        user_id=user.id, started_at=now, last_heartbeat_at=now, date=now.date()
+        user_id=user.id, started_at=now, last_heartbeat_at=now, last_active_at=now,
+        date=now.date(),
     )
     db.add(session)
     db.commit()
@@ -99,27 +104,45 @@ def logout(payload: dict, db: Session = Depends(get_db)):
         raise HTTPException(404, "Session not found")
     now = datetime.utcnow()
     if s.ended_at is None:
-        _finalize(s, now if not _is_stale(s, now) else s.last_heartbeat_at)
+        # Clicking sign-out is itself activity, unless the connection already went
+        # stale — then cap at the last real activity.
+        if not _is_stale(s, now):
+            s.last_active_at = now
+        _finalize(s, s.last_active_at)
         db.commit()
         db.refresh(s)
     return _to_out(s, now)
 
 
 @router.post("/sessions/{session_id}/heartbeat", response_model=HeartbeatOut)
-def heartbeat(session_id: int, db: Session = Depends(get_db)):
+def heartbeat(
+    session_id: int,
+    payload: dict | None = Body(default=None),
+    db: Session = Depends(get_db),
+):
     s = db.get(StudySession, session_id)
     if not s:
         raise HTTPException(404, "Session not found")
     now = datetime.utcnow()
     if s.ended_at is not None:
         return HeartbeatOut(active=False, session=_to_out(s, now))
-    if _is_stale(s, now):
-        # laptop slept/closed since last beat — finalize, tell client to restart
-        _finalize(s, s.last_heartbeat_at)
+
+    # The client reports whether the user is actually present. A missing flag
+    # (old/stale client) is treated as NOT present, so it can never accrue time.
+    present = bool(payload.get("active", False)) if isinstance(payload, dict) else False
+
+    s.last_heartbeat_at = now  # connection liveness, regardless of presence
+    if present:
+        s.last_active_at = now
+
+    # Finalize if the user has been idle/away too long. Caps at last_active_at,
+    # so the idle stretch contributes nothing to the counted duration.
+    if (now - s.last_active_at).total_seconds() > IDLE_GRACE_SECONDS:
+        _finalize(s, s.last_active_at)
         db.commit()
         db.refresh(s)
         return HeartbeatOut(active=False, session=_to_out(s, now))
-    s.last_heartbeat_at = now
+
     db.commit()
     db.refresh(s)
     return HeartbeatOut(active=True, session=_to_out(s, now))

@@ -42,6 +42,13 @@ def _add_missing_columns() -> None:
                     conn.execute(
                         text(f"ALTER TABLE {tbl} ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
                     )
+    # study_sessions.last_active_at (counted-time boundary; backfill from last_heartbeat_at)
+    if "study_sessions" in tables:
+        cols = {c["name"] for c in insp.get_columns("study_sessions")}
+        if "last_active_at" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE study_sessions ADD COLUMN last_active_at TIMESTAMP"))
+                conn.execute(text("UPDATE study_sessions SET last_active_at = last_heartbeat_at WHERE last_active_at IS NULL"))
 
 
 @asynccontextmanager

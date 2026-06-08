@@ -77,8 +77,13 @@ export const api = {
     req<LoginResult>('/login', { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
   logout: (sessionId: number) =>
     req<StudySession>('/logout', { method: 'POST', body: JSON.stringify({ session_id: sessionId }) }),
-  heartbeat: (sessionId: number) =>
-    req<HeartbeatResult>(`/sessions/${sessionId}/heartbeat`, { method: 'POST' }),
+  // `active` tells the server whether the user is actually present right now.
+  // The server only counts time up to the last active beat, so idle beats are safe.
+  heartbeat: (sessionId: number, active: boolean) =>
+    req<HeartbeatResult>(`/sessions/${sessionId}/heartbeat`, {
+      method: 'POST',
+      body: JSON.stringify({ active }),
+    }),
 
   // Study sessions (auto, per user)
   listSessions: (userId: number) =>

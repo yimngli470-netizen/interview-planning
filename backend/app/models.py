@@ -144,7 +144,12 @@ class StudySession(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # connection liveness — advances on EVERY heartbeat (detects a dropped client)
     last_heartbeat_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # last beat where the client reported the user actually present. Counted time
+    # runs started_at -> last_active_at, so idle beats (or a stale client that
+    # sends no presence flag) can never accrue phantom minutes.
+    last_active_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     # minutes; populated when the session is finalized
