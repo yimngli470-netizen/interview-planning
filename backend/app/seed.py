@@ -39,6 +39,24 @@ SKIP_GENERATED = {
     "Distributed training: DDP, FSDP, ZeRO-1/2/3, TP, PP",
 }
 
+
+def _has_depth(gen: dict) -> bool:
+    return any(
+        (p.get("explanation") if isinstance(p, dict) else "") for p in gen.get("points", [])
+    )
+
+
+# Topics whose v2 generated set (points carry markdown explanations) is the
+# AUTHORITATIVE, comprehensive learning-point list. For these we DON'T also seed
+# the curated content.py points, and we prune any default point not in the
+# generated set — otherwise curated + older-generation points (whose titles
+# drifted) pile up as redundant, no-"Learn more" duplicates. v1/no-depth topics
+# (e.g. Coding, or topics that failed enrichment) keep the additive behaviour.
+AUTHORITATIVE = {
+    title for title, gen in GENERATED.items()
+    if title not in SKIP_GENERATED and _has_depth(gen)
+}
+
 DEFAULT_USERS = ["Zoey", "Xiaoming"]
 
 DOMAINS = [
@@ -178,22 +196,25 @@ def seed_or_enrich(db: Session) -> None:
             elif not topic.notes and spec.get("notes"):
                 topic.notes = spec["notes"]  # backfill only when empty
 
-            # learning points — add any that don't already exist on this topic
-            existing = {s.title for s in topic.subtopics}
-            next_order = max((s.order for s in topic.subtopics), default=0)
-            for pt_title, pt_notes in spec.get("points", []):
-                if pt_title not in existing:
-                    next_order += 1
-                    db.add(
-                        Subtopic(
-                            topic_id=topic.id,
-                            title=pt_title,
-                            notes=pt_notes,
-                            order=next_order,
-                            status="not-started",
+            # learning points — add any that don't already exist on this topic.
+            # Skipped for AUTHORITATIVE topics: the generated set owns their points
+            # (prevents curated points piling up alongside the comprehensive list).
+            if title not in AUTHORITATIVE:
+                existing = {s.title for s in topic.subtopics}
+                next_order = max((s.order for s in topic.subtopics), default=0)
+                for pt_title, pt_notes in spec.get("points", []):
+                    if pt_title not in existing:
+                        next_order += 1
+                        db.add(
+                            Subtopic(
+                                topic_id=topic.id,
+                                title=pt_title,
+                                notes=pt_notes,
+                                order=next_order,
+                                status="not-started",
+                            )
                         )
-                    )
-                    existing.add(pt_title)
+                        existing.add(pt_title)
 
             # practice / interview questions (idempotent by prompt)
             qspec = QUESTIONS.get(title)
@@ -258,6 +279,31 @@ def seed_or_enrich(db: Session) -> None:
                         q_order += 1
                         db.add(Question(topic_id=topic.id, kind=kind, prompt=prompt, order=q_order))
                         have.add(prompt)
+
+        # prune stale/duplicate default points on authoritative topics — anything
+        # not in the generated set (curated + drifted older-generation points).
+        # User-owned points (owner_id set) are never touched. Idempotent: once
+        # converged, the generated set == the default points, so nothing deletes.
+        db.flush()
+        for title in AUTHORITATIVE:
+            topic = by_title.get(title)
+            if topic is None:
+                continue
+            gen_titles = {
+                (p.get("title") or "").strip()
+                for p in GENERATED[title].get("points", [])
+                if (p.get("title") or "").strip()
+            }
+            if not gen_titles:
+                continue
+            for s in db.scalars(
+                select(Subtopic).where(
+                    Subtopic.topic_id == topic.id,
+                    Subtopic.owner_id.is_(None),
+                    Subtopic.title.notin_(gen_titles),
+                )
+            ).all():
+                db.delete(s)
 
     # --- apply learning-path ordering + level (default topics; backfill only) ---
     if ORDER:

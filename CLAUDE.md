@@ -105,12 +105,18 @@ Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
 - `backend/app/content_generated.py` = AUTO-GENERATED comprehensive learning
   points (each with a markdown `explanation` + free `resources`) + questions
   (Sonnet, uncapped), plus a per-domain learning-path `ORDER` (`[{title, level}]`),
-  produced by `backend/_enrich.py`. The seeder merges it **additively** on top of
-  content.py: new points are added; `explanation`/`resources` are **backfilled onto
-  existing same-title points only when empty** (never overwrites edits); `ORDER`
-  sets `path_order`/`level` on default topics (backfill only). `seed.SKIP_GENERATED`
-  lists the flagship topics so their hand-authored versions are used instead (their
-  points aren't regenerated, but they're still included in the domain ordering).
+  produced by `backend/_enrich.py`. **Authoritative model:** a topic whose generated
+  set carries depth (markdown explanations) is in `seed.AUTHORITATIVE` — for it the
+  generated points are the *complete, canonical* learning-point list: the seeder does
+  NOT also seed the curated `content.py` points, and it **prunes any default point not
+  in the generated set** (removes curated + drifted older-generation duplicates that
+  would otherwise pile up as no-"Learn more" points). User-owned points (`owner_id` set)
+  are never pruned. v1/no-depth topics (Coding, or topics that failed/weren't reached in
+  enrichment) keep the old **additive** behaviour (curated + generated coexist) until
+  they get a depth pass. `ORDER` sets `path_order`/`level` on default topics (backfill
+  only). `seed.SKIP_GENERATED` lists the flagship topics — hand-authored to depth in
+  `content.py` (rich per-point notes, but no separate `explanation`/"Learn more"); their
+  points aren't generated/pruned, though they're still included in the domain ordering.
   Regenerate with `docker compose exec backend python _enrich.py <domains...>`
   (defaults to the 3 conceptual domains; resumable via the gitignored
   `_generated_cache.json` — entries are re-run if they lack the v2 `explanation`).
