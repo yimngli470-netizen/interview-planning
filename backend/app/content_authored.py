@@ -717,6 +717,602 @@ AUTHORED: dict[str, dict] = {
             "Name three reasons a GPU shows low utilization in a profile and the fix for each.",
         ],
     },
+
+    # --------------------------------------------------------------- AI/ML ---
+    "Probability/stats fundamentals (Bayes, MLE, distributions)": {
+        "points": [
+            {
+                "title": "Random variables and the distributions you actually use",
+                "notes": "Bernoulli/Binomial, Categorical, Gaussian, Poisson, Exponential — know shape, params, and where each shows up.",
+                "explanation": (
+                    "### The working set\n"
+                    "- **Bernoulli / Binomial** — a single 0/1 outcome / count of successes; binary classification labels.\n"
+                    "- **Categorical / Multinomial** — one of K classes; the target of a softmax.\n"
+                    "- **Gaussian (Normal)** $\\mathcal{N}(\\mu,\\sigma^2)$ — ubiquitous: noise, weight init, the CLT limit.\n"
+                    "- **Poisson** — count of rare events per interval (arrivals, clicks).\n"
+                    "- **Exponential** — time between Poisson events (latency tails).\n\n"
+                    "For each, know its **support, parameters, mean, and variance**. ML connection: a model's output layer encodes a distribution (softmax → Categorical, regression → Gaussian), and the loss is its negative log-likelihood."
+                ),
+                "resources": [
+                    {"title": "Common probability distributions", "url": "", "kind": "article", "query": "common probability distributions machine learning cheat sheet"},
+                ],
+            },
+            {
+                "title": "Expectation, variance, covariance",
+                "notes": "Mean, spread, and linear co-movement — the moments behind bias/variance and PCA.",
+                "explanation": (
+                    "### Summarizing randomness\n"
+                    "$$\\mathbb{E}[X]=\\sum_x x\\,p(x),\\quad \\operatorname{Var}(X)=\\mathbb{E}[(X-\\mathbb{E}X)^2]=\\mathbb{E}[X^2]-(\\mathbb{E}X)^2$$\n\n"
+                    "**Covariance** $\\operatorname{Cov}(X,Y)=\\mathbb{E}[(X-\\mathbb{E}X)(Y-\\mathbb{E}Y)]$ measures linear co-movement; normalized to $[-1,1]$ it's **correlation**. "
+                    "Key facts: expectation is **linear** ($\\mathbb{E}[aX+bY]=a\\mathbb{E}X+b\\mathbb{E}Y$ always); variance adds for **independent** variables ($\\operatorname{Var}(X+Y)=\\operatorname{Var}X+\\operatorname{Var}Y$). "
+                    "These power the **bias–variance decomposition**, the covariance matrix in **PCA**, and uncertainty propagation."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Conditional probability and Bayes' theorem",
+                "notes": "Update beliefs from evidence: posterior ∝ likelihood × prior.",
+                "explanation": (
+                    "### The rule that updates beliefs\n"
+                    "$$P(A\\mid B)=\\frac{P(B\\mid A)\\,P(A)}{P(B)}$$\n\n"
+                    "Read it as **posterior ∝ likelihood × prior**: start with a prior belief $P(A)$, see evidence $B$, update. "
+                    "It underlies Naive Bayes, Bayesian inference, and reasoning about test accuracy. The classic trap is the **base rate**: even a 99%-accurate test for a rare (0.1%) disease yields mostly false positives, because the prior $P(\\text{disease})$ is tiny. Always factor in the base rate when interpreting a 'positive'."
+                ),
+                "resources": [
+                    {"title": "Bayes' theorem (3Blue1Brown)", "url": "", "kind": "video", "query": "3blue1brown bayes theorem"},
+                ],
+            },
+            {
+                "title": "Frequentist vs Bayesian thinking",
+                "notes": "Parameters as fixed-unknown (estimate via data) vs random (have distributions/priors).",
+                "explanation": (
+                    "### Two views of 'the parameter'\n"
+                    "- **Frequentist** — parameters are fixed but unknown; probability is long-run frequency. You estimate a point value (MLE) and quantify uncertainty via confidence intervals over hypothetical repeated samples.\n"
+                    "- **Bayesian** — parameters are random variables with a **prior**; data updates them into a **posterior** distribution, giving direct probability statements ('95% credible interval').\n\n"
+                    "In practice deep learning is mostly frequentist (point estimates via MLE/SGD), but Bayesian ideas appear as **regularization** (a prior), in **uncertainty estimation**, and in small-data regimes where priors help. Knowing both framings helps you reason about regularization and uncertainty correctly."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Maximum likelihood estimation (MLE)",
+                "notes": "Pick parameters that maximize the data's likelihood; minimizing cross-entropy IS MLE.",
+                "explanation": (
+                    "### Why our loss functions look the way they do\n"
+                    "MLE chooses parameters that make the observed data most probable. We maximize the **log**-likelihood (sums are nicer than products, numerically stable):\n\n"
+                    "$$\\hat\\theta=\\arg\\max_\\theta \\sum_i \\log p(x_i\\mid\\theta)$$\n\n"
+                    "Minimizing the **negative** log-likelihood is the standard training objective. This is *why* classification uses **cross-entropy** (NLL of a Categorical) and regression uses **MSE** (NLL of a Gaussian with fixed variance). When you call a loss, you're almost always doing MLE under some assumed output distribution."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "MAP estimation and priors as regularization",
+                "notes": "MAP = MLE + log-prior; an L2 prior is weight decay, an L1 prior is Lasso.",
+                "explanation": (
+                    "### Where regularization comes from\n"
+                    "**Maximum a posteriori** adds a prior to MLE:\n\n"
+                    "$$\\hat\\theta=\\arg\\max_\\theta \\Big[\\sum_i \\log p(x_i\\mid\\theta) + \\log p(\\theta)\\Big]$$\n\n"
+                    "Choosing a **Gaussian prior** on the weights yields an $L_2$ penalty — i.e. **weight decay / ridge**; a **Laplace prior** yields $L_1$ — i.e. **Lasso** (sparsity). "
+                    "So regularization isn't an ad-hoc trick: it's a prior belief that weights should be small/sparse. As data grows, the likelihood dominates the prior and MAP → MLE."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Cross-entropy and KL divergence",
+                "notes": "KL measures distance between distributions; cross-entropy = entropy + KL, and is our classification loss.",
+                "explanation": (
+                    "### The information-theory behind the loss\n"
+                    "**KL divergence** measures how far a predicted distribution $q$ is from the true $p$:\n\n"
+                    "$$D_{KL}(p\\,\\|\\,q)=\\sum_x p(x)\\log\\frac{p(x)}{q(x)}\\ge 0$$\n\n"
+                    "It's **not symmetric** ($D_{KL}(p\\|q)\\ne D_{KL}(q\\|p)$). **Cross-entropy** $H(p,q)=H(p)+D_{KL}(p\\|q)$; since the true label's entropy $H(p)$ is fixed, minimizing cross-entropy = minimizing KL to the labels. "
+                    "KL also appears as a **regularizer/constraint** in VAEs and in RLHF/PPO (keep the policy close to the reference model). Knowing the asymmetry matters: mode-covering vs mode-seeking behavior."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "CLT, law of large numbers, and why Gaussians are everywhere",
+                "notes": "Averages concentrate (LLN) and become Gaussian (CLT) — the basis of error bars and sampling.",
+                "explanation": (
+                    "### Why sample means behave\n"
+                    "- **Law of Large Numbers** — the sample mean converges to the true mean as $n\\to\\infty$. It's why more eval examples / more Monte-Carlo samples give a more reliable estimate.\n"
+                    "- **Central Limit Theorem** — the sum/mean of many independent variables is approximately **Gaussian**, regardless of their original distribution, with standard error $\\sigma/\\sqrt{n}$.\n\n"
+                    "Consequences you use constantly: error bars shrink like $1/\\sqrt{n}$ (to halve them, 4× the data); A/B test and eval confidence intervals assume CLT; and many noise terms are modeled Gaussian because they're sums of many small effects."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Sampling and Monte Carlo estimation",
+                "notes": "Estimate expectations by averaging samples; the backbone of eval, RL returns, and generation.",
+                "explanation": (
+                    "### Estimating what you can't compute exactly\n"
+                    "Many quantities are expectations $\\mathbb{E}_{x\\sim p}[f(x)]$ that are intractable to compute exactly. **Monte Carlo** approximates them by drawing samples and averaging:\n\n"
+                    "$$\\mathbb{E}_{x\\sim p}[f(x)]\\approx \\frac1n\\sum_{i=1}^n f(x_i),\\quad x_i\\sim p$$\n\n"
+                    "Error shrinks like $1/\\sqrt{n}$ (from the CLT). This underlies **evaluation** (averaging metric over a test set), **RL** (estimating returns), **dropout/ensemble uncertainty**, and **LLM sampling** itself. Variance-reduction tricks (importance sampling, control variates) buy accuracy with fewer samples."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Hypothesis testing, confidence intervals, and p-values",
+                "notes": "Decide if an observed difference is real vs noise — essential for A/B tests and eval deltas.",
+                "explanation": (
+                    "### Is the improvement real?\n"
+                    "When model B scores higher than A, ask whether the gap exceeds noise. A **confidence interval** gives a plausible range for the true value; a **p-value** is the probability of seeing a difference this large *if there were truly none* (the null hypothesis). Small p (< 0.05) → unlikely to be chance.\n\n"
+                    "Practical points: report **CIs**, not just point scores; account for **multiple comparisons** (testing many variants inflates false positives); ensure adequate **sample size / power**; and beware **p-hacking** (peeking, stopping early). For eval deltas on small benchmarks, the CI is often wide enough that a 1-point gain isn't significant — a crucial sanity check."
+                ),
+                "resources": [
+                    {"title": "Statistical significance & A/B testing", "url": "", "kind": "article", "query": "p-value confidence interval ab testing explained"},
+                ],
+            },
+        ],
+        "example": [
+            "A disease affects 0.5% of people; a test is 98% sensitive and 95% specific. Given a positive result, what's P(disease)?",
+            "Derive why minimizing cross-entropy for classification is equivalent to MLE of a Categorical model.",
+            "Show that an L2 weight penalty corresponds to a Gaussian prior under MAP estimation.",
+            "Model B beats model A by 1.2% on a 500-example benchmark — is it significant? How would you check?",
+            "You need E[f(x)] under an intractable distribution — set up a Monte Carlo estimator and its error.",
+        ],
+        "common": [
+            "State Bayes' theorem and explain the base-rate fallacy with an example.",
+            "What is MLE, and how does it connect to cross-entropy and MSE losses?",
+            "Define KL divergence — is it symmetric, and where does it appear in ML?",
+            "Explain the bias–variance tradeoff in terms of expectation and variance.",
+            "What do the LLN and CLT tell you, and why does error scale as 1/√n?",
+            "How do you tell whether an eval improvement is statistically significant?",
+        ],
+    },
+
+    "Prompt engineering & in-context learning": {
+        "points": [
+            {
+                "title": "In-context learning: the model learns from the prompt, not the weights",
+                "notes": "LLMs adapt to a task from examples/instructions in the context — no gradient updates.",
+                "explanation": (
+                    "### The capability everything builds on\n"
+                    "**In-context learning (ICL)** is the emergent ability of large models to perform a task purely from instructions and examples placed in the prompt — the weights don't change. Show a few input→output pairs and the model infers the pattern for the next input. "
+                    "This is what makes prompting powerful: you adapt behavior at inference time, instantly, with no training. It emerges with scale (small models do it poorly). "
+                    "Mental model: the context acts like a temporary task specification the model conditions on. The flip side — everything depends on the context, so prompt quality and ordering matter a lot, and the context window is a finite budget."
+                ),
+                "resources": [
+                    {"title": "GPT-3 'Language Models are Few-Shot Learners'", "url": "", "kind": "article", "query": "language models are few-shot learners GPT-3 paper"},
+                ],
+            },
+            {
+                "title": "Zero-shot vs few-shot prompting",
+                "notes": "Zero-shot = instruction only; few-shot = include worked examples (demonstrations).",
+                "explanation": (
+                    "### When to add examples\n"
+                    "- **Zero-shot** — just describe the task ('Classify the sentiment as positive/negative'). Works well for tasks the instruction-tuned model already understands; cheapest in tokens.\n"
+                    "- **Few-shot** — prepend a handful of input→output **demonstrations** before the real input. Helps when the task is unusual, the **output format** is specific, or zero-shot is unreliable.\n\n"
+                    "Practical tips: 2–5 diverse, correct, representative examples usually suffice; example **order** and **label balance** affect results; keep formatting identical to what you want back. If few-shot still fails or examples are many/long, that's a signal to fine-tune or use retrieval instead."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Anatomy of a good prompt",
+                "notes": "Role/instruction + context + (examples) + explicit output format + the input, clearly delimited.",
+                "explanation": (
+                    "### Structure beats cleverness\n"
+                    "A reliable prompt usually has:\n\n"
+                    "1. **Instruction** — what to do, specific and unambiguous; state constraints.\n"
+                    "2. **Context** — background, retrieved documents, definitions.\n"
+                    "3. **Examples** (optional) — demonstrations of the exact behavior.\n"
+                    "4. **Output format** — say exactly what you want ('Return JSON with keys x, y') and any length limits.\n"
+                    "5. **Input** — the actual data, clearly **delimited** (triple backticks, XML tags) so it can't be confused with instructions.\n\n"
+                    "Be concrete and positive ('do X' beats 'don't do Y'), put the most important instruction near the start or end, and prefer explicit structure over hoping the model guesses."
+                ),
+                "resources": [
+                    {"title": "Anthropic prompt engineering guide", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview", "kind": "docs", "query": "anthropic prompt engineering guide"},
+                ],
+            },
+            {
+                "title": "Chain-of-thought: ask for reasoning before the answer",
+                "notes": "Letting the model 'think step by step' raises accuracy on multi-step problems.",
+                "explanation": (
+                    "### Reasoning space improves answers\n"
+                    "**Chain-of-thought (CoT)** prompting asks the model to produce intermediate reasoning steps before the final answer ('Let's think step by step'). For multi-step tasks — math, logic, multi-hop QA — this substantially improves accuracy, because the model uses the generated tokens as a scratchpad rather than committing to an answer immediately.\n\n"
+                    "Notes: CoT helps most on larger models and harder problems; for simple tasks it just adds tokens. If you only need the final answer, you can have it reason then output a clearly-delimited result to parse. Modern reasoning models do this internally, but explicit CoT still helps with non-reasoning models and gives you visibility into the logic."
+                ),
+                "resources": [
+                    {"title": "Chain-of-Thought prompting (paper)", "url": "", "kind": "article", "query": "chain of thought prompting elicits reasoning paper"},
+                ],
+            },
+            {
+                "title": "Self-consistency and sampling multiple paths",
+                "notes": "Sample several CoT answers and take the majority — trades compute for accuracy.",
+                "explanation": (
+                    "### Vote across reasoning paths\n"
+                    "**Self-consistency** improves on CoT: instead of one greedy chain, **sample several** reasoning paths (temperature > 0) and take the **majority answer**. Different paths that converge on the same answer are more likely correct; it averages out individual reasoning mistakes.\n\n"
+                    "It's a pure compute-for-accuracy trade (N× the calls), so reserve it for high-value, hard questions. The same idea generalizes to **best-of-N** with a verifier/reward model that scores candidates rather than majority-voting. Know it as the canonical 'inference-time compute' technique."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Structured output and format control",
+                "notes": "Specify schemas, use delimiters, prefill, or constrained decoding to get reliable JSON.",
+                "explanation": (
+                    "### Getting machine-parseable output\n"
+                    "When another system consumes the output, free text is fragile. Techniques, weakest→strongest:\n\n"
+                    "- **Describe the schema** explicitly and give a one-shot example of the exact JSON.\n"
+                    "- **Delimit** clearly and ask for *only* the JSON (no prose).\n"
+                    "- **Prefill** the assistant turn with the opening `{` (or an XML tag) to force the shape.\n"
+                    "- **Tool/function calling** or **constrained/structured decoding** — the API guarantees valid JSON against a schema (the robust choice for production).\n\n"
+                    "Always validate and have a retry/repair path. Prefer the API's structured-output/tool features over prompt-only formatting when correctness matters."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "System vs user roles, and role prompting",
+                "notes": "The system message sets persistent behavior/persona; user turns carry the task.",
+                "explanation": (
+                    "### Use the message roles deliberately\n"
+                    "Chat models take a **system** message (persistent instructions, persona, rules, output policy) plus alternating **user**/**assistant** turns. Put durable behavior ('You are a careful SQL assistant; never modify data') in the **system** prompt, and the specific request in the **user** turn. "
+                    "**Role prompting** ('You are an expert X') can focus tone and domain framing, though its effect is modest compared to clear instructions and examples. "
+                    "Keep the system prompt stable across a conversation; the model weights it strongly, and it's the right place for guardrails and format contracts."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Grounding with retrieval (RAG-style prompting)",
+                "notes": "Inject retrieved, cited context so answers are factual and current, not from parametric memory.",
+                "explanation": (
+                    "### Don't rely on the model's memory\n"
+                    "For factual, current, or proprietary information, **retrieve relevant documents and put them in the context**, then instruct the model to answer *only from the provided context and cite sources*. This reduces hallucination and lets you update knowledge without retraining. "
+                    "Prompt-side best practices: clearly delimit the retrieved chunks, tell the model to say 'I don't know' if the context lacks the answer, and ask for citations to specific passages. "
+                    "This is the prompt half of RAG; its quality depends on retrieval, but the prompt determines whether the model actually grounds in (vs ignores) the context."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Decomposition: least-to-most, ReAct, and tool prompts",
+                "notes": "Break hard tasks into steps or interleave reasoning with tool/actions.",
+                "explanation": (
+                    "### Structure the problem-solving\n"
+                    "- **Least-to-most / decomposition** — split a complex task into simpler sub-questions solved in sequence, feeding answers forward.\n"
+                    "- **ReAct** — interleave **Reason**ing and **Act**ions: the model thinks, calls a tool (search, calculator, code), observes the result, and continues. The backbone of agentic prompting.\n"
+                    "- **Tool prompts** — describe available tools and when to use them; the model emits a structured call.\n\n"
+                    "These turn a single prediction into a controllable, inspectable process and let the model offload what it's bad at (arithmetic, fresh facts) to reliable tools. They connect prompt engineering to agent design."
+                ),
+                "resources": [
+                    {"title": "ReAct: reasoning + acting", "url": "", "kind": "article", "query": "ReAct reasoning acting language models paper"},
+                ],
+            },
+            {
+                "title": "Failure modes: injection, sensitivity, and verbosity",
+                "notes": "Prompts are brittle and attackable — guard against injection and test systematically.",
+                "explanation": (
+                    "### What goes wrong\n"
+                    "- **Prompt injection** — untrusted input (a web page, user text) contains instructions that hijack the model ('ignore previous instructions'). Mitigate by separating trusted instructions from untrusted data, delimiting/marking data, least-privilege tools, and never trusting model output blindly.\n"
+                    "- **Sensitivity** — small wording/order/format changes swing results; few-shot example order matters. Don't over-fit to one phrasing.\n"
+                    "- **Verbosity / sycophancy / hedging** — models pad, agree too readily, or refuse oddly; constrain length and be explicit.\n\n"
+                    "Treat prompts like code: version them, and validate against an eval set rather than eyeballing one example."
+                ),
+                "resources": [
+                    {"title": "Prompt injection explained", "url": "", "kind": "article", "query": "prompt injection attack llm explained"},
+                ],
+            },
+            {
+                "title": "Evaluate and iterate prompts systematically",
+                "notes": "Build an eval set with metrics; change one thing at a time; track regressions.",
+                "explanation": (
+                    "### Prompt engineering is empirical\n"
+                    "Tweaking a prompt and checking one example is how you fool yourself. Instead:\n\n"
+                    "1. **Curate an eval set** of representative inputs with expected outputs (or a grading rubric / LLM-as-judge).\n"
+                    "2. **Define metrics** — accuracy, format-validity, latency, token cost.\n"
+                    "3. **Change one variable at a time** and re-run the whole set; watch for **regressions** on cases that previously passed.\n"
+                    "4. **Version prompts** and record results.\n\n"
+                    "This turns prompting from vibes into engineering, and it's exactly the discipline interviewers probe for in applied-LLM roles."
+                ),
+                "resources": [],
+            },
+        ],
+        "example": [
+            "Turn an unreliable zero-shot classifier prompt into a robust few-shot one with guaranteed JSON output.",
+            "Design a CoT + self-consistency setup for a multi-step math word-problem task and state the cost tradeoff.",
+            "Write a RAG answer prompt that cites sources and refuses when the context is insufficient.",
+            "Harden a prompt that summarizes user-submitted web pages against prompt injection.",
+            "Set up an eval harness to compare two prompt variants on 100 cases.",
+        ],
+        "common": [
+            "What is in-context learning, and how does it differ from fine-tuning?",
+            "When do you use few-shot over zero-shot, and what makes good examples?",
+            "Explain chain-of-thought and self-consistency, and when each is worth the extra tokens.",
+            "How do you reliably get valid JSON out of an LLM?",
+            "What is prompt injection and how do you defend against it?",
+            "How would you systematically evaluate and improve a prompt?",
+        ],
+    },
+
+    "Calibration, uncertainty & OOD detection": {
+        "points": [
+            {
+                "title": "What calibration means",
+                "notes": "A calibrated model's confidence matches reality: of things predicted 80%, ~80% are correct.",
+                "explanation": (
+                    "### Confidence you can trust\n"
+                    "A model is **calibrated** if its predicted probabilities match empirical frequencies: among all predictions made with confidence 0.8, about 80% should actually be correct. "
+                    "Calibration is distinct from **accuracy** — a model can be accurate but overconfident, or mediocre but well-calibrated. It matters whenever a downstream decision uses the probability: thresholding, ranking, abstaining, cost-sensitive choices, or combining models. "
+                    "If you act on '90% sure' as if it means 90%, miscalibration directly causes bad decisions, so calibration is a first-class quality, not a nicety."
+                ),
+                "resources": [
+                    {"title": "On Calibration of Modern Neural Networks (Guo et al.)", "url": "", "kind": "article", "query": "on calibration of modern neural networks Guo paper"},
+                ],
+            },
+            {
+                "title": "Reliability diagrams and Expected Calibration Error (ECE)",
+                "notes": "Bin predictions by confidence; ECE = avg |confidence − accuracy| across bins.",
+                "explanation": (
+                    "### Measuring miscalibration\n"
+                    "A **reliability diagram** bins predictions by confidence and plots **accuracy vs confidence** per bin; perfect calibration is the diagonal. Bars below the diagonal = overconfident.\n\n"
+                    "**Expected Calibration Error** summarizes the gap as a weighted average:\n\n"
+                    "$$\\text{ECE}=\\sum_{m} \\frac{|B_m|}{n}\\,\\big|\\,\\text{acc}(B_m)-\\text{conf}(B_m)\\,\\big|$$\n\n"
+                    "where $B_m$ are confidence bins. Lower is better. Caveats: ECE depends on bin count and only checks the top class; complement it with the **Brier score** (a proper scoring rule) and reliability plots rather than trusting a single number."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Why modern networks are miscalibrated (overconfident)",
+                "notes": "High-capacity nets trained with NLL push probabilities toward 0/1, overfitting confidence.",
+                "explanation": (
+                    "### The overconfidence problem\n"
+                    "Deep networks are typically **overconfident**: they assign very high probability even when wrong. Causes include training to minimize NLL with high capacity (the model keeps pushing correct-class logits up well past the point of correct classification), lack of regularization on probabilities, and label/temperature effects. "
+                    "Modern large models trained on cross-entropy show large ECE out of the box. "
+                    "Things that *help* calibration: temperature scaling (post-hoc), label smoothing, ensembles, and not over-training. Things that *hurt*: high capacity, batchnorm interactions, and aggressive fitting. Knowing this is why a raw softmax probability shouldn't be treated as a true probability without checking."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Calibration methods: temperature scaling, Platt, isotonic",
+                "notes": "Post-hoc fixes on a validation set; temperature scaling (one scalar T on logits) is the default.",
+                "explanation": (
+                    "### Fixing it after training\n"
+                    "These rescale a trained model's outputs using a held-out validation set:\n\n"
+                    "- **Temperature scaling** — divide logits by a single learned scalar $T$ before softmax: $\\text{softmax}(z/T)$. $T>1$ softens overconfident outputs. One parameter, doesn't change accuracy (argmax unchanged), remarkably effective — the **default**.\n"
+                    "- **Platt scaling** — fit a logistic regression on the scores (binary).\n"
+                    "- **Isotonic regression** — fit a non-parametric monotonic mapping; more flexible but needs more data and can overfit.\n\n"
+                    "All are cheap and post-hoc. Temperature scaling is the first thing to try; reach for isotonic only with ample validation data."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Aleatoric vs epistemic uncertainty",
+                "notes": "Aleatoric = irreducible data noise; epistemic = model uncertainty, reducible with more data.",
+                "explanation": (
+                    "### Two sources of 'I'm not sure'\n"
+                    "- **Aleatoric** — inherent randomness/ambiguity in the data (a blurry image, an ambiguous sentence). More data **won't** reduce it; the best you can do is model the noise.\n"
+                    "- **Epistemic** — uncertainty about the *model/parameters* due to limited data, especially in regions the training set didn't cover. More data (or better coverage) **reduces** it.\n\n"
+                    "The distinction guides action: high epistemic uncertainty → collect/label more data, or flag inputs as out-of-distribution; high aleatoric → the task is just noisy, set expectations accordingly. Epistemic uncertainty is also what's high on OOD inputs, linking this to OOD detection."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Estimating uncertainty: ensembles, MC dropout, Bayesian",
+                "notes": "Disagreement across models/forward passes approximates (epistemic) uncertainty.",
+                "explanation": (
+                    "### Getting an uncertainty estimate\n"
+                    "- **Deep ensembles** — train several models (different seeds); their **disagreement** on an input estimates epistemic uncertainty. Simple, strong, but N× cost. The practical gold standard.\n"
+                    "- **MC dropout** — keep dropout *on at inference*, run several forward passes, use the variance of predictions. A cheap approximation to a Bayesian posterior.\n"
+                    "- **Bayesian NNs / Laplace approximation** — put distributions over weights; principled but expensive/approximate.\n\n"
+                    "In all cases, **spread of predictions** ≈ uncertainty. Use the mean as the prediction and the variance/entropy as the confidence signal for abstention or OOD flags."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Out-of-distribution (OOD) detection: why and what",
+                "notes": "Models are unreliable on inputs unlike training data; detect them rather than trust the output.",
+                "explanation": (
+                    "### Knowing when not to trust the model\n"
+                    "Models give confident, meaningless answers on inputs **far from the training distribution** (a new class, corrupted input, a different domain). **OOD detection** flags such inputs so the system can defer to a human, abstain, or route elsewhere — critical for safety-sensitive deployments. "
+                    "The challenge: neural nets are often *more* confident on some OOD inputs, so a raw softmax max isn't enough. OOD detection is essentially asking 'is this input from the distribution my model was trained on?' — high epistemic uncertainty is the signal, and several scores try to capture it."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "OOD methods: max-softmax, energy, Mahalanobis, density",
+                "notes": "Score 'in-distribution-ness' via softmax confidence, energy, feature-space distance, or a density model.",
+                "explanation": (
+                    "### Common detectors (roughly weakest→strongest)\n"
+                    "- **Max softmax probability (MSP)** — low max prob ⇒ likely OOD. Simple baseline; weak because of overconfidence.\n"
+                    "- **Energy score** — use $-\\log\\sum_j e^{z_j}$; better-behaved than softmax for OOD.\n"
+                    "- **Mahalanobis distance** — fit class-conditional Gaussians in **feature space**; distance to the nearest class mean flags OOD. Strong, uses representations not just logits.\n"
+                    "- **Density / likelihood models** — model $p(x)$ directly; low likelihood ⇒ OOD (though deep generative models can be unreliable here).\n\n"
+                    "Distance-in-feature-space methods (Mahalanobis, kNN) tend to beat logit-only methods. Pick based on access to features and compute."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Selective prediction (abstention)",
+                "notes": "Let the model say 'I don't know' below a confidence threshold; trade coverage for accuracy.",
+                "explanation": (
+                    "### Answer only when confident\n"
+                    "**Selective prediction** uses a confidence/uncertainty score to **abstain** on low-confidence inputs (route to a human or a fallback). This trades **coverage** (fraction answered) for **accuracy on the answered set**, summarized by a **risk–coverage curve** (and its area). "
+                    "It needs a *good* confidence signal — which is why calibration and uncertainty estimation matter here. In practice you pick a threshold to hit a target precision/error rate. For LLMs this maps to 'say I don't know', defer to retrieval, or escalate — far safer than always answering."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Calibration & uncertainty for LLMs",
+                "notes": "Use token logprobs, sampled-answer agreement, or verbalized confidence — all imperfect; RLHF can worsen calibration.",
+                "explanation": (
+                    "### The LLM-specific picture\n"
+                    "Estimating LLM confidence is harder than for classifiers:\n\n"
+                    "- **Token logprobs** — sequence probability is a signal but conflates fluency with correctness.\n"
+                    "- **Sampled-answer agreement** — sample several answers; high agreement (self-consistency) ≈ higher confidence; disagreement flags uncertainty.\n"
+                    "- **Verbalized confidence** — ask the model to rate its certainty; usable but often poorly calibrated and gameable.\n\n"
+                    "Notably, base models can be fairly calibrated on multiple-choice, but **RLHF tends to degrade calibration** (models become confidently agreeable). Tie-in: poor calibration ⇒ hallucinations stated with high confidence, so calibration and **hallucination detection / abstention** are deeply linked."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Evaluation metrics: Brier score, NLL, AUROC for OOD",
+                "notes": "Brier/NLL are proper scores for calibration; OOD detection is judged by AUROC/AUPR.",
+                "explanation": (
+                    "### Measuring it properly\n"
+                    "- **Brier score** — mean squared error between predicted probability and the 0/1 outcome; a **proper scoring rule** that rewards calibration *and* accuracy.\n"
+                    "- **NLL (log loss)** — also proper; penalizes confident mistakes harshly.\n"
+                    "- **ECE** — interpretable calibration gap, but bin-sensitive and not proper — use alongside the above.\n"
+                    "- **OOD detection** — treat as binary (ID vs OOD) and report **AUROC** / **AUPR** of the score, plus FPR@95%TPR.\n\n"
+                    "Best practice: report a proper score (Brier/NLL) **and** a reliability diagram for calibration, and AUROC for OOD — no single number captures it all."
+                ),
+                "resources": [],
+            },
+        ],
+        "example": [
+            "A model is 92% accurate but its ECE is 0.15 — what does that mean and how do you fix it?",
+            "Implement temperature scaling: what do you optimize, on what data, and why doesn't accuracy change?",
+            "Design an OOD detector for an image classifier and choose a metric to evaluate it.",
+            "Build a selective-prediction system targeting 99% precision — describe the score and threshold choice.",
+            "How would you estimate and report uncertainty for an LLM's factual answers?",
+        ],
+        "common": [
+            "What is calibration, and how is it different from accuracy?",
+            "Explain ECE and reliability diagrams, and the pitfalls of ECE.",
+            "Why are modern neural nets overconfident, and how does temperature scaling help?",
+            "Distinguish aleatoric vs epistemic uncertainty and how you'd estimate each.",
+            "What is OOD detection and what methods go beyond max-softmax-probability?",
+            "How does RLHF affect an LLM's calibration, and what are the implications?",
+        ],
+    },
+
+    "Recommender systems & learning-to-rank": {
+        "points": [
+            {
+                "title": "The recommendation funnel: retrieval → ranking → re-ranking",
+                "notes": "Narrow millions of items to a handful in stages — cheap recall first, expensive precision last.",
+                "explanation": (
+                    "### Why it's multi-stage\n"
+                    "You can't score millions of items with a heavy model per request, so recommenders use a **funnel**:\n\n"
+                    "```mermaid\nflowchart LR\n  C[Corpus ~10^6+] --> R[Retrieval / candidate gen ~1000]\n  R --> K[Ranking ~100]\n  K --> RR[Re-ranking ~10]\n  RR --> U[User]\n```\n\n"
+                    "- **Retrieval (candidate generation)** — cheap, high-recall; cut the corpus to ~hundreds–thousands (e.g. ANN over embeddings).\n"
+                    "- **Ranking** — a richer model scores those candidates precisely.\n"
+                    "- **Re-ranking** — apply business logic: diversity, freshness, dedup, policy.\n\n"
+                    "Each stage trades cost for precision. This architecture is the backbone of every large-scale recommender and a common system-design prompt."
+                ),
+                "resources": [
+                    {"title": "YouTube deep-learning recommendations (paper)", "url": "", "kind": "article", "query": "deep neural networks youtube recommendations paper covington"},
+                ],
+            },
+            {
+                "title": "Collaborative filtering",
+                "notes": "Recommend from behavior patterns: users who liked similar items will like similar items.",
+                "explanation": (
+                    "### 'People like you also liked…'\n"
+                    "**Collaborative filtering (CF)** uses the **user–item interaction matrix** (clicks, ratings, purchases) — not item content. Two flavors:\n\n"
+                    "- **User-based** — find users similar to you, recommend what they liked.\n"
+                    "- **Item-based** — recommend items similar to ones you liked, where 'similar' = co-liked by the same users.\n\n"
+                    "Strength: needs no content features, captures taste patterns. Weakness: **cold start** (new users/items have no interactions) and **sparsity** (most user–item pairs are unobserved). Latent-factor models (next) address sparsity by learning dense representations from the same matrix."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Matrix factorization and latent factors",
+                "notes": "Approximate the interaction matrix as user × item embeddings; dot product predicts affinity.",
+                "explanation": (
+                    "### Learning taste vectors\n"
+                    "**Matrix factorization** approximates the sparse interaction matrix $R$ as the product of low-rank **user** and **item** embedding matrices:\n\n"
+                    "$$\\hat r_{ui} = \\mathbf{p}_u^\\top \\mathbf{q}_i \\;(+\\,b_u + b_i)$$\n\n"
+                    "Each user and item gets a $k$-dim latent vector; their dot product predicts affinity. Train by minimizing error on observed entries with regularization (classic **ALS**/**SGD**, popularized by the Netflix Prize). "
+                    "It generalizes from sparse data by placing similar users/items near each other in latent space, and is the conceptual ancestor of modern **two-tower** retrieval. Bias terms capture popularity and user leniency."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Content-based and hybrid recommenders",
+                "notes": "Use item/user features (content) to handle cold start; hybrids combine CF + content.",
+                "explanation": (
+                    "### When behavior data isn't enough\n"
+                    "**Content-based** recommendation uses item **features** (text, category, embeddings) and a user profile of features they've liked — 'you watched sci-fi, here's more sci-fi'. It handles **new items** (a fresh item has features even with zero interactions) and is explainable, but tends to over-specialize (low diversity) and needs good features.\n\n"
+                    "**Hybrid** systems combine collaborative + content signals — e.g. use content features to bootstrap cold-start items, then let CF take over as interactions accumulate. Most production systems are hybrids, feeding both interaction and content/context features into the retrieval and ranking models."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Two-tower retrieval and ANN candidate generation",
+                "notes": "Separate user & item encoders → embeddings; retrieve top-k by approximate nearest neighbor.",
+                "explanation": (
+                    "### How modern retrieval scales\n"
+                    "A **two-tower** model has separate neural encoders for the **user/context** and the **item**, each producing an embedding in a shared space; relevance is their dot product. Crucially, **item embeddings are precomputed** and indexed, so serving is: encode the user once → **approximate nearest neighbor (ANN)** search (HNSW, IVF/ScaNN) over millions of item vectors → top-k candidates in milliseconds.\n\n"
+                    "This decoupling is what makes deep retrieval tractable at scale. Training uses positives (engaged items) vs sampled negatives with a contrastive/softmax loss. It's the embedding-retrieval pattern shared with semantic search and RAG."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Learning-to-rank: pointwise, pairwise, listwise",
+                "notes": "Optimize ordering, not absolute scores; pairwise/listwise match ranking metrics better.",
+                "explanation": (
+                    "### Optimizing for order\n"
+                    "Ranking cares about **relative order**, not absolute scores. Three formulations:\n\n"
+                    "- **Pointwise** — predict a score/relevance per item independently (regression/classification), then sort. Simple but ignores that ranking is relative.\n"
+                    "- **Pairwise** — learn which of two items should rank higher (e.g. **RankNet**, **LambdaMART**); directly models preferences.\n"
+                    "- **Listwise** — optimize a loss over the whole ranked list, closer to metrics like NDCG (**ListNet**, LambdaMART with λ-gradients).\n\n"
+                    "Pairwise/listwise generally win because they align with how ranking is *evaluated*. **LambdaMART** (GBDT + pairwise λ-gradients) was long the competition-winning default."
+                ),
+                "resources": [
+                    {"title": "Learning to rank overview", "url": "", "kind": "article", "query": "learning to rank pointwise pairwise listwise lambdamart"},
+                ],
+            },
+            {
+                "title": "Ranking models and features (GBDT, deep, DLRM)",
+                "notes": "Combine many features (user, item, context, cross) via GBDTs or deep nets with embeddings.",
+                "explanation": (
+                    "### What scores the candidates\n"
+                    "The ranking stage is feature-rich. **Features**: user (history, demographics), item (popularity, attributes), **context** (time, device), and **cross features** (user×item interactions). **Models**:\n\n"
+                    "- **Gradient-boosted trees (GBDT)** — strong on tabular/dense features, the long-time default for LTR.\n"
+                    "- **Deep ranking nets** — learn embeddings for high-cardinality categoricals (IDs) and feature crosses; **DLRM**, **Wide & Deep**, DCN are canonical.\n"
+                    "- **Multi-task** — predict click *and* like *and* watch-time jointly, then combine.\n\n"
+                    "High-cardinality ID embeddings dominate memory and are why recommender models can be huge despite simple per-example compute."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Implicit feedback and negative sampling",
+                "notes": "Most signals are implicit (clicks, not ratings); absence isn't a clear negative → sample carefully.",
+                "explanation": (
+                    "### Learning from clicks, not stars\n"
+                    "Real systems mostly have **implicit feedback** (views, clicks, dwell, purchases) rather than explicit ratings. This is tricky: a non-click might mean dislike — or the item was never seen. So you can't treat all non-interactions as negatives.\n\n"
+                    "**Negative sampling** picks a manageable set of negatives per positive: random items, **popularity-weighted**, or **hard negatives** (high-scoring but not engaged) which teach finer distinctions. The choice strongly affects quality. You also weight by confidence (a purchase > a click) and must correct for **exposure/position bias** — items shown more get more clicks regardless of relevance."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Offline evaluation metrics: NDCG, MAP, recall@k",
+                "notes": "Rank-aware metrics that reward putting relevant items high; recall@k for retrieval.",
+                "explanation": (
+                    "### Judging a ranking\n"
+                    "- **Recall@k** — fraction of relevant items captured in the top-k. The key **retrieval** metric (did candidate generation include the good items?).\n"
+                    "- **Precision@k / MAP** — precision among top-k; MAP averages precision across positions and queries.\n"
+                    "- **NDCG@k** — **N**ormalized **D**iscounted **C**umulative **G**ain: rewards relevant items *and* discounts by position (a hit at rank 1 ≫ rank 10), normalized to $[0,1]$ by the ideal ordering. The standard **ranking** metric, handles graded relevance.\n\n"
+                    "Use recall@k to evaluate the retrieval stage and NDCG/MAP for ranking. But offline metrics are proxies — confirm with online A/B tests."
+                ),
+                "resources": [],
+            },
+            {
+                "title": "Cold start, online serving, and feedback loops",
+                "notes": "New users/items need bootstrapping; production must serve fast and beware self-reinforcing bias.",
+                "explanation": (
+                    "### Production realities\n"
+                    "- **Cold start** — new **users** (no history) get popularity/contextual/onboarding-based recs; new **items** lean on content features until interactions accrue; exploration (bandits) gathers signal.\n"
+                    "- **Serving** — the funnel runs in real time: precomputed item embeddings + ANN for retrieval, a fast ranking model, feature stores for low-latency features, caching of hot results.\n"
+                    "- **Feedback loops & bias** — the model influences what users see, which becomes its next training data, creating **popularity/filter-bubble** and **position bias**. Mitigate with exploration, debiasing (inverse-propensity weighting), and diversity in re-ranking.\n\n"
+                    "Always validate with **online A/B tests** — offline gains often don't transfer due to these loop effects."
+                ),
+                "resources": [],
+            },
+        ],
+        "example": [
+            "Design a video recommendation system for 100 M users and 10 M items end-to-end (retrieval → ranking → re-rank).",
+            "Explain how you'd build a two-tower retrieval model and serve it with ANN at scale.",
+            "You have only implicit click data — how do you choose negatives and correct for position bias?",
+            "Pick metrics to evaluate the retrieval stage vs the ranking stage and justify each.",
+            "How would you handle cold-start for brand-new items and brand-new users?",
+        ],
+        "common": [
+            "Why are recommenders built as a retrieval→ranking→re-ranking funnel?",
+            "Explain collaborative filtering vs content-based, and the cold-start problem.",
+            "What is matrix factorization, and how does it relate to two-tower retrieval?",
+            "Compare pointwise, pairwise, and listwise learning-to-rank.",
+            "Define NDCG and recall@k and say which stage each evaluates.",
+            "What feedback-loop / bias problems arise in deployed recommenders and how do you mitigate them?",
+        ],
+    },
 }
 
 
@@ -756,5 +1352,23 @@ AUTHORED_ORDER: dict[str, list[dict]] = {
         {"title": "MoE training & serving (expert & sequence parallelism)", "level": "advanced"},
         {"title": "Checkpointing, fault tolerance, large-cluster observability", "level": "advanced"},
         {"title": "Kubernetes / SLURM for ML workloads", "level": "intermediate"},
+    ],
+    "AI/ML": [
+        {"title": "Probability/stats fundamentals (Bayes, MLE, distributions)", "level": "foundational"},
+        {"title": "Classical ML refresher: regression, trees, gradient boosting", "level": "foundational"},
+        {"title": "Embeddings & representation learning", "level": "foundational"},
+        {"title": "Recommender systems & learning-to-rank", "level": "intermediate"},
+        {"title": "Transformer deep dive: MHA, KV cache, RoPE, MoE routing", "level": "intermediate"},
+        {"title": "Pretraining: scaling laws, data mixing, tokenization", "level": "intermediate"},
+        {"title": "Decoding & sampling strategies (greedy, temperature, top-k/p, speculative)", "level": "intermediate"},
+        {"title": "Prompt engineering & in-context learning", "level": "intermediate"},
+        {"title": "Evaluation: benchmarks, human eval, hallucination detection", "level": "intermediate"},
+        {"title": "RAG architectures vs fine-tuning tradeoffs", "level": "intermediate"},
+        {"title": "Long-context & attention variants (GQA/MQA, sliding-window, context extension)", "level": "advanced"},
+        {"title": "Post-training: SFT, RLHF, DPO, RLAIF, Constitutional AI", "level": "advanced"},
+        {"title": "Calibration, uncertainty & OOD detection", "level": "advanced"},
+        {"title": "Agentic systems: tool use, planning, MCP, multi-step reasoning", "level": "advanced"},
+        {"title": "Diffusion models & multimodal architectures", "level": "advanced"},
+        {"title": "AI safety: alignment, interpretability, red-teaming", "level": "advanced"},
     ],
 }
