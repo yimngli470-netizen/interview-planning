@@ -47,7 +47,10 @@ modal model (no always-on textareas).
 - On-demand depth (B4): `POST /api/ai/explain {point_title, topic_title, domain_name, mode,
   subtopic_id?, refresh?}` (`mode` = `simpler|deeper`) → `{markdown, cached}` via
   `llm.explain_learning_point`. The UI's **"Explain simpler / Go deeper"** buttons call it
-  with `subtopic_id`. **Persistent, shared cache:** results are stored in the
+  with `subtopic_id`. **Default content only:** the buttons are hidden for a user's own
+  items (`owner_id` set) and the endpoint returns 403 for them — per-point LLM calls are
+  reserved for shared default learning points; a user's own topics get the create-time
+  auto-fill instead. **Persistent, shared cache:** results are stored in the
   `explain_cache` table keyed by `(subtopic_id, mode)` (unique; FK cascade) — the
   explanation is identical for every user, so the first request generates + stores it and
   all later requests (any user, any session, across restarts) are served from the DB with

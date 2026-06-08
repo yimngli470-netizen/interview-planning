@@ -178,7 +178,10 @@ function SubtopicRow({
   };
 
   const hasDepth = Boolean(sub.explanation) || sub.resources?.length > 0;
-  const canExplain = aiConfigured;
+  // On-demand LLM explain is for shared DEFAULT content only — a user's own
+  // items don't get the per-point API calls (they already had the auto-fill
+  // option when the topic was created).
+  const canExplain = aiConfigured && !owned;
 
   return (
     <div className="row-hover" style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 0' }}>

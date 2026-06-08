@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from .. import llm
 from ..database import get_db
-from ..models import ExplainCache
+from ..models import ExplainCache, Subtopic
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -38,6 +38,11 @@ def explain(payload: ExplainIn, db: Session = Depends(get_db)):
 
     cached = None
     if payload.subtopic_id is not None:
+        # On-demand explanations are for shared DEFAULT content only. A user's own
+        # learning point (owner_id set) must not trigger an LLM call.
+        sub = db.get(Subtopic, payload.subtopic_id)
+        if sub is not None and sub.owner_id is not None:
+            raise HTTPException(403, "AI explanations are only available for default content")
         cached = db.scalar(
             select(ExplainCache).where(
                 ExplainCache.subtopic_id == payload.subtopic_id,
