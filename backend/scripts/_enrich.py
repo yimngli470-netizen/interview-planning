@@ -6,8 +6,8 @@ a per-domain pedagogical ORDER (learning path + difficulty level).
 Results are cached to JSON (resumable) and emitted as app/content_generated.py,
 which the seeder merges additively on top of the hand-authored content.py.
 
-Run inside the backend container:
-    docker compose exec -T backend python _enrich.py "System Design" "AI Infra" "AI/ML"
+Run inside the backend container (from /app, where the `app` package lives):
+    docker compose exec -T backend python scripts/_enrich.py "System Design" "AI Infra" "AI/ML"
 Re-running skips topics already cached in the v2 (explanation-bearing) format.
 """
 import json
@@ -16,17 +16,25 @@ import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from app import content, llm
-from app.seed import SKIP_GENERATED  # flagship topics — hand-authored, don't regen points
+# This one-off lives in backend/scripts/ but imports the `app` package at the
+# backend root — put that root on sys.path however the script is launched.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_HERE)
+sys.path.insert(0, _ROOT)
+
+from app import content, llm  # noqa: E402
+from app.seed import SKIP_GENERATED  # noqa: E402  flagship topics — hand-authored, don't regen points
 try:
-    from app.content_authored import AUTHORED  # hand-authored rich topics — never regenerate
+    from app.content_authored import AUTHORED  # noqa: E402  hand-authored rich topics — never regenerate
 except Exception:  # noqa: BLE001
     AUTHORED = {}
 # Titles we must never call the API for (hand-authored already).
 NEVER_GENERATE = set(SKIP_GENERATED) | set(AUTHORED)
 
-CACHE = "/app/app/_generated_cache.json"
-OUT = "/app/app/content_generated.py"
+# Cache stays beside this script; the emitted module must land in app/ so the
+# seeder can import it at runtime.
+CACHE = os.path.join(_HERE, "_generated_cache.json")
+OUT = os.path.join(_ROOT, "app", "content_generated.py")
 MAX_WORKERS = 4
 
 _lock = threading.Lock()
