@@ -30,6 +30,7 @@ export interface Question {
   kind: QuestionKind;
   prompt: string;
   order: number;
+  owner_id: number | null; // null = default/shared (read-only); set = user's own
 }
 
 export interface Topic {

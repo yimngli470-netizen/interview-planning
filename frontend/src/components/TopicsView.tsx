@@ -25,6 +25,9 @@ interface Props {
   onAddSubtopic: (topicId: number, title: string) => void;
   onPatchSubtopic: (id: number, patch: Partial<Subtopic>) => void;
   onRemoveSubtopic: (id: number) => void;
+  onAddQuestion: (topicId: number, prompt: string, kind: 'example' | 'common') => void;
+  onEditQuestion: (id: number, prompt: string) => void;
+  onRemoveQuestion: (id: number) => void;
 }
 
 export default function TopicsView(props: Props) {
@@ -172,6 +175,9 @@ export default function TopicsView(props: Props) {
                 onAddSubtopic={props.onAddSubtopic}
                 onPatchSubtopic={props.onPatchSubtopic}
                 onRemoveSubtopic={props.onRemoveSubtopic}
+                onAddQuestion={props.onAddQuestion}
+                onEditQuestion={props.onEditQuestion}
+                onRemoveQuestion={props.onRemoveQuestion}
               />
             ))}
           </div>

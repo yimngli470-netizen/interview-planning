@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 
 from .database import Base, engine, SessionLocal
-from .routers import domains, topics, subtopics, sessions, progress, ai
+from .routers import domains, topics, subtopics, questions, sessions, progress, ai
 from .seed import seed_or_enrich
 
 
@@ -44,8 +44,8 @@ def _add_missing_columns() -> None:
                 conn.execute(
                     text("ALTER TABLE question_progress ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
                 )
-    # owner_id on topics + subtopics (NULL = default/shared content)
-    for tbl in ("topics", "subtopics"):
+    # owner_id on topics + subtopics + questions (NULL = default/shared content)
+    for tbl in ("topics", "subtopics", "questions"):
         if tbl in tables:
             cols = {c["name"] for c in insp.get_columns(tbl)}
             if "owner_id" not in cols:
@@ -101,6 +101,7 @@ app.add_middleware(
 app.include_router(domains.router)
 app.include_router(topics.router)
 app.include_router(subtopics.router)
+app.include_router(questions.router)
 app.include_router(sessions.router)
 app.include_router(progress.router)
 app.include_router(ai.router)

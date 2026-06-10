@@ -1,4 +1,4 @@
-import type { Domain, Topic, Subtopic, StudySession, User } from '../types';
+import type { Domain, Topic, Subtopic, Question, StudySession, User } from '../types';
 
 export interface LoginResult {
   user: User;
@@ -74,6 +74,17 @@ export const api = {
     req<Subtopic>(`/subtopics/${id}?user_id=${userId}`, { method: 'PATCH', body: JSON.stringify(s) }),
   deleteSubtopic: (userId: number, id: number) =>
     req<void>(`/subtopics/${id}?user_id=${userId}`, { method: 'DELETE' }),
+
+  // Practice questions (user-owned; can be attached to a shared default topic)
+  createQuestion: (userId: number, topicId: number, q: { prompt: string; kind?: 'example' | 'common' }) =>
+    req<Question>(`/topics/${topicId}/questions?user_id=${userId}`, {
+      method: 'POST',
+      body: JSON.stringify(q),
+    }),
+  updateQuestion: (userId: number, id: number, q: { prompt?: string }) =>
+    req<Question>(`/questions/${id}?user_id=${userId}`, { method: 'PATCH', body: JSON.stringify(q) }),
+  deleteQuestion: (userId: number, id: number) =>
+    req<void>(`/questions/${id}?user_id=${userId}`, { method: 'DELETE' }),
 
   // Users / auth
   listUsers: () => req<User[]>('/users'),

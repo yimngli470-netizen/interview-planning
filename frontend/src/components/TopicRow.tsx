@@ -79,22 +79,31 @@ function NoteDisplay({ value }: { value: string }) {
 }
 
 function QuestionItem({
-  q, done, notes, onToggle, onSaveNotes, onExpand,
+  q, done, notes, owned, onToggle, onSaveNotes, onEditPrompt, onRemove, onExpand,
 }: {
   q: Question;
   done: boolean;
   notes: string;
+  owned: boolean;
   onToggle: (questionId: number, done: boolean) => void;
   onSaveNotes: (questionId: number, notes: string) => void;
+  onEditPrompt: (questionId: number, prompt: string) => void;
+  onRemove: (questionId: number) => void;
   onExpand: (cfg: EditorCfg) => void;
 }) {
+  // For your own question the editor lets you fix the wording (title) AND jot an
+  // answer; for a default question only the answer/notes is editable.
   const openNotes = () =>
     onExpand({
-      label: 'Practice question',
+      label: owned ? 'Your question' : 'Practice question',
       title: q.prompt,
-      titleEditable: false,
+      titleEditable: owned,
       notes,
-      onSave: ({ notes: nn }) => onSaveNotes(q.id, nn),
+      onSave: ({ title: nt, notes: nn }) => {
+        const t = (nt || '').trim();
+        if (owned && t && t !== q.prompt) onEditPrompt(q.id, t);
+        onSaveNotes(q.id, nn);
+      },
     });
 
   return (
@@ -110,11 +119,20 @@ function QuestionItem({
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s ease',
           }}
         >{done && <Check size={13} strokeWidth={3} />}</button>
-        <span style={{ flex: 1, fontSize: 14.5, lineHeight: 1.45, color: done ? 'var(--faint)' : 'var(--text)', textDecoration: done ? 'line-through' : 'none' }}>{q.prompt}</span>
-        <button className="reveal" onClick={(e) => { e.preventDefault(); openNotes(); }} title="Edit answer"
+        <span style={{ flex: 1, fontSize: 14.5, lineHeight: 1.45, color: done ? 'var(--faint)' : 'var(--text)', textDecoration: done ? 'line-through' : 'none' }}>
+          {q.prompt}
+          {owned && <span className="faint" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', marginLeft: 7, padding: '1px 5px', borderRadius: 5, background: 'var(--accent-softer)', color: 'var(--accent-strong)' }}>yours</span>}
+        </span>
+        <button className="reveal" onClick={(e) => { e.preventDefault(); openNotes(); }} title={owned ? 'Edit question & answer' : 'Edit answer'}
           style={{ border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', padding: 2, display: 'inline-flex', flexShrink: 0 }}>
           <Pencil size={14} strokeWidth={2.2} />
         </button>
+        {owned && (
+          <button className="reveal" onClick={(e) => { e.preventDefault(); onRemove(q.id); }} title="Delete question"
+            style={{ border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', padding: 2, display: 'inline-flex', flexShrink: 0 }}>
+            <X size={14} strokeWidth={2.4} />
+          </button>
+        )}
       </label>
       <div style={{ marginLeft: 30 }}><NoteDisplay value={notes} /></div>
     </div>
@@ -288,15 +306,20 @@ interface Props {
   onAddSubtopic: (topicId: number, title: string) => void;
   onPatchSubtopic: (id: number, patch: Partial<Subtopic>) => void;
   onRemoveSubtopic: (id: number) => void;
+  onAddQuestion: (topicId: number, prompt: string, kind: 'example' | 'common') => void;
+  onEditQuestion: (id: number, prompt: string) => void;
+  onRemoveQuestion: (id: number) => void;
 }
 
 export default function TopicRow({
   topic, domain, currentUserId, aiConfigured, doneQuestions, questionNotes,
   onToggleQuestion, onSaveQuestionNotes,
   onPatchTopic, onRemoveTopic, onAddSubtopic, onPatchSubtopic, onRemoveSubtopic,
+  onAddQuestion, onEditQuestion, onRemoveQuestion,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [newSub, setNewSub] = useState('');
+  const [newQ, setNewQ] = useState('');
   const [editor, setEditor] = useState<EditorCfg | null>(null);
   const [editorTitle, setEditorTitle] = useState('');
   const [editorText, setEditorText] = useState('');
@@ -310,6 +333,7 @@ export default function TopicRow({
   const closeEditor = () => { if (editor) editor.onSave({ title: editorTitle, notes: editorText }); setEditor(null); };
 
   const addSub = () => { if (newSub.trim()) { onAddSubtopic(topic.id, newSub.trim()); setNewSub(''); } };
+  const addQ = () => { if (newQ.trim()) { onAddQuestion(topic.id, newQ.trim(), 'common'); setNewQ(''); } };
 
   return (
     <div className="row-hover topic-row" style={{ padding: '15px 20px', transition: 'background .15s ease' }}>
@@ -364,23 +388,32 @@ export default function TopicRow({
             <button className="btn btn-soft btn-sm" onClick={addSub}><Plus size={15} strokeWidth={2.4} /> Add</button>
           </div>
 
-          {topic.questions.length > 0 && (
-            <div style={{ marginTop: 22 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: 6 }}>Practice questions</div>
-              {(['example', 'common'] as const).map((kind) => {
-                const qs = topic.questions.filter((q) => q.kind === kind);
-                if (qs.length === 0) return null;
-                return (
-                  <div key={kind} style={{ marginBottom: 10 }}>
-                    <div className="faint" style={{ fontSize: 12, marginBottom: 2 }}>{kind === 'example' ? 'Example problems' : 'Common questions'}</div>
-                    <div>{qs.map((q) => (
-                      <QuestionItem key={q.id} q={q} done={doneQuestions.has(q.id)} notes={questionNotes.get(q.id) ?? ''} onToggle={onToggleQuestion} onSaveNotes={onSaveQuestionNotes} onExpand={openEditor} />
-                    ))}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div style={{ marginTop: 22 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: 6 }}>Practice questions</div>
+            {(['example', 'common'] as const).map((kind) => {
+              const qs = topic.questions.filter((q) => q.kind === kind);
+              // Always render the 'common' group so users can add their own; only
+              // show 'example' when defaults exist there.
+              if (qs.length === 0 && kind === 'example') return null;
+              return (
+                <div key={kind} style={{ marginBottom: 10 }}>
+                  <div className="faint" style={{ fontSize: 12, marginBottom: 2 }}>{kind === 'example' ? 'Example problems' : 'Common questions'}</div>
+                  <div>{qs.map((q) => (
+                    <QuestionItem key={q.id} q={q} done={doneQuestions.has(q.id)} notes={questionNotes.get(q.id) ?? ''}
+                      owned={q.owner_id === currentUserId}
+                      onToggle={onToggleQuestion} onSaveNotes={onSaveQuestionNotes}
+                      onEditPrompt={onEditQuestion} onRemove={onRemoveQuestion} onExpand={openEditor} />
+                  ))}</div>
+                  {kind === 'common' && (
+                    <div style={{ display: 'flex', gap: 9, marginTop: 8 }}>
+                      <input className="field" value={newQ} onChange={(e) => setNewQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addQ()} placeholder="Add your own common question…" />
+                      <button className="btn btn-soft btn-sm" onClick={addQ}><Plus size={15} strokeWidth={2.4} /> Add</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

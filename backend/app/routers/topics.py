@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from .. import llm
 from ..database import get_db
 from ..models import Domain, Question, Subtopic, Topic
-from ..schemas import STATUSES, TopicCreate, TopicOut, TopicUpdate, to_subtopic_out
+from ..schemas import STATUSES, QuestionOut, TopicCreate, TopicOut, TopicUpdate, to_subtopic_out
 
 log = logging.getLogger(__name__)
 
@@ -30,9 +30,16 @@ def _visible_subtopics(topic: Topic, user_id: int | None) -> list[Subtopic]:
     ]
 
 
+def _visible_questions(topic: Topic, user_id: int | None) -> list[Question]:
+    return [
+        q for q in topic.questions if q.owner_id is None or q.owner_id == user_id
+    ]
+
+
 def _serialize(topic: Topic, user_id: int | None) -> TopicOut:
     out = TopicOut.model_validate(topic)
     out.subtopics = [to_subtopic_out(s) for s in _visible_subtopics(topic, user_id)]
+    out.questions = [QuestionOut.model_validate(q) for q in _visible_questions(topic, user_id)]
     return out
 
 

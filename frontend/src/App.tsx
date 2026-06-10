@@ -288,6 +288,22 @@ export default function App() {
     await reloadTopics(currentUser.id);
   };
 
+  const addQuestion = async (topicId: number, prompt: string, kind: 'example' | 'common') => {
+    if (!currentUser) return;
+    await api.createQuestion(currentUser.id, topicId, { prompt, kind });
+    await reloadTopics(currentUser.id);
+  };
+  const editQuestion = async (id: number, prompt: string) => {
+    if (!currentUser) return;
+    await api.updateQuestion(currentUser.id, id, { prompt });
+    await reloadTopics(currentUser.id);
+  };
+  const removeQuestion = async (id: number) => {
+    if (!currentUser) return;
+    await api.deleteQuestion(currentUser.id, id);
+    await reloadTopics(currentUser.id);
+  };
+
   const removeSession = async (id: number) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
     try {
@@ -452,6 +468,7 @@ export default function App() {
             statusFilter={topicStatusFilter} setStatusFilter={setTopicStatusFilter}
             onAddTopic={addTopic} onPatchTopic={patchTopic} onRemoveTopic={removeTopic}
             onAddSubtopic={addSubtopic} onPatchSubtopic={patchSubtopic} onRemoveSubtopic={removeSubtopic}
+            onAddQuestion={addQuestion} onEditQuestion={editQuestion} onRemoveQuestion={removeQuestion}
           />
         )}
         {tab === 'sessions' && <SessionsView sessions={sessions} currentUser={currentUser} nowTs={nowTs} />}

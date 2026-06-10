@@ -115,6 +115,12 @@ class Question(Base):
     kind: Mapped[str] = mapped_column(String(20), default="example")
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     order: Mapped[int] = mapped_column(Integer, default=0)
+    # NULL = default/curated question (shared, read-only). Set = a user's own
+    # question (only they see + edit + delete it) — they can attach their own
+    # common questions even onto a shared default topic.
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
 
     topic: Mapped["Topic"] = relationship(back_populates="questions")
 

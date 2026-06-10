@@ -61,13 +61,23 @@ modal model (no always-on textareas).
   scale — revisit only for rate-limiting / request-coalescing / high-QPS read caching). The
   client also keeps an L0 per-session copy for instant re-show.
 
-**Ownership (`owner_id` on topics + subtopics):** `NULL` = default/curated
-content — shared, **read-only** (only `status`/`pinned` may change; title/notes/
-delete are 403). `owner_id = user` = that user's own item — only they see it, and
-only they can edit/delete it. API endpoints take a `user_id` query param to scope
-listing (defaults + my own) and authorize mutations. So Zoey adding/editing a
+**Ownership (`owner_id` on topics + subtopics + questions):** `NULL` = default/
+curated content — shared, **read-only** (only `status`/`pinned` may change; title/
+notes/delete are 403). `owner_id = user` = that user's own item — only they see it,
+and only they can edit/delete it. API endpoints take a `user_id` query param to
+scope listing (defaults + my own) and authorize mutations. So Zoey adding/editing a
 learning point never affects Xiaoming. (Status/pins are still global on defaults —
 genuine per-user *progress* is the remaining follow-up.)
+
+**User-added practice questions:** `routers/questions.py` — `POST
+/api/topics/{id}/questions?user_id=` (defaults `kind:"common"`), `PATCH/DELETE
+/api/questions/{id}?user_id=`. A user can attach their own common question even
+onto a shared **default** topic (the question carries `owner_id`, the topic stays
+shared); `_visible_questions` in `topics.py` filters the topic feed the same way as
+subtopics. In the UI the "Common questions" group always renders an "Add your own
+common question…" box; owned questions show a "yours" chip, an editable prompt
+(pencil opens prompt+answer), and a delete X. Per-user `done`/answer notes
+(`QuestionProgress`) work for owned questions too.
 
 Per-user tables (single seeded user "Zoey", no auth/password):
 - `User`.
@@ -110,7 +120,7 @@ Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
 - `backend/app/content_generated.py` = AUTO-GENERATED comprehensive learning
   points (each with a markdown `explanation` + free `resources`) + questions
   (Sonnet, uncapped), plus a per-domain learning-path `ORDER` (`[{title, level}]`),
-  produced by `backend/_enrich.py`. **Authoritative model:** a topic whose generated
+  produced by the one-off `backend/scripts/_enrich.py`. **Authoritative model:** a topic whose generated
   set carries depth (markdown explanations) is in `seed.AUTHORITATIVE` — for it the
   generated points are the *complete, canonical* learning-point list: the seeder does
   NOT also seed the curated `content.py` points, and it **prunes any default point not
@@ -122,13 +132,13 @@ Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
   only). `seed.SKIP_GENERATED` lists the flagship topics — hand-authored to depth in
   `content.py` (rich per-point notes, but no separate `explanation`/"Learn more"); their
   points aren't generated/pruned, though they're still included in the domain ordering.
-  Regenerate with `docker compose exec backend python _enrich.py <domains...>`
+  Regenerate with `docker compose exec backend python scripts/_enrich.py <domains...>`
   (defaults to the 3 conceptual domains; resumable via the gitignored
-  `_generated_cache.json` — entries are re-run if they lack the v2 `explanation`).
+  `backend/scripts/_generated_cache.json` — entries are re-run if they lack the v2 `explanation`).
 - `backend/app/content_authored.py` = HAND-AUTHORED (by Opus, no API) rich content
   in the SAME shape as `content_generated.py` (`AUTHORED` + `AUTHORED_ORDER`). The
   seeder merges all rich sources in order `(GENERATED, AUTHORED)` — AUTHORED wins —
-  and `_enrich.py` never regenerates AUTHORED titles. Use this to fill in / improve
+  and `scripts/_enrich.py` never regenerates AUTHORED titles. Use this to fill in / improve
   topics by hand instead of spending API tokens. `AUTHORED_ORDER` sets a domain's
   learning-path order + levels (and overrides any generated ORDER). System Design is
   fully hand-finished here (2 topics + full 17-topic ordering).

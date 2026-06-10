@@ -90,6 +90,20 @@ class TopicUpdate(BaseModel):
 
 
 # ---------- Question (practice / interview question) ----------
+QUESTION_KINDS = {"example", "common"}
+
+
+class QuestionCreate(BaseModel):
+    prompt: str = Field(min_length=1, max_length=1000)
+    kind: str = "common"
+    order: int = 0
+
+
+class QuestionUpdate(BaseModel):
+    prompt: str | None = Field(default=None, min_length=1, max_length=1000)
+    order: int | None = None
+
+
 class QuestionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -97,6 +111,7 @@ class QuestionOut(BaseModel):
     kind: str
     prompt: str
     order: int
+    owner_id: int | None = None
 
 
 class TopicOut(TopicBase):
