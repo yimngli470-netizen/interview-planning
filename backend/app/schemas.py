@@ -153,6 +153,18 @@ class UserOut(BaseModel):
 
 
 class LoginIn(BaseModel):
+    username: str = Field(min_length=1, max_length=120)
+    password: str = ""
+
+
+class SignupIn(BaseModel):
+    username: str = Field(min_length=1, max_length=120)
+    password: str = ""
+
+
+class StartSessionIn(BaseModel):
+    # Resume tracking for an already-signed-in client (no re-auth). The browser
+    # holds the saved login; this just opens a fresh study block after an idle gap.
     user_id: int
 
 

@@ -79,8 +79,10 @@ common question…" box; owned questions show a "yours" chip, an editable prompt
 (pencil opens prompt+answer), and a delete X. Per-user `done`/answer notes
 (`QuestionProgress`) work for owned questions too.
 
-Per-user tables (single seeded user "Zoey", no auth/password):
-- `User`.
+Per-user tables (seeded users "Zoey" + "Xiaoming", both with a blank password):
+- `User` — `name` (unique) + `password_hash` (SHA-256 hex; see `app/security.py`).
+  Hashing is deliberately minimal (no complexity rules; empty password → fixed
+  digest). Swap for a salted KDF if this ever goes public.
 - `StudySession` = auto time block: `started_at`, `last_heartbeat_at`, `ended_at`,
   `duration_min`. Created on login, kept alive by heartbeats (every 30s),
   finalized on logout or when heartbeats go stale (>120s = laptop closed/slept).
@@ -103,10 +105,18 @@ Per-user tables (single seeded user "Zoey", no auth/password):
   on a Question (unique user+question). GET returns all rows; PUT upserts either
   field. Frontend keeps a doneSet + a Map<questionId, notes>.
 
-Auth is trivial: POST `/api/login {user_id}` starts a session; `/api/logout`,
-`/api/sessions/{id}/heartbeat`, `/api/sessions?user_id=`. Question completion:
-GET/PUT `/api/users/{id}/question-progress`. Frontend persists the active login
-in `localStorage` (`prep-auth-v1`) and resumes via heartbeat on reload.
+Auth is simple username/password (no tokens): POST `/api/login {username,
+password}` verifies the SHA-256 hash and starts a session; POST `/api/signup
+{username, password}` creates a user (case-insensitive dup-name → 409, blank
+password allowed) and auto-logs-in. Both return `LoginOut {user, session}`.
+`/api/logout`, `/api/sessions/{id}/heartbeat`, `/api/sessions?user_id=`. The
+idle-resume path uses POST `/api/sessions/start {user_id}` (no re-auth — opens a
+fresh block for the already-signed-in browser, mirroring the existing trust
+model). Question completion: GET/PUT `/api/users/{id}/question-progress`. The
+frontend login gate is a username/password form + a "Create an account" modal;
+it persists the active login in `localStorage` (`prep-auth-v1`) and resumes via
+heartbeat on reload. The Dashboard's "Progress by domain" rows are clickable —
+they jump to the Topics tab pre-filtered to that domain.
 Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
 
 ## Content

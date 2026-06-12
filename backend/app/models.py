@@ -148,6 +148,9 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    # SHA-256 hex digest of the password ('' never stored — empty password hashes
+    # to a fixed digest). See app/security.py.
+    password_hash: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

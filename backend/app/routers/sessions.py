@@ -1,12 +1,15 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import StudySession, User
-from ..schemas import HeartbeatOut, LoginIn, LoginOut, SessionOut, UserOut
+from ..schemas import (
+    HeartbeatOut, LoginIn, LoginOut, SessionOut, SignupIn, StartSessionIn, UserOut,
+)
+from ..security import hash_password, verify_password
 
 router = APIRouter(prefix="/api", tags=["tracking"])
 
@@ -73,13 +76,9 @@ def list_users(db: Session = Depends(get_db)):
     return db.scalars(select(User).order_by(User.id)).all()
 
 
-@router.post("/login", response_model=LoginOut)
-def login(payload: LoginIn, db: Session = Depends(get_db)):
-    user = db.get(User, payload.user_id)
-    if not user:
-        raise HTTPException(404, "User not found")
+def _open_session(db: Session, user: User) -> tuple[StudySession, datetime]:
+    """Close any open block for the user and start a fresh one."""
     now = datetime.utcnow()
-    # close any previously-open sessions so only one is active at a time
     for s in db.scalars(
         select(StudySession).where(
             StudySession.user_id == user.id, StudySession.ended_at.is_(None)
@@ -93,7 +92,46 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
     db.add(session)
     db.commit()
     db.refresh(session)
+    return session, now
+
+
+def _find_user_by_name(db: Session, username: str) -> User | None:
+    return db.scalar(select(User).where(func.lower(User.name) == username.strip().lower()))
+
+
+@router.post("/login", response_model=LoginOut)
+def login(payload: LoginIn, db: Session = Depends(get_db)):
+    user = _find_user_by_name(db, payload.username)
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(401, "Incorrect username or password")
+    session, now = _open_session(db, user)
     return LoginOut(user=user, session=_to_out(session, now))
+
+
+@router.post("/signup", response_model=LoginOut, status_code=201)
+def signup(payload: SignupIn, db: Session = Depends(get_db)):
+    username = payload.username.strip()
+    if not username:
+        raise HTTPException(422, "Username is required")
+    if _find_user_by_name(db, username):
+        raise HTTPException(409, "That username is already taken")
+    user = User(name=username, password_hash=hash_password(payload.password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    session, now = _open_session(db, user)
+    return LoginOut(user=user, session=_to_out(session, now))
+
+
+@router.post("/sessions/start", response_model=SessionOut)
+def start_session(payload: StartSessionIn, db: Session = Depends(get_db)):
+    """Open a new study block for an already-signed-in client (idle-resume) —
+    no re-authentication, mirroring the existing browser-trust model."""
+    user = db.get(User, payload.user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    session, now = _open_session(db, user)
+    return _to_out(session, now)
 
 
 @router.post("/logout", response_model=SessionOut)

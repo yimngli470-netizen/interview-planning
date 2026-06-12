@@ -122,6 +122,12 @@ select.field {
 .row-hover:hover .reveal, .row-hover:focus-within .reveal { opacity: 1; }
 .topic-row:hover { background: var(--surface-2); }
 
+/* Clickable "Progress by domain" rows */
+.domain-row { transition: background .15s ease; }
+.domain-row:hover { background: var(--surface-2); }
+.domain-row-arrow { opacity: 0; transition: opacity .15s ease, transform .15s ease; }
+.domain-row:hover .domain-row-arrow { opacity: 1; transform: translateX(2px); }
+
 /* Flame mark */
 .mark {
   display: inline-flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0;

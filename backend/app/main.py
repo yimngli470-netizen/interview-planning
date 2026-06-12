@@ -53,6 +53,20 @@ def _add_missing_columns() -> None:
                     conn.execute(
                         text(f"ALTER TABLE {tbl} ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
                     )
+    # users.password_hash (existing accounts get the empty-password hash so they
+    # can sign in with a blank password)
+    if "users" in tables:
+        cols = {c["name"] for c in insp.get_columns("users")}
+        if "password_hash" not in cols:
+            from .security import EMPTY_PASSWORD_HASH
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(64) NOT NULL DEFAULT ''")
+                )
+                conn.execute(
+                    text("UPDATE users SET password_hash = :h WHERE password_hash = ''"),
+                    {"h": EMPTY_PASSWORD_HASH},
+                )
     # learning-path ordering + level on topics; rich depth on subtopics
     _ensure_columns(insp, tables, "topics", {
         "path_order": "ALTER TABLE topics ADD COLUMN path_order INTEGER NOT NULL DEFAULT 0",

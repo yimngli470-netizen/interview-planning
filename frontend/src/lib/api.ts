@@ -88,8 +88,13 @@ export const api = {
 
   // Users / auth
   listUsers: () => req<User[]>('/users'),
-  login: (userId: number) =>
-    req<LoginResult>('/login', { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+  login: (username: string, password: string) =>
+    req<LoginResult>('/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  signup: (username: string, password: string) =>
+    req<LoginResult>('/signup', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  // Resume time tracking for an already-signed-in client (idle gap) — no re-auth.
+  startSession: (userId: number) =>
+    req<StudySession>('/sessions/start', { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
   logout: (sessionId: number) =>
     req<StudySession>('/logout', { method: 'POST', body: JSON.stringify({ session_id: sessionId }) }),
   // `active` tells the server whether the user is actually present right now.

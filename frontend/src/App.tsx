@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  ArrowRight, RefreshCw, Loader, LogOut,
+  ArrowRight, RefreshCw, Loader, LogOut, UserPlus, X,
   BarChart3, BookOpen, CalendarDays,
 } from 'lucide-react';
 import type { Domain, Topic, StudySession, Subtopic, User } from './types';
 import { api } from './lib/api';
+import type { LoginResult } from './lib/api';
 import { parseUTC, formatClock } from './lib/time';
 import { Mark } from './lib/ui';
 import { QUOTES } from './lib/quotes';
@@ -27,6 +28,12 @@ interface SavedAuth {
   userId: number;
   userName: string;
   sessionId: number;
+}
+
+// Pull the FastAPI `detail` message out of a `req` error string for a clean toast.
+function errText(msg: string, fallback: string): string {
+  const m = msg.match(/"detail":"([^"]+)"/);
+  return m ? m[1] : (msg || fallback);
 }
 
 function RotatingQuote() {
@@ -100,7 +107,6 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
 
-  const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeSession, setActiveSession] = useState<StudySession | null>(null);
   const [sessions, setSessions] = useState<StudySession[]>([]);
@@ -109,7 +115,14 @@ export default function App() {
   const [nowTs, setNowTs] = useState(Date.now());
   const [idle, setIdle] = useState(false);
   const lastActivityRef = useRef(Date.now());
-  const [loginBusy, setLoginBusy] = useState<number | null>(null);
+
+  // Auth form state
+  const [authUser, setAuthUser] = useState('');
+  const [authPass, setAuthPass] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
+  const [suUser, setSuUser] = useState('');
+  const [suPass, setSuPass] = useState('');
 
   const [topicSearch, setTopicSearch] = useState('');
   const [topicDomainFilter, setTopicDomainFilter] = useState<number | 'all'>('all');
@@ -144,9 +157,8 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [d, u, ai] = await Promise.all([api.listDomains(), api.listUsers(), api.aiStatus()]);
+        const [d, ai] = await Promise.all([api.listDomains(), api.aiStatus()]);
         setDomains(d);
-        setUsers(u);
         setAiConfigured(ai.configured);
         const raw = localStorage.getItem(AUTH_KEY);
         if (raw) {
@@ -224,10 +236,10 @@ export default function App() {
           // leave it finalized; we'll start a new block when activity resumes.
           const u = currentUserRef.current;
           if (!u) { clearAuthRef.current(); return; }
-          const res = await api.login(u.id);
-          setActiveSession(res.session);
+          const session = await api.startSession(u.id);
+          setActiveSession(session);
           lastActivityRef.current = Date.now();
-          localStorage.setItem(AUTH_KEY, JSON.stringify({ userId: u.id, userName: u.name, sessionId: res.session.id }));
+          localStorage.setItem(AUTH_KEY, JSON.stringify({ userId: u.id, userName: u.name, sessionId: session.id }));
         }
       } catch {
         /* transient */
@@ -236,16 +248,35 @@ export default function App() {
     return () => clearInterval(id);
   }, [activeSession]);
 
-  const login = async (user: User) => {
-    setLoginBusy(user.id);
+  const applyAuth = useCallback(async (res: LoginResult) => {
+    setCurrentUser(res.user);
+    setActiveSession(res.session);
+    localStorage.setItem(AUTH_KEY, JSON.stringify({ userId: res.user.id, userName: res.user.name, sessionId: res.session.id }));
+    await loadUserData(res.user.id);
+  }, [loadUserData]);
+
+  const submitLogin = async () => {
+    if (authBusy || !authUser.trim()) return;
+    setAuthBusy(true); setError(null);
     try {
-      const res = await api.login(user.id);
-      setCurrentUser(res.user);
-      setActiveSession(res.session);
-      localStorage.setItem(AUTH_KEY, JSON.stringify({ userId: res.user.id, userName: res.user.name, sessionId: res.session.id }));
-      await loadUserData(res.user.id);
+      await applyAuth(await api.login(authUser.trim(), authPass));
+    } catch (e) {
+      setError(e instanceof Error ? errText(e.message, 'Login failed') : 'Login failed');
     } finally {
-      setLoginBusy(null);
+      setAuthBusy(false);
+    }
+  };
+
+  const submitSignup = async () => {
+    if (authBusy || !suUser.trim()) return;
+    setAuthBusy(true); setError(null);
+    try {
+      await applyAuth(await api.signup(suUser.trim(), suPass));
+      setShowSignup(false);
+    } catch (e) {
+      setError(e instanceof Error ? errText(e.message, 'Sign up failed') : 'Sign up failed');
+    } finally {
+      setAuthBusy(false);
     }
   };
   const logout = async () => {
@@ -370,40 +401,76 @@ export default function App() {
             <div style={{ width: '100%', maxWidth: 340 }}>
               <h1 className="display" style={{ fontSize: 30, margin: '0 0 6px' }}>Welcome back</h1>
               <p className="muted" style={{ fontSize: 15, margin: '0 0 30px', lineHeight: 1.5 }}>
-                Pick your profile to start the clock. Your session begins the moment you sign in.
+                Sign in to start the clock. Your session begins the moment you sign in.
               </p>
               {error && (
                 <div className="card-flat" style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '11px 14px', fontSize: 13.5, marginBottom: 18 }}>{error}</div>
               )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-                {users.map((u) => (
-                  <button
-                    key={u.id}
-                    className="btn btn-primary btn-lg btn-block"
-                    style={{ justifyContent: 'space-between', paddingLeft: 18, paddingRight: 16 }}
-                    disabled={loginBusy !== null}
-                    onClick={() => login(u).catch((e) => setError(e instanceof Error ? e.message : 'Login failed'))}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 11 }}>
-                      <span style={{ width: 28, height: 28, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.2)', fontSize: 13, fontWeight: 700 }}>{u.name[0]}</span>
-                      Continue as {u.name}
-                    </span>
-                    {loginBusy === u.id ? <Loader size={18} className="spin" strokeWidth={2.4} /> : <ArrowRight size={18} strokeWidth={2.4} />}
-                  </button>
-                ))}
-                {users.length === 0 && <p className="muted" style={{ fontSize: 14 }}>No users found.</p>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label className="faint" style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Username</label>
+                  <input className="field" autoFocus value={authUser} onChange={(e) => setAuthUser(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && submitLogin()} placeholder="Your username" autoComplete="username" />
+                </div>
+                <div>
+                  <label className="faint" style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Password</label>
+                  <input className="field" type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && submitLogin()} placeholder="Your password" autoComplete="current-password" />
+                </div>
+                <button className="btn btn-primary btn-lg btn-block" style={{ justifyContent: 'center', marginTop: 4 }}
+                  disabled={authBusy || !authUser.trim()} onClick={submitLogin}>
+                  {authBusy && !showSignup ? <Loader size={18} className="spin" strokeWidth={2.4} /> : <>Sign in <ArrowRight size={18} strokeWidth={2.4} /></>}
+                </button>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '26px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0' }}>
                 <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                <span className="faint" style={{ fontSize: 12, fontWeight: 600 }}>why forge?</span>
+                <span className="faint" style={{ fontSize: 12, fontWeight: 600 }}>new here?</span>
                 <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               </div>
-              <div className="card-flat" style={{ background: 'var(--surface-2)', padding: '15px 17px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--muted)' }}>
-                A forge turns raw metal into something stronger through <span style={{ color: 'var(--accent)', fontWeight: 600 }}>heat and repetition</span>. Same idea here — steady reps that temper your skills for the interview loop.
-              </div>
+              <button className="btn btn-soft btn-block" style={{ justifyContent: 'center' }}
+                onClick={() => { setError(null); setSuUser(''); setSuPass(''); setShowSignup(true); }}>
+                <UserPlus size={17} strokeWidth={2.2} /> Create an account
+              </button>
             </div>
           </div>
         </div>
+
+        {showSignup && (
+          <div onClick={() => !authBusy && setShowSignup(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'oklch(0.2 0.02 60 / 0.42)', backdropFilter: 'blur(3px)' }}>
+            <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 400, padding: 26, boxShadow: '0 24px 60px -12px rgba(0,0,0,0.35)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+                <h2 className="display" style={{ fontSize: 22, margin: 0 }}>Create an account</h2>
+                <button onClick={() => setShowSignup(false)} title="Close"
+                  style={{ border: 'none', background: 'transparent', color: 'var(--faint)', cursor: 'pointer', padding: 2, display: 'inline-flex' }}>
+                  <X size={20} strokeWidth={2.2} />
+                </button>
+              </div>
+              <p className="muted" style={{ fontSize: 13.5, margin: '0 0 20px', lineHeight: 1.5 }}>
+                Pick a username. A password is optional — leave it blank if you like.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label className="faint" style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Username</label>
+                  <input className="field" autoFocus value={suUser} onChange={(e) => setSuUser(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && submitSignup()} placeholder="Choose a username" autoComplete="off" />
+                </div>
+                <div>
+                  <label className="faint" style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Password <span style={{ textTransform: 'none', fontWeight: 600 }}>(optional)</span></label>
+                  <input className="field" type="password" value={suPass} onChange={(e) => setSuPass(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && submitSignup()} placeholder="Optional" autoComplete="new-password" />
+                </div>
+                {error && (
+                  <div className="card-flat" style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '10px 13px', fontSize: 13 }}>{error}</div>
+                )}
+                <button className="btn btn-primary btn-lg btn-block" style={{ justifyContent: 'center', marginTop: 4 }}
+                  disabled={authBusy || !suUser.trim()} onClick={submitSignup}>
+                  {authBusy ? <Loader size={18} className="spin" strokeWidth={2.4} /> : <>Create account & sign in <ArrowRight size={18} strokeWidth={2.4} /></>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -454,7 +521,9 @@ export default function App() {
           <div className="card-flat" style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '12px 16px', fontSize: 14, marginBottom: 16 }}>{error}</div>
         )}
         {tab === 'dashboard' && (
-          <Dashboard domains={domains} topics={topics} sessions={sessions} currentUser={currentUser} nowTs={nowTs} onRemoveSession={removeSession} />
+          <Dashboard domains={domains} topics={topics} sessions={sessions} currentUser={currentUser} nowTs={nowTs}
+            onRemoveSession={removeSession}
+            onSelectDomain={(domainId) => { setTopicDomainFilter(domainId); setTopicStatusFilter('all'); setTab('topics'); }} />
         )}
         {tab === 'topics' && (
           <TopicsView

@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import Domain, Question, Subtopic, Topic, User
+from .security import EMPTY_PASSWORD_HASH
 from .content import CONTENT_BY_DOMAIN, QUESTIONS
 
 try:
@@ -344,6 +345,6 @@ def seed_or_enrich(db: Session) -> None:
     existing_users = {u.name for u in db.scalars(select(User)).all()}
     for name in DEFAULT_USERS:
         if name not in existing_users:
-            db.add(User(name=name))
+            db.add(User(name=name, password_hash=EMPTY_PASSWORD_HASH))  # blank password
 
     db.commit()

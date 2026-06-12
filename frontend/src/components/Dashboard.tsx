@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Target, Contrast, Clock, Flame, Trash2 } from 'lucide-react';
+import { Target, Contrast, Clock, Flame, Trash2, ChevronRight } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Domain, Topic, StudySession, User } from '../types';
 import { DomainChip } from '../lib/ui';
@@ -12,6 +12,7 @@ interface Props {
   currentUser: User | null;
   nowTs: number;
   onRemoveSession: (id: number) => void;
+  onSelectDomain: (domainId: number) => void;
 }
 
 function sessionMinutes(s: StudySession, nowTs: number): number {
@@ -40,7 +41,7 @@ function StatTile({
   );
 }
 
-export default function Dashboard({ domains, topics, sessions, currentUser, nowTs, onRemoveSession }: Props) {
+export default function Dashboard({ domains, topics, sessions, currentUser, nowTs, onRemoveSession, onSelectDomain }: Props) {
   const byDomain = useMemo(() => {
     const m: Record<number, { total: number; done: number; totalHours: number; doneHours: number; pct: number }> = {};
     for (const d of domains) {
@@ -82,16 +83,21 @@ export default function Dashboard({ domains, topics, sessions, currentUser, nowT
           {domains.map((d) => {
             const s = byDomain[d.id];
             return (
-              <div key={d.id}>
+              <button key={d.id} type="button" onClick={() => onSelectDomain(d.id)}
+                className="row-hover domain-row" title={`View ${d.name} topics`}
+                style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', padding: '8px 10px', margin: '0 -10px', borderRadius: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                     <DomainChip domain={d} />
                     <span className="muted" style={{ fontSize: 14 }}>{s.done} / {s.total} topics</span>
                   </div>
-                  <span className="faint tnum" style={{ fontSize: 13.5 }}>{s.doneHours} / {s.totalHours}h</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <span className="faint tnum" style={{ fontSize: 13.5 }}>{s.doneHours} / {s.totalHours}h</span>
+                    <ChevronRight className="domain-row-arrow" size={16} strokeWidth={2.2} style={{ color: 'var(--faint)' }} />
+                  </span>
                 </div>
                 <div className="track"><i style={{ width: `${s.pct}%` }} /></div>
-              </div>
+              </button>
             );
           })}
         </div>
