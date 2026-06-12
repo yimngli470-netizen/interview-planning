@@ -30,3 +30,6 @@ backend/scripts/_generated_cache.json
 
 # TS incremental build info
 frontend/tsconfig.tsbuildinfo
+
+# Local agent-instructions mirror — CLAUDE.md is the source of truth
+AGENTS.md
