@@ -24,8 +24,14 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-prep}:${POSTGRES_PASSWORD:-prep}@db:5432/${POSTGRES_DB:-prep}
-      # AI auto-fill (optional): set ANTHROPIC_API_KEY in .env to enable.
+      # AI auto-fill backend. LLM_PROVIDER selects how Claude is called:
+      #   api          -> Anthropic API, billed to credits (ANTHROPIC_API_KEY)
+      #   subscription -> Claude Code CLI, billed to your Max/Pro plan (CLAUDE_CODE_OAUTH_TOKEN)
+      # This base file defaults to `api`; overlay docker-compose.dev.yml /
+      # docker-compose.prod.yml set the provider + the matching secret per env.
+      LLM_PROVIDER: ${LLM_PROVIDER:-api}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
       ANTHROPIC_MAX_TOKENS: ${ANTHROPIC_MAX_TOKENS:-100000}
     ports:

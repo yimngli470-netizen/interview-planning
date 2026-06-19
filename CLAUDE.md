@@ -9,8 +9,12 @@ SDE/MLE loop. Phase 1 = personal use, fully local in Docker. (Product name
 
 - Backend: FastAPI + SQLAlchemy 2.0 + Postgres (`backend/`)
 - Frontend: React + Vite + TS + Tailwind (`frontend/`)
-- `docker compose up --build` → frontend :5173, API :8000 (`/docs`), Postgres host :5433.
 - `cp .env.example .env` first (defaults work).
+- Two env overlays select how Claude is billed (see **AI auto-fill** below):
+  - **dev** (laptop, subscription): `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`
+  - **prod** (servers, API key): `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+  - Plain `docker compose up --build` uses the base file (defaults to the `api` provider).
+- Ports: frontend :5173, API :8000 (`/docs`), Postgres host :5434.
 
 ## Theme / design
 
@@ -161,23 +165,33 @@ Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
 
 ## AI auto-fill (Anthropic / Claude)
 
-- `backend/app/llm.py` — given a topic title + domain, asks Claude (Anthropic
-  Python SDK, forced tool-use for structured output) for learning points (each
-  with a markdown `explanation` + free `resources`) + example/common questions.
-  Also exposes `explain_learning_point` (on-demand simpler/deeper, plain text) and
-  `order_domain` (learning-path sequence + level for a domain's topics).
-  Model = `ANTHROPIC_MODEL` (default `claude-sonnet-4-6`;
-  `claude-haiku-4-5` is cheaper, `claude-opus-4-8` best). Learning points are
-  **uncapped** — the prompt/tool asks for as many as fully cover the topic, and the
-  call streams with `ANTHROPIC_MAX_TOKENS` (default 100k; must be <= the model's max
-  output: Sonnet 4.6 = 128k, Haiku 4.5 = 64k). Gated by `ai_configured()`.
+- `backend/app/llm.py` — given a topic title + domain, asks Claude for learning
+  points (each with a markdown `explanation` + free `resources`) + example/common
+  questions. Also exposes `explain_learning_point` (on-demand simpler/deeper, plain
+  text) and `order_domain` (learning-path sequence + level for a domain's topics).
+  Model = `ANTHROPIC_MODEL` (default `claude-sonnet-4-6`; `claude-haiku-4-5` is
+  cheaper, `claude-opus-4-8` best). Learning points are **uncapped**. Gated by
+  `ai_configured()`.
+- **Two providers, selected by `LLM_PROVIDER`** (so dev doesn't burn API credits):
+  - `api` (prod/servers) — Anthropic Python SDK, **forced tool-use** for guaranteed
+    structured output; streams with `ANTHROPIC_MAX_TOKENS` (default 100k, must be ≤
+    the model's max output). Configured by `ANTHROPIC_API_KEY`; billed to credits.
+  - `subscription` (local dev only) — shells out to the Claude Code CLI (`claude -p
+    --output-format json`) authenticated with `CLAUDE_CODE_OAUTH_TOKEN` (mint via
+    `claude setup-token`); billed to your **Max/Pro plan**, not credits. Headless
+    `claude -p` can't force a tool, so the structured paths request schema-conforming
+    JSON and parse it (`_extract_json`) — slightly softer than tool-use, fine for dev.
+    Requires the `claude` CLI on PATH, which the dev backend image (`Dockerfile.dev`)
+    bundles via Node. The two `docker-compose.{dev,prod}.yml` overlays wire this up.
 - `POST /api/topics?...&autofill=true` runs it after creating a user-owned topic
   and attaches the generated subtopics (owner_id=user) + questions. Best-effort:
   any failure (no key, API error) leaves the topic without AI content. Synchronous
   (a few seconds). `GET /api/ai/status` → `{configured}` drives the UI.
 - Frontend: a checkbox in the Add-topic form (default on when configured; disabled
   with a hint when not), plus a "Generating…" busy state.
-- To enable: set `ANTHROPIC_API_KEY` in `.env` and restart the backend.
+- To enable: **dev** → `claude setup-token`, put it in `.env` as
+  `CLAUDE_CODE_OAUTH_TOKEN`, bring the stack up with the dev overlay. **prod** →
+  set `ANTHROPIC_API_KEY` and use the prod overlay. Restart the backend after changes.
 
 ## Conventions
 

@@ -1,0 +1,14 @@
+# Prod overlay — servers. LLM calls go through the Anthropic API, billed to
+# credits via ANTHROPIC_API_KEY (set in the server environment / .env).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Uses the slim backend image (./backend/Dockerfile — no Node, no Claude CLI).
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      LLM_PROVIDER: api
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

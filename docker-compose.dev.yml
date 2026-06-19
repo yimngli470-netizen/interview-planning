@@ -1,0 +1,22 @@
+# Dev overlay — local laptop only. LLM calls bill against your Claude Max/Pro
+# subscription (NOT API credits) via the Claude Code CLI.
+#
+#   1) Mint a long-lived token once:   claude setup-token
+#   2) Put it in .env:                 CLAUDE_CODE_OAUTH_TOKEN=...
+#   3) Run:
+#        docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# `--build` is needed the first time so the backend image gets the bundled
+# `claude` CLI (see backend/Dockerfile.dev). The token is injected at runtime,
+# never baked into the image.
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment:
+      LLM_PROVIDER: subscription
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      # Guarantee the dev container can never spend API credits, even if
+      # LLM_PROVIDER is flipped or stray code reads the key.
+      ANTHROPIC_API_KEY: ""

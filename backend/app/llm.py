@@ -1,19 +1,37 @@
 """Anthropic (Claude) integration for auto-filling topic content.
 
 Given a topic title + domain, generate learning points and practice/common
-questions via a single forced tool-use call (reliable structured output).
-Inert until ANTHROPIC_API_KEY is set — `ai_configured()` gates the feature.
+questions. Two interchangeable backends, selected by ``LLM_PROVIDER``:
+
+* ``api`` (default, prod/servers) — the Anthropic Python SDK with a forced
+  tool-use call for reliable structured output. Reads ``ANTHROPIC_API_KEY``;
+  billed against API credits.
+* ``subscription`` (local dev only) — shells out to the Claude Code CLI
+  (``claude -p``) authenticated with ``CLAUDE_CODE_OAUTH_TOKEN`` (mint via
+  ``claude setup-token``). Billed against your Claude Max/Pro plan, not credits.
+  Headless ``claude -p`` can't force a custom tool, so the structured paths ask
+  for schema-conforming JSON and parse it.
+
+Inert until the selected provider is configured — ``ai_configured()`` gates the
+feature, so the app boots fine with neither secret set.
 """
 
+import json
 import logging
 import os
+import shutil
+import subprocess
 
 log = logging.getLogger(__name__)
 
+# api -> Anthropic API (credits); subscription -> Claude Code CLI (Max/Pro plan).
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "api").strip().lower()
+
 # Default to Sonnet for high-quality, comprehensive content; override with
 # ANTHROPIC_MODEL (e.g. claude-haiku-4-5 for cheaper/faster, claude-opus-4-8 for
-# the best). Note: MAX_TOKENS must be <= the chosen model's max output (Sonnet 4.6
-# = 128k, Haiku 4.5 = 64k) — lower it if you switch to Haiku.
+# the best). On the api path, MAX_TOKENS must be <= the model's max output
+# (Sonnet 4.6 = 128k, Haiku 4.5 = 64k) — lower it if you switch to Haiku. The
+# subscription path manages output length itself, so MAX_TOKENS is ignored there.
 MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 MAX_TOKENS = int(os.getenv("ANTHROPIC_MAX_TOKENS", "100000"))
 
@@ -108,20 +126,153 @@ _SYSTEM = (
 
 
 def ai_configured() -> bool:
+    """True if the selected provider is usable.
+
+    api          -> ANTHROPIC_API_KEY set.
+    subscription -> CLAUDE_CODE_OAUTH_TOKEN set AND the `claude` CLI is on PATH.
+    """
+    if LLM_PROVIDER == "subscription":
+        return bool(os.getenv("CLAUDE_CODE_OAUTH_TOKEN", "").strip()) and shutil.which("claude") is not None
     return bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
 
 
-def generate_topic_content(topic_title: str, domain_name: str) -> dict | None:
-    """Return {learning_points: [{title, details}], example_questions: [...],
-    common_questions: [...]} or None if AI is unconfigured or the call fails."""
-    if not ai_configured():
+# --- transport: api (Anthropic SDK) -----------------------------------------
+
+def _api_tool_call(system: str, user: str, tool: dict, tool_name: str, max_tokens: int) -> dict | None:
+    """Forced tool-use call → the tool's input dict (guaranteed structured)."""
+    try:
+        from anthropic import Anthropic  # lazy: app boots without the dep
+    except Exception:
+        log.warning("anthropic SDK not installed; skipping AI call")
         return None
     try:
-        from anthropic import Anthropic  # imported lazily so the app boots without the dep configured
+        client = Anthropic()  # reads ANTHROPIC_API_KEY from env
+        # Stream: required once max_tokens is large (a non-streaming request would
+        # be rejected for timeout risk). get_final_message() reassembles the blocks.
+        with client.messages.stream(
+            model=MODEL,
+            max_tokens=max_tokens,
+            system=system,
+            tools=[tool],
+            tool_choice={"type": "tool", "name": tool_name},
+            messages=[{"role": "user", "content": user}],
+        ) as stream:
+            msg = stream.get_final_message()
+        for block in msg.content:
+            if getattr(block, "type", None) == "tool_use" and block.name == tool_name:
+                return block.input  # type: ignore[return-value]
+        log.warning("api call: no %s tool_use block in response", tool_name)
+        return None
     except Exception:
-        log.warning("anthropic SDK not installed; skipping AI autofill")
+        log.exception("api tool call failed")
         return None
 
+
+def _api_text_call(system: str, user: str, max_tokens: int) -> str | None:
+    try:
+        from anthropic import Anthropic
+    except Exception:
+        log.warning("anthropic SDK not installed; skipping AI call")
+        return None
+    try:
+        client = Anthropic()
+        with client.messages.stream(
+            model=MODEL,
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        ) as stream:
+            msg = stream.get_final_message()
+        text = "".join(b.text for b in msg.content if getattr(b, "type", None) == "text").strip()
+        return text or None
+    except Exception:
+        log.exception("api text call failed")
+        return None
+
+
+# --- transport: subscription (Claude Code CLI, billed to Max/Pro plan) -------
+
+def _claude_cli(prompt: str, *, timeout: int = 600) -> str | None:
+    """One-shot headless `claude -p` call; returns the assistant text or None.
+
+    Auth is the CLAUDE_CODE_OAUTH_TOKEN already in the process env (the CLI reads
+    it), so this bills against the Claude Code subscription, not API credits.
+    """
+    cmd = ["claude", "-p", prompt, "--output-format", "json", "--model", MODEL]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        log.warning("`claude` CLI not found on PATH; cannot run subscription call")
+        return None
+    except subprocess.TimeoutExpired:
+        log.warning("claude CLI timed out after %ss", timeout)
+        return None
+    except Exception:
+        log.exception("claude CLI invocation failed")
+        return None
+    if r.returncode != 0:
+        log.warning("claude CLI exited %s: %s", r.returncode, (r.stderr or "")[-500:])
+        return None
+    # `--output-format json` emits a single result envelope: {is_error, result, ...}
+    try:
+        env = json.loads(r.stdout)
+    except Exception:
+        log.warning("claude CLI: stdout was not JSON")
+        return None
+    if env.get("is_error"):
+        log.warning("claude CLI reported error: %s", str(env.get("result"))[:300])
+        return None
+    result = env.get("result")
+    return result if isinstance(result, str) else None
+
+
+def _extract_json(text: str | None) -> dict | None:
+    """Pull the JSON object out of model text, tolerating a wrapping ```json fence
+    and stray prose. Uses raw_decode from the first '{' so it parses ONE JSON value
+    and ignores anything after it (e.g. a trailing ``` fence) — and, being a real
+    parser, it isn't fooled by braces or ``` fences INSIDE string values (our
+    `explanation` fields legitimately contain KaTeX `{...}` and ```mermaid``` blocks)."""
+    if not text:
+        return None
+    start = text.find("{")
+    if start < 0:
+        return None
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(text[start:])
+    except Exception:
+        return None
+    return obj if isinstance(obj, dict) else None
+
+
+def _subscription_structured(system: str, user: str, schema: dict) -> dict | None:
+    """Ask the CLI for schema-conforming JSON and parse it (the dev-path stand-in
+    for the api path's forced tool-use)."""
+    prompt = (
+        f"{system}\n\n{user}\n\n"
+        "Answer directly; do not use any tools. Return ONLY a single JSON object "
+        "conforming to this JSON Schema — no prose, no explanation, no markdown "
+        "code fences, just the raw JSON:\n"
+        f"{json.dumps(schema)}"
+    )
+    data = _extract_json(_claude_cli(prompt))
+    if data is None:
+        log.warning("subscription call returned no parseable JSON object")
+    return data
+
+
+def _subscription_text(system: str, user: str) -> str | None:
+    text = _claude_cli(f"{system}\n\n{user}\n\nAnswer directly in Markdown; do not use any tools.")
+    return (text or "").strip() or None
+
+
+# --- public API --------------------------------------------------------------
+
+def generate_topic_content(topic_title: str, domain_name: str) -> dict | None:
+    """Return {learning_points: [{title, details, explanation, resources}],
+    example_questions: [...], common_questions: [...]} or None if AI is
+    unconfigured or the call fails."""
+    if not ai_configured():
+        return None
     user = (
         f"Domain: {domain_name}\nTopic: {topic_title}\n\n"
         "Produce study content for this exact topic:\n"
@@ -130,31 +281,12 @@ def generate_topic_content(topic_title: str, domain_name: str) -> dict | None:
         "sentences of specific detail (the headline summary), a longer beginner-friendly markdown "
         "`explanation` (intro → intuition/analogy → formal, with KaTeX math and ```mermaid``` "
         "diagrams where helpful), and 1-3 free `resources`.\n"
-        "2) example practice questions (see the tool's field description for the format per domain).\n"
-        "3) common conceptual interview questions.\n"
-        "Call the save_topic_content tool with your result."
+        "2) example practice questions (see the field descriptions for the format per domain).\n"
+        "3) common conceptual interview questions."
     )
-    try:
-        client = Anthropic()  # reads ANTHROPIC_API_KEY from env
-        # Stream: required once max_tokens is large (a non-streaming request would be
-        # rejected for timeout risk). get_final_message() reassembles the tool_use block.
-        with client.messages.stream(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,  # headroom for comprehensive, uncapped learning-point lists
-            system=_SYSTEM,
-            tools=[_TOOL],
-            tool_choice={"type": "tool", "name": "save_topic_content"},
-            messages=[{"role": "user", "content": user}],
-        ) as stream:
-            msg = stream.get_final_message()
-        for block in msg.content:
-            if getattr(block, "type", None) == "tool_use" and block.name == "save_topic_content":
-                return block.input  # type: ignore[return-value]
-        log.warning("AI autofill: no tool_use block in response")
-        return None
-    except Exception:
-        log.exception("AI autofill call failed")
-        return None
+    if LLM_PROVIDER == "subscription":
+        return _subscription_structured(_SYSTEM, user, _TOOL["input_schema"])
+    return _api_tool_call(_SYSTEM, user, _TOOL, "save_topic_content", MAX_TOKENS)
 
 
 # --- on-demand "explain this" (B4: a simpler or deeper take, per learning point) ---
@@ -176,12 +308,6 @@ def explain_learning_point(
     Returns markdown text, or None if AI is unconfigured / the call fails."""
     if not ai_configured():
         return None
-    try:
-        from anthropic import Anthropic
-    except Exception:
-        log.warning("anthropic SDK not installed; skipping explain")
-        return None
-
     if mode == "deeper":
         ask = (
             "Give an ADVANCED, in-depth explanation: edge cases, the underlying math/derivation, "
@@ -192,27 +318,15 @@ def explain_learning_point(
             "Explain this so an engineer with NO background in this domain can understand it: start "
             "with plain-English intuition and a concrete analogy before any formalism, and define jargon."
         )
-    user = (
-        f"Domain: {domain_name}\nTopic: {topic_title}\nLearning point: {point_title}\n\n{ask}"
-    )
-    try:
-        client = Anthropic()
-        with client.messages.stream(
-            model=MODEL,
-            max_tokens=4096,
-            system=_EXPLAIN_SYSTEM,
-            messages=[{"role": "user", "content": user}],
-        ) as stream:
-            msg = stream.get_final_message()
-        parts = [b.text for b in msg.content if getattr(b, "type", None) == "text"]
-        text = "".join(parts).strip()
-        return text or None
-    except Exception:
-        log.exception("explain_learning_point call failed")
-        return None
+    user = f"Domain: {domain_name}\nTopic: {topic_title}\nLearning point: {point_title}\n\n{ask}"
+    if LLM_PROVIDER == "subscription":
+        return _subscription_text(_EXPLAIN_SYSTEM, user)
+    return _api_text_call(_EXPLAIN_SYSTEM, user, 4096)
 
 
 # --- per-domain ordering pass (Issue 1: learning path + level for each topic) ---
+
+_ORDER_SYSTEM = "You design pedagogical learning sequences for technical interview prep."
 
 _ORDER_TOOL = {
     "name": "save_learning_path",
@@ -252,33 +366,16 @@ def order_domain(domain_name: str, titles: list[str]) -> list[dict] | None:
     """Return [{title, level}] in pedagogical order, or None on failure."""
     if not ai_configured() or not titles:
         return None
-    try:
-        from anthropic import Anthropic
-    except Exception:
-        return None
     listing = "\n".join(f"- {t}" for t in titles)
     user = (
         f"Domain: {domain_name}\n\nHere are the study topics in this domain:\n{listing}\n\n"
         "Order them into a sensible LEARNING PATH for an engineer new to this domain — foundations "
         "and prerequisites first, advanced/specialized topics last — and tag each with a difficulty "
         "level (foundational / intermediate / advanced). Include every topic exactly once, with its "
-        "title byte-identical to the input. Call save_learning_path."
+        "title byte-identical to the input."
     )
-    try:
-        client = Anthropic()
-        with client.messages.stream(
-            model=MODEL,
-            max_tokens=8192,
-            system="You design pedagogical learning sequences for technical interview prep.",
-            tools=[_ORDER_TOOL],
-            tool_choice={"type": "tool", "name": "save_learning_path"},
-            messages=[{"role": "user", "content": user}],
-        ) as stream:
-            msg = stream.get_final_message()
-        for block in msg.content:
-            if getattr(block, "type", None) == "tool_use" and block.name == "save_learning_path":
-                return block.input.get("ordered_topics")  # type: ignore[union-attr]
-        return None
-    except Exception:
-        log.exception("order_domain call failed")
-        return None
+    if LLM_PROVIDER == "subscription":
+        data = _subscription_structured(_ORDER_SYSTEM, user, _ORDER_TOOL["input_schema"])
+        return data.get("ordered_topics") if data else None
+    out = _api_tool_call(_ORDER_SYSTEM, user, _ORDER_TOOL, "save_learning_path", 8192)
+    return out.get("ordered_topics") if out else None
