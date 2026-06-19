@@ -1,8 +1,17 @@
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
+
+# App logging. Default INFO so the LLM-provider proof line (app/llm.py) and other
+# app logs surface in `docker compose logs`. Override with LOG_LEVEL.
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(levelname)s:%(name)s:%(message)s",
+)
 
 from .database import Base, engine, SessionLocal
 from .routers import domains, topics, subtopics, questions, sessions, progress, ai

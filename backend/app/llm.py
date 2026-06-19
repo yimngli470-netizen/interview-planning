@@ -222,6 +222,18 @@ def _claude_cli(prompt: str, *, timeout: int = 600) -> str | None:
     if env.get("is_error"):
         log.warning("claude CLI reported error: %s", str(env.get("result"))[:300])
         return None
+    # Proof line: this only ever logs from the subscription path (the `api`
+    # provider uses the SDK and never reaches here), so its presence — together
+    # with no ANTHROPIC_API_KEY in the env — proves the call billed your Claude
+    # plan via the CLI. NOTE cost_usd is the CLI's NOTIONAL API-equivalent figure,
+    # not credits actually charged (subscription calls aren't billed per-token).
+    log.info(
+        "LLM via Claude Code CLI (subscription plan): model=%s notional_cost_usd=%s tier=%s session=%s",
+        MODEL,
+        env.get("total_cost_usd"),
+        (env.get("usage") or {}).get("service_tier"),
+        env.get("session_id"),
+    )
     result = env.get("result")
     return result if isinstance(result, str) else None
 
