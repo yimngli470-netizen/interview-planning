@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 4 · Breadth First Search — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Week 4 · <b>BFS</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#template">BFS Template</a>
+      <a href="#tree">Tree</a>
+      <a href="#graph">Graph</a>
+      <a href="#topo">Topo Sort</a>
+      <a href="#matrix">Matrix</a>
+      <a href="#cheat">Cheatsheet</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <div class="eyebrow">Week 4 · Algorithm Course</div>
+    <h1>Breadth First Search
+    </h1>
+    <p class="lede">One queue, one template, three arenas — binary trees, graphs, and
+      matrices. BFS is the workhorse for <b>graph traversal</b> and <b>shortest path in
+      a simple graph</b>, and the single most reliable pattern to reach for in interviews.</p>
+    <div class="meta">
+      <span><b>Source</b> · Chapter 4 deck (30 slides) + 2h17m lecture</span>
+      <span><b>Version</b> · v4.0.2</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section id="overview">
+    <div class="kicker">The big picture</div>
+    <h2>When should you use BFS?</h2>
+    <p>Almost every BFS interview problem is one of just two shapes. If you can classify the
+      problem into one of these, the template writes itself.</p>
+
+    <div class="cards">
+      <div class="card">
+        <h4>① Graph traversal</h4>
+        <p class="small">Visit every reachable node, layer by layer.</p>
+        <span class="pill blue">Level order</span>
+        <span class="pill blue">Connected component</span>
+        <span class="pill blue">Topological sort</span>
+      </div>
+      <div class="card">
+        <h4>② Shortest path</h4>
+        <p class="small">Fewest steps from A to B — <b>only</b> in a <i>simple graph</i>.</p>
+        <span class="pill green">Every edge length = 1</span>
+        <span class="pill green">Undirected / unweighted</span>
+      </div>
+    </div>
+
+    <blockquote class="shifu">
+      “Pretty much every company has <b>at least one</b> BFS question, many have more than one —
+      so its priority is high. The good news: it's <b>not hard</b>. Willing to study, you can
+      learn it in a single day. Compare that to dynamic programming — you could study three
+      months, a year, and still not finish.”
+      <span class="who">— the instructor's opening pitch [00:43–01:43]</span>
+    </blockquote>
+
+    <div class="note warn">
+      <span class="lbl">Precondition for shortest path</span>
+      BFS gives the shortest path <b>only in a simple graph</b>: every edge has length 1 and
+      there are no weights/directions that change cost. The moment edges have different
+      weights, you need Dijkstra / SPFA / DP instead — not plain BFS.
+    </div>
+
+    <blockquote class="shifu">
+      “If a problem <i>can</i> be solved with BFS, do <b>not</b> solve it with DFS.”
+      <span class="who">— the Spear-Breaking Form (the instructor's rule of thumb)</span>
+    </blockquote>
+    <p>Why? BFS is iterative, so it can't blow the recursion stack on deep/large graphs, the
+      layer structure gives shortest paths "for free," and the template is short and hard to
+      get wrong. Reach for DFS only when the interviewer explicitly asks, or when the problem
+      is fundamentally about enumerating all paths/permutations (that's next week).</p>
+
+    <div class="note warn">
+      <span class="lbl">The concrete reason from the lecture — stack overflow</span>
+      The instructor's argument [114:19–114:46]: if you DFS a big grid, the recursion depth can be
+      as large as the whole board (imagine a snake-like region of all-1 cells, depth ≈ rows×cols).
+      That deep recursion can <b>overflow the call stack</b> — a real crash, not just a style
+      nit. BFS, being iterative on an explicit queue, never has this problem. “So whenever a
+      problem <i>can</i> be solved with BFS, use BFS — that's best.”
+    </div>
+  </section>
+
+  <!-- ============ TEMPLATE ============ -->
+  <section id="template">
+    <div class="kicker">The one template</div>
+    <h2>BFS key points</h2>
+
+    <h4>1 · Queue is the core data structure</h4>
+    <p>BFS uses a <b>queue</b> (FIFO). <i>Thinking question from the deck:</i> could you use a
+      <b>stack</b> instead? You can still <i>visit</i> every node, but a stack is LIFO, so you
+      lose the layer-by-layer order — meaning you lose shortest-path and level-order guarantees.
+      A stack turns BFS into something DFS-shaped. So: <b>queue, not stack.</b></p>
+
+    <h4>2 · Do you need layers?</h4>
+    <p>A layered BFS has <b>one extra loop</b> compared to an unlayered one. The trick is to
+      snapshot the queue size at the start of each level:</p>
+
+    <pre><code><span class="k">from</span> collections <span class="k">import</span> deque
+
+queue = deque([root])
+<span class="k">while</span> queue:
+    size = <span class="f">len</span>(queue)               <span class="c"># ← snapshot THIS level's count</span>
+    <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(size):           <span class="c"># process exactly one layer</span>
+        node = queue.popleft()
+        <span class="c"># ... record node, then enqueue its children/neighbors</span>
+    level += <span class="n">1</span>                      <span class="c"># one full layer done</span></code></pre>
+
+    <div class="note warn">
+      <span class="lbl">Classic bug — the layer-size gotcha</span>
+      You must fix the layer count <b>before</b> draining it. <code>range(len(queue))</code> reads
+      the length <b>once</b>, so it's safe. The bug appears if you instead iterate the queue while
+      mutating it (e.g. <code>for node in queue:</code> while <code>append()</code>-ing children),
+      or re-read <code>len(queue)</code> inside the loop — it keeps <b>growing</b> as you enqueue,
+      and you no longer cut a clean layer. Always snapshot <code>size = len(queue)</code> up front.
+      <br><span class="small" style="color:var(--muted)">(In the original Java this is the famous
+      <code>int size = queue.size();</code> vs <code>i &lt; queue.size()</code> trap.)</span>
+    </div>
+
+    <h4>3 · Graphs need a visited set; trees don't</h4>
+    <p>A tree has no cycles, so every node is reached exactly once. A general graph has cycles —
+      the same node can be pushed into the queue more than once — so you need a
+      <code>set</code> (or <code>dict</code>) to mark visited nodes. <b>Mark visited at
+      enqueue time, not dequeue time</b>, or a node can be queued multiple times before it's
+      first processed.</p>
+
+    <div class="note insight">
+      <span class="lbl">Mental model from the lecture — "a full BFS is three nested loops"</span>
+      The instructor's framing [120:33–121:13]: a <i>complete</i> layered graph BFS has exactly
+      <b>three loops</b>, and you drop loops as the problem simplifies:
+      <ol style="margin:.4em 0">
+        <li><b>Loop 1</b> — <code>while queue:</code> (queue not empty).</li>
+        <li><b>Loop 2</b> — the layer: <code>for _ in range(len(queue))</code>. <i>Drop this if
+          you don't need levels.</i></li>
+        <li><b>Loop 3</b> — expand neighbors: <code>for nb in node.neighbors</code>. <i>On a
+          binary tree you skip it and just touch <code>node.left / node.right</code> directly.</i></li>
+      </ol>
+      “Once you know what each of the three loops does, the rest is basically the same code every
+      time.”
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 760 200" role="img" aria-label="BFS layer expansion">
+        <style>
+          .nd{fill:#fff;stroke:#9e2b25;stroke-width:2}
+          .ndt{font:600 14px Helvetica;fill:#1a1a1f;text-anchor:middle}
+          .ed{stroke:#b8893b;stroke-width:2}
+          .ll{font:600 12px Helvetica;fill:#6b6b76;text-anchor:middle}
+        </style>
+        <!-- edges -->
+        <line class="ed" x1="120" y1="55" x2="60" y2="120"/>
+        <line class="ed" x1="120" y1="55" x2="180" y2="120"/>
+        <line class="ed" x1="60" y1="120" x2="40" y2="175"/>
+        <line class="ed" x1="60" y1="120" x2="110" y2="175"/>
+        <line class="ed" x1="180" y1="120" x2="220" y2="175"/>
+        <circle class="nd" cx="120" cy="55" r="20"/><text class="ndt" x="120" y="60">A</text>
+        <circle class="nd" cx="60" cy="120" r="20"/><text class="ndt" x="60" y="125">B</text>
+        <circle class="nd" cx="180" cy="120" r="20"/><text class="ndt" x="180" y="125">C</text>
+        <circle class="nd" cx="40" cy="175" r="18"/><text class="ndt" x="40" y="180">D</text>
+        <circle class="nd" cx="110" cy="175" r="18"/><text class="ndt" x="110" y="180">E</text>
+        <circle class="nd" cx="220" cy="175" r="18"/><text class="ndt" x="220" y="180">F</text>
+        <text class="ll" x="300" y="60">layer 0</text>
+        <text class="ll" x="300" y="125">layer 1</text>
+        <text class="ll" x="300" y="180">layer 2</text>
+        <!-- queue snapshots -->
+        <text x="400" y="40" style="font:700 12px Helvetica;fill:#9e2b25">Queue evolves:</text>
+        <g style="font:13px 'SF Mono',monospace;fill:#3c3c46">
+          <text x="400" y="70">[A]            size=1  →  pop A, push B,C</text>
+          <text x="400" y="95">[B, C]         size=2  →  pop B,C; push D,E,F</text>
+          <text x="400" y="120">[D, E, F]      size=3  →  leaves</text>
+          <text x="400" y="145">[]             done</text>
+        </g>
+      </svg>
+      <figcaption>Each outer <code>while</code> turn drains exactly one layer; the
+        <code>size</code> snapshot is what makes the layers clean.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ TREE ============ -->
+  <section id="tree">
+    <div class="kicker">Arena 1 of 3</div>
+    <h2>BFS in a binary tree</h2>
+    <p>The friendliest arena: trees have no cycles, so <b>no visited set needed</b>. This is the
+      purest expression of the template.</p>
+
+    <div class="prob">
+      <h3>Binary Tree Level Order Traversal</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/binary-tree-level-order-traversal/">LintCode</a></span>
+      <span class="pill blue">Level order</span>
+    </div>
+    <p>Return node values grouped by depth: <code>[[A],[B,C],[D,E,F]]</code>. This is the
+      canonical layered BFS.</p>
+
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">from</span> collections <span class="k">import</span> deque
+
+<span class="k">def</span> <span class="f">level_order</span>(root):
+    results = []
+    <span class="k">if</span> <span class="k">not</span> root:
+        <span class="k">return</span> results
+
+    queue = <span class="t">deque</span>([root])
+    <span class="k">while</span> queue:
+        size = <span class="f">len</span>(queue)               <span class="c"># snapshot the layer</span>
+        level = []
+        <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(size):
+            node = queue.popleft()
+            level.append(node.val)
+            <span class="k">if</span> node.left:
+                queue.append(node.left)
+            <span class="k">if</span> node.right:
+                queue.append(node.right)
+        results.append(level)
+    <span class="k">return</span> results</code></pre>
+
+    <div class="note tip">
+      <span class="lbl">Three related problems (same template, tiny tweaks)</span>
+      <ul style="margin:.3em 0">
+        <li><b>Level Order II</b> — return layers bottom-up: build normally, then
+          <code>results.reverse()</code> (or <code>results[::-1]</code>).</li>
+        <li><b>Zigzag Level Order</b> — flip direction each layer: keep a boolean and
+          insert into the level list from the front on odd layers.</li>
+        <li><b>Convert Binary Tree to Linked Lists by Depth</b> — same loop, but stitch each
+          layer into a linked list instead of a list.</li>
+      </ul>
+    </div>
+
+    <div class="prob">
+      <h3>Binary Tree Serialization</h3>
+      <span class="src">· <a href="http://www.lintcode.com/en/problem/binary-tree-serialization/">LintCode</a></span>
+      <span class="pill red">Microsoft · Yahoo</span>
+    </div>
+    <blockquote class="shifu">
+      “The first time I interviewed, I didn't know what serialization was either — I was
+      interviewing at Google, got this question, and argued with the interviewer for ages,
+      totally lost. A lot of schools never teach it, yet in industry it's genuinely very useful.”
+      <span class="who">— the instructor [32:23–33:07]</span>
+    </blockquote>
+    <p><b>Serialization</b> = turning structured in-memory data into a string;
+      <b>deserialization</b> is the reverse. <b>The contract: a serializer must support a matching
+      deserializer</b> — if you can turn the object into a string but can't turn it back, it's
+      just a fancy <code>print</code> and serves no purpose [33:34].</p>
+    <table>
+      <tr><td><b>Serialize</b></td><td>object → string</td></tr>
+      <tr><td><b>Deserialize</b></td><td>string → object</td></tr>
+    </table>
+    <h4>Why serialize at all?</h4>
+    <ol>
+      <li><b>Persistence</b> — RAM is volatile; to survive a power-off, structured data must be
+        written to disk as bytes and rebuilt later.</li>
+      <li><b>Network transport</b> — two machines can't read each other's memory, so data is
+        flattened to a string/byte stream, sent, and parsed back on the other side.</li>
+    </ol>
+    <p>Common real-world formats: <span class="pill">XML</span><span class="pill">JSON</span>
+      <span class="pill">Thrift (Facebook)</span><span class="pill">ProtoBuf (Google)</span>.
+      Two design axes pull against each other:</p>
+    <ul>
+      <li><b>Compression ratio</b> — smaller is cheaper to store/transmit (Thrift, ProtoBuf
+        optimize for this).</li>
+      <li><b>Readability</b> — a human can read the data directly (JSON, LintCode's I/O format).</li>
+    </ul>
+    <div class="note">
+      <span class="lbl">How LintCode serializes a tree</span>
+      Any scheme is valid as long as it round-trips. LintCode uses <b>BFS order</b> (level by
+      level, with <code>#</code> for null children) — the nice side effect is that you can read
+      the string and hand-draw the whole tree. e.g. <code>{1,2,3,#,#,4,5}</code>.
+    </div>
+  </section>
+
+  <!-- ============ GRAPH ============ -->
+  <section id="graph">
+    <div class="kicker">Arena 2 of 3</div>
+    <h2>BFS in a graph</h2>
+    <p><b>What changes vs a tree?</b> A graph can contain <b>cycles</b>. A cycle means the same
+      node can be reached along multiple paths and thus pushed into the queue repeatedly. The
+      fix is one line of discipline: a <code>set</code> / <code>dict</code> of visited nodes.</p>
+
+    <div class="note warn">
+      <span class="lbl">Cycles in a graph — the cycle rule</span>
+      Without a visited <code>set</code>, a cycle makes BFS loop forever (or at least re-process
+      nodes). <b>Mark a node visited the moment you enqueue it</b>, so it can never enter the
+      queue twice.
+    </div>
+
+    <h4>How do you represent a graph?</h4>
+    <p>Usually an <b>adjacency list</b>: <code>dict[node, list[node]]</code> (e.g.
+      <code>collections.defaultdict(list)</code>) or, for integer-labelled nodes, a
+      <code>list[list[int]]</code>. Each node maps to its neighbors. (An adjacency matrix
+      <code>[[False]*n for _ in range(n)]</code> is the alternative — simpler but O(N²) space.)</p>
+
+    <div class="prob">
+      <h3>Clone Graph</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/clone-graph/">LintCode</a></span>
+      <span class="pill red">Facebook</span>
+      <span class="pill blue">Connected component</span>
+    </div>
+    <p>Deep-copy an undirected graph given one node. The clean BFS solution is <b>three explicit
+      passes</b> — separating "discover the structure" from "rebuild it" is what keeps the code
+      bug-free.</p>
+
+    <div class="note insight">
+      <span class="lbl">The instructor’s “one point reaches the whole area” picture</span>
+      “Connected component is: I give you <b>one contact</b>, and you have to find
+      <b>everyone in the whole school</b>.” [05:22] Starting from one node, BFS fans out across
+      every edge until the entire reachable component is discovered — that's step ① below.
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 720 170" role="img" aria-label="Clone graph three steps">
+        <style>
+          .stp{fill:#faf8f4;stroke:#2f5d8a;stroke-width:1.5;rx:10}
+          .sh{font:700 13px Helvetica;fill:#2f5d8a;text-anchor:middle}
+          .sb{font:12px Helvetica;fill:#3c3c46;text-anchor:middle}
+          .ar{stroke:#b8893b;stroke-width:2;marker-end:url(#a)}
+        </style>
+        <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#b8893b"/></marker></defs>
+        <rect class="stp" x="20" y="40" width="200" height="90" rx="10"/>
+        <text class="sh" x="120" y="68">① BFS find all nodes</text>
+        <text class="sb" x="120" y="92">queue + visited set</text>
+        <text class="sb" x="120" y="112">→ List&lt;Node&gt; nodes</text>
+        <line class="ar" x1="225" y1="85" x2="258" y2="85"/>
+        <rect class="stp" x="262" y="40" width="190" height="90" rx="10"/>
+        <text class="sh" x="357" y="68">② Copy the nodes</text>
+        <text class="sb" x="357" y="92">map old → new(label)</text>
+        <text class="sb" x="357" y="112">neighbors empty</text>
+        <line class="ar" x1="457" y1="85" x2="490" y2="85"/>
+        <rect class="stp" x="494" y="40" width="206" height="90" rx="10"/>
+        <text class="sh" x="597" y="68">③ Copy the edges</text>
+        <text class="sb" x="597" y="92">for each old neighbor</text>
+        <text class="sb" x="597" y="112">new.add(map[neighbor])</text>
+      </svg>
+      <figcaption>Clone Graph = discover (BFS) → copy nodes → copy edges. Same shape reused by
+        many graph problems.</figcaption>
+    </figure>
+
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">from</span> collections <span class="k">import</span> deque
+
+<span class="k">def</span> <span class="f">clone_graph</span>(node):
+    <span class="k">if</span> <span class="k">not</span> node:
+        <span class="k">return</span> <span class="k">None</span>
+
+    <span class="c"># ① BFS: collect every reachable node</span>
+    nodes = get_nodes(node)
+
+    <span class="c"># ② copy nodes (old → new), neighbors still empty</span>
+    mapping = {n: <span class="t">UndirectedGraphNode</span>(n.label) <span class="k">for</span> n <span class="k">in</span> nodes}
+
+    <span class="c"># ③ copy edges using the mapping</span>
+    <span class="k">for</span> n <span class="k">in</span> nodes:
+        <span class="k">for</span> nb <span class="k">in</span> n.neighbors:
+            mapping[n].neighbors.append(mapping[nb])
+    <span class="k">return</span> mapping[node]
+
+
+<span class="k">def</span> <span class="f">get_nodes</span>(node):
+    queue = <span class="t">deque</span>([node])
+    visited = {node}                       <span class="c"># mark at enqueue!</span>
+    <span class="k">while</span> queue:
+        head = queue.popleft()
+        <span class="k">for</span> nb <span class="k">in</span> head.neighbors:
+            <span class="k">if</span> nb <span class="k">not</span> <span class="k">in</span> visited:
+                visited.add(nb)
+                queue.append(nb)
+    <span class="k">return</span> <span class="f">list</span>(visited)</code></pre>
+
+    <div class="cards">
+      <div class="card">
+        <h4>Graph Valid Tree</h4>
+        <p class="small">A graph of <code>n</code> nodes is a tree iff it has exactly
+          <b>n−1 edges</b> <i>and</i> is <b>fully connected</b>. Check edge count first (cheap),
+          then BFS from node 0 and confirm you reached all <code>n</code> nodes.</p>
+      </div>
+      <div class="card">
+        <h4>Search Graph Nodes</h4>
+        <p class="small">Find the nearest node with <code>value == target</code>. Plain BFS,
+          <b>no layering needed</b> — the first match popped is already nearest (BFS dequeues in
+          non-decreasing distance order). <i>Follow-up:</i> to find <b>all</b> nearest matches,
+          switch to a layered BFS and collect every match in the first layer that has one.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TOPO SORT ============ -->
+  <section id="topo">
+    <div class="kicker">Must-master · Topological sort</div>
+    <h2>Topological Sorting</h2>
+    <blockquote class="shifu">
+      “Almost every company has a topological-sort interview question.”
+      <span class="who">— the instructor, on why this one is non-negotiable</span>
+    </blockquote>
+    <p>Given a <b>directed graph</b> (typically a DAG of dependencies), output an ordering where
+      every node comes <b>before</b> all nodes it points to. The BFS solution is <b>Kahn's
+      algorithm</b>, driven by <b>in-degree</b> (number of incoming edges).</p>
+
+    <div class="note insight">
+      <span class="lbl">The instructor's intuition — "unlocking levels"</span>
+      Think of it as a video game / course prerequisites [91:33–91:58]: nodes with in-degree 0 are
+      the courses with <b>no prerequisites</b>, so you can take them first. Taking a course
+      "removes" it from the graph, which <b>unlocks</b> the courses that depended only on it
+      — their in-degree drops to 0 and they go into the queue. Repeat until everything is unlocked.
+    </div>
+
+    <h4>The algorithm in three moves</h4>
+    <ol>
+      <li><span class="lead-num">1</span> Count the in-degree of every node.</li>
+      <li><span class="lead-num">2</span> Enqueue all nodes with <b>in-degree 0</b> (no
+        prerequisites).</li>
+      <li><span class="lead-num">3</span> BFS: pop a node into the result, then for each
+        neighbor decrement its in-degree; when a neighbor hits 0, enqueue it.</li>
+    </ol>
+
+    <figure>
+      <svg viewBox="0 0 560 220" role="img" aria-label="Topological sort by in-degree">
+        <style>
+          .gn{fill:#fff;stroke:#3a7a4e;stroke-width:2}
+          .gt{font:600 14px Helvetica;fill:#1a1a1f;text-anchor:middle}
+          .gi{font:11px Helvetica;fill:#9e2b25;text-anchor:middle}
+          .ge{stroke:#6b6b76;stroke-width:1.8;marker-end:url(#ah)}
+        </style>
+        <defs><marker id="ah" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#6b6b76"/></marker></defs>
+        <line class="ge" x1="70" y1="60" x2="170" y2="60"/>
+        <line class="ge" x1="70" y1="70" x2="165" y2="150"/>
+        <line class="ge" x1="200" y1="70" x2="200" y2="140"/>
+        <line class="ge" x1="225" y1="60" x2="320" y2="60"/>
+        <line class="ge" x1="225" y1="150" x2="320" y2="150"/>
+        <line class="ge" x1="350" y1="70" x2="350" y2="140"/>
+        <circle class="gn" cx="50" cy="60" r="22"/><text class="gt" x="50" y="65">A</text><text class="gi" x="50" y="98">in=0</text>
+        <circle class="gn" cx="200" cy="60" r="22"/><text class="gt" x="200" y="65">B</text><text class="gi" x="200" y="34">in=1</text>
+        <circle class="gn" cx="200" cy="160" r="22"/><text class="gt" x="200" y="165">C</text><text class="gi" x="200" y="198">in=2</text>
+        <circle class="gn" cx="350" cy="60" r="22"/><text class="gt" x="350" y="65">D</text><text class="gi" x="350" y="34">in=1</text>
+        <circle class="gn" cx="350" cy="160" r="22"/><text class="gt" x="350" y="165">E</text><text class="gi" x="350" y="198">in=2</text>
+        <g style="font:13px 'SF Mono',monospace;fill:#3c3c46">
+          <text x="430" y="50" style="font:700 12px Helvetica;fill:#3a7a4e">Output order:</text>
+          <text x="430" y="75">A  (in=0 start)</text>
+          <text x="430" y="98">B  (A done)</text>
+          <text x="430" y="121">C</text>
+          <text x="430" y="144">D</text>
+          <text x="430" y="167">E</text>
+        </g>
+      </svg>
+      <figcaption>Start from in-degree-0 nodes; each removal "unlocks" downstream nodes.
+        A valid order: <code>A, B, C, D, E</code>.</figcaption>
+    </figure>
+
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">from</span> collections <span class="k">import</span> deque
+
+<span class="k">def</span> <span class="f">top_sort</span>(graph):
+    order = []
+    indeg = {}
+
+    <span class="c"># ① count in-degrees</span>
+    <span class="k">for</span> node <span class="k">in</span> graph:
+        <span class="k">for</span> nb <span class="k">in</span> node.neighbors:
+            indeg[nb] = indeg.get(nb, <span class="n">0</span>) + <span class="n">1</span>
+
+    <span class="c"># ② all in-degree-0 nodes start the queue</span>
+    queue = <span class="t">deque</span>(node <span class="k">for</span> node <span class="k">in</span> graph <span class="k">if</span> node <span class="k">not</span> <span class="k">in</span> indeg)
+
+    <span class="c"># ③ BFS, peeling off in-degree as we go</span>
+    <span class="k">while</span> queue:
+        node = queue.popleft()
+        order.append(node)
+        <span class="k">for</span> nb <span class="k">in</span> node.neighbors:
+            indeg[nb] -= <span class="n">1</span>
+            <span class="k">if</span> indeg[nb] == <span class="n">0</span>:
+                queue.append(nb)
+    <span class="k">return</span> order</code></pre>
+
+    <div class="note">
+      <span class="lbl">Can you do topo sort with DFS? — yes, but…</span>
+      DFS post-order + reverse also works. But per the Spear-Breaking Form, prefer BFS: it's iterative (no stack
+      overflow on big graphs), and it naturally detects cycles — <b>if the output contains fewer
+      than N nodes, the graph had a cycle</b> (some nodes never reached in-degree 0). That cycle
+      check is exactly what "Course Schedule" asks for.
+    </div>
+
+    <h4>The topo-sort problem family</h4>
+    <table>
+      <thead><tr><th>Problem</th><th>What's different</th></tr></thead>
+      <tbody>
+        <tr><td><b>Course Schedule I / II</b><br><span class="pill">G·A·F·Z</span></td>
+          <td>Raw topo sort. I: can all courses finish? (output size == N → no cycle).
+            II: return one valid order.</td></tr>
+        <tr><td><b>Sequence Reconstruction</b><br><span class="pill">G·A</span></td>
+          <td>Is the topo order <b>unique</b>? It is unique iff the queue ever holds at most
+            <b>one</b> node at a time — if two in-degree-0 nodes coexist, the order is ambiguous.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ MATRIX ============ -->
+  <section id="matrix">
+    <div class="kicker">Arena 3 of 3</div>
+    <h2>BFS in a matrix</h2>
+
+    <h4>Matrix vs graph — complexity</h4>
+    <table>
+      <thead><tr><th></th><th>Graph</th><th>Matrix</th></tr></thead>
+      <tbody>
+        <tr><td>Size</td><td>N nodes, M edges</td><td>N rows × M cols</td></tr>
+        <tr><td>Edges</td><td>M up to O(N²)</td><td>N·M nodes, ~N·M·2 edges (4 per cell, each shared by 2)</td></tr>
+        <tr><td><b>BFS time</b></td><td>O(M) → worst O(N²)</td><td><b>O(N·M)</b></td></tr>
+      </tbody>
+    </table>
+    <p>A matrix is just a graph in disguise: each cell is a node with edges to its 4 (or 8)
+      neighbors. The win is that the "edges" are implicit, so BFS is a clean O(rows × cols).</p>
+
+    <div class="note insight">
+      <span class="lbl">Two lecture tips for matrix BFS</span>
+      <b>① The grid is your hash table</b> [118:44–119:06]. You rarely need a separate visited
+      structure — a cell is identified by its <code>(x, y)</code> coordinate, so a 2-D
+      <code>visited</code> array (or marking the grid in place) <i>is</i> the hash set. No
+      <code>dict</code> of node objects needed.<br>
+      <b>② Use R and C, not N and M</b> [115:02–115:21]. In graph notation <code>N,M</code> means
+      "N nodes, M edges"; in a matrix it's "N rows, M cols" with ~<code>N·M·2</code> edges — a
+      different meaning. Naming the matrix dims <code>R × C</code> avoids the mix-up.
+    </div>
+
+    <h4>The direction arrays — deltaX / deltaY</h4>
+    <p>Instead of writing four near-identical blocks for up/down/left/right, iterate over delta
+      arrays. This is the single most reused matrix-BFS idiom.</p>
+    <span class="filetag">Python · 4 directions</span>
+    <pre><code>DX = [<span class="n">0</span>, <span class="n">1</span>, <span class="n">0</span>, <span class="n">-1</span>]   <span class="c"># right, down, left, up</span>
+DY = [<span class="n">1</span>, <span class="n">0</span>, <span class="n">-1</span>, <span class="n">0</span>]
+<span class="c"># new cell = (x + DX[i], y + DY[i]) for i in range(4)</span></code></pre>
+    <span class="filetag">8 directions (deck question: write these out)</span>
+    <pre><code>DX = [<span class="n">-1</span>, <span class="n">-1</span>, <span class="n">-1</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">1</span>, <span class="n">1</span>, <span class="n">1</span>]
+DY = [<span class="n">-1</span>, <span class="n">0</span>, <span class="n">1</span>, <span class="n">-1</span>, <span class="n">1</span>, <span class="n">-1</span>, <span class="n">0</span>, <span class="n">1</span>]</code></pre>
+    <div class="note tip">
+      <span class="lbl">Always pair deltas with an in-bound check</span>
+      <pre style="margin:.5em 0"><code><span class="k">def</span> <span class="f">in_bound</span>(x, y, grid):
+    <span class="k">return</span> <span class="n">0</span> &lt;= x &lt; <span class="f">len</span>(grid) <span class="k">and</span> <span class="n">0</span> &lt;= y &lt; <span class="f">len</span>(grid[<span class="n">0</span>])</code></pre>
+    </div>
+
+    <div class="prob">
+      <h3>Number of Islands</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/number-of-islands/">LintCode</a></span>
+      <span class="pill blue">Connected component</span>
+    </div>
+    <p>Count connected blobs of <code>1</code>s (4-directionally). Scan every cell; when you hit
+      an unvisited land cell, that's a <b>new island</b> — BFS-flood it to mark the whole island
+      visited, then keep scanning.</p>
+
+    <figure>
+      <svg viewBox="0 0 360 200" role="img" aria-label="Number of islands grid">
+        <style>
+          .land{fill:#3a7a4e} .water{fill:#cfe0ee} .cellt{font:600 13px Helvetica;fill:#fff;text-anchor:middle}
+          .gl{stroke:#fff;stroke-width:2}
+        </style>
+        <!-- 4x5 grid: 1s clustered -->
+        <g>
+          <!-- row0 -->
+          <rect class="land" x="20"  y="20" width="34" height="34"/><rect class="land" x="54" y="20" width="34" height="34"/><rect class="water" x="88" y="20" width="34" height="34"/><rect class="water" x="122" y="20" width="34" height="34"/><rect class="land" x="156" y="20" width="34" height="34"/>
+          <!-- row1 -->
+          <rect class="land" x="20" y="54" width="34" height="34"/><rect class="water" x="54" y="54" width="34" height="34"/><rect class="water" x="88" y="54" width="34" height="34"/><rect class="water" x="122" y="54" width="34" height="34"/><rect class="water" x="156" y="54" width="34" height="34"/>
+          <!-- row2 -->
+          <rect class="water" x="20" y="88" width="34" height="34"/><rect class="water" x="54" y="88" width="34" height="34"/><rect class="land" x="88" y="88" width="34" height="34"/><rect class="water" x="122" y="88" width="34" height="34"/><rect class="water" x="156" y="88" width="34" height="34"/>
+          <!-- row3 -->
+          <rect class="water" x="20" y="122" width="34" height="34"/><rect class="land" x="54" y="122" width="34" height="34"/><rect class="land" x="88" y="122" width="34" height="34"/><rect class="water" x="122" y="122" width="34" height="34"/><rect class="water" x="156" y="122" width="34" height="34"/>
+        </g>
+        <g style="font:14px Helvetica;fill:#1a1a1f">
+          <text x="225" y="40">🟩 island ①  (top-left)</text>
+          <text x="225" y="65">🟩 island ②  (top-right)</text>
+          <text x="225" y="90">🟩 island ③  (bottom)</text>
+          <text x="225" y="130" style="font:700 16px Helvetica;fill:#9e2b25">Answer: 3</text>
+        </g>
+      </svg>
+      <figcaption>Each BFS flood consumes one island; the count of floods is the answer.</figcaption>
+    </figure>
+
+    <div class="prob">
+      <h3>Zombie in Matrix</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/zombie-in-matrix/">LintCode</a></span>
+      <span class="pill blue">Level order</span>
+    </div>
+    <p>Zombies spread to adjacent humans each day; return the days until everyone is infected
+      (or −1 if some human is walled off). This is <b>multi-source layered BFS</b>: seed the
+      queue with <b>all</b> zombies at once, then each <code>while</code> turn = one day. The
+      number of layers = the answer.</p>
+    <div class="note insight">
+      <span class="lbl">Multi-source BFS — the instructor's "bite" picture</span>
+      “Put <b>all</b> the zombies into the queue as the BFS starting points. Then do a layered
+      traversal — each layer is every current zombie <b>taking one bite in the four
+      directions</b>; the newly-bitten humans become zombies and go into the queue. Which layer
+      you finish = which day it is.” [119:56–120:28] You never BFS from each source separately;
+      the layered expansion computes every cell's minimum time simultaneously.
+    </div>
+
+    <div class="prob">
+      <h3>Knight Shortest Path</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/knight-shortest-path/">LintCode</a></span>
+      <span class="pill green">Simple-graph shortest path</span>
+    </div>
+    <p>Fewest knight moves from source to target on a grid. Pure shortest-path BFS — just use the
+      <b>8 knight-move deltas</b> instead of 4 orthogonal ones:</p>
+    <pre><code>DX = [<span class="n">1</span>, <span class="n">1</span>, <span class="n">-1</span>, <span class="n">-1</span>, <span class="n">2</span>, <span class="n">2</span>, <span class="n">-2</span>, <span class="n">-2</span>]
+DY = [<span class="n">2</span>, <span class="n">-2</span>, <span class="n">2</span>, <span class="n">-2</span>, <span class="n">1</span>, <span class="n">-1</span>, <span class="n">1</span>, <span class="n">-1</span>]</code></pre>
+    <div class="note insight">
+      <span class="lbl">Follow-up: speed up? → Bidirectional BFS</span>
+      The deck poses “speed up?” but the lecture leaves it as an <b>open exercise</b> — so here is
+      the standard answer: run BFS from <b>both</b> the source and the target, alternating, and
+      stop when the two frontiers meet. Intuition: instead of one ball of radius <code>r</code>,
+      you grow two balls of radius <code>r/2</code> — roughly <code>2·b^(r/2)</code> work instead
+      of <code>b^r</code>, an exponential cut on a wide branching factor like the knight's 8.
+    </div>
+
+    <div class="prob">
+      <h3>Build Post Office II</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/build-post-office-ii/">LintCode</a></span>
+      <span class="pill green">Simple-graph shortest path</span>
+    </div>
+    <p>Place one post office on an empty cell to minimize the total walking distance from every
+      house. The key insight is <b>which direction to BFS from</b>:</p>
+    <div class="cards">
+      <div class="card">
+        <h4>Method 1 — from each empty cell ✗</h4>
+        <p class="small">Enumerate every candidate office location, BFS to all houses, sum
+          distances, keep the min. Wasteful: there are usually far more empty cells than houses,
+          so you run many BFS over the whole grid.</p>
+      </div>
+      <div class="card">
+        <h4>Method 2 — from each house ✓</h4>
+        <p class="small">BFS <b>from each house</b>, accumulating each empty cell's distance to
+          that house into a <code>dist[][]</code> grid. After all houses, the best empty cell is
+          the one with the smallest accumulated sum. Fewer sources → faster.</p>
+      </div>
+    </div>
+    <blockquote class="shifu">
+      “The faster method is <b>reverse thinking</b>: there are usually few houses (and even if
+      there are many, they just act as obstacles). BFS <b>from each house</b>, add its distance
+      to every empty cell onto that cell's running total, then sweep the grid for the smallest
+      total. Don't BFS from the empty cells.”
+      <span class="who">— the instructor [128:36–129:38]. Method 1 (from empty cells) is correct
+      but TLEs; this is what passes.</span>
+    </blockquote>
+    <div class="note tip">
+      <span class="lbl">The transferable trick</span>
+      When you must aggregate distances between two sets of points, BFS <b>from the smaller set</b>
+      and accumulate onto the larger set. Same idea powers many "min total distance" grid problems.
+    </div>
+  </section>
+
+  <!-- ============ CHEATSHEET ============ -->
+  <section id="cheat">
+    <div class="kicker">Reference</div>
+    <h2>Complexity &amp; pattern cheatsheet</h2>
+    <table>
+      <thead><tr><th>Setting</th><th>Visited set?</th><th>Time</th><th>Space</th></tr></thead>
+      <tbody>
+        <tr><td>Binary tree</td><td>No (no cycles)</td><td>O(n)</td><td>O(n)</td></tr>
+        <tr><td>Graph (adj. list)</td><td><b>Yes</b></td><td>O(V + E)</td><td>O(V)</td></tr>
+        <tr><td>Graph (dense)</td><td>Yes</td><td>O(V²)</td><td>O(V)</td></tr>
+        <tr><td>Matrix (R×C)</td><td>Yes</td><td>O(R·C)</td><td>O(R·C)</td></tr>
+        <tr><td>Topological sort</td><td>via in-degree</td><td>O(V + E)</td><td>O(V)</td></tr>
+        <tr><td>Bidirectional BFS</td><td>Yes ×2</td><td>~O(b^(d/2))</td><td>O(b^(d/2))</td></tr>
+      </tbody>
+    </table>
+
+    <h4>Decision flow</h4>
+    <ul>
+      <li><b>Need layers / shortest #steps / "min days"?</b> → layered BFS,
+        <code>size = len(queue)</code>.</li>
+      <li><b>Just need to visit all / count components?</b> → unlayered BFS + visited set.</li>
+      <li><b>Directed dependencies / ordering / cycle detection?</b> → topo sort (in-degree BFS).</li>
+      <li><b>Grid?</b> → deltaX/deltaY + inBound; sources may be one or many.</li>
+      <li><b>Source & target both known, branching wide?</b> → consider bidirectional BFS.</li>
+    </ul>
+  </section>
+
+  <!-- ============ TAKEAWAYS ============ -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The seven things to remember</h2>
+    <ol style="font-size:17px">
+      <li><b>If BFS can solve it, don't use DFS</b> (unless the interviewer insists). — the Spear-Breaking Form.</li>
+      <li>BFS has exactly <b>two use cases</b>: graph traversal (connected component + level
+        order) and <b>shortest path in a simple graph</b>.</li>
+      <li>To go layer-by-layer, snapshot <b><code>size = len(queue)</code></b> before the inner
+        loop (<code>for _ in range(size)</code>) — never mutate the queue while iterating it.</li>
+      <li>Trees need <b>no</b> visited set; <b>graphs do</b> (cycles), and you mark visited at
+        <b>enqueue</b> time.</li>
+      <li><b>Topological sort is mandatory</b> — in-degree BFS; output &lt; N ⇒ cycle.</li>
+      <li>Matrix BFS = <b>deltaX / deltaY + inBound</b>; multi-source when many starts.</li>
+      <li>Shortest path needs a <b>simple graph</b> (edges = 1). Speed up wide searches with
+        <b>bidirectional BFS</b>.</li>
+    </ol>
+
+    <blockquote class="shifu">
+      “Don’t use DFS when BFS works. The two BFS use cases: graph traversal and shortest path in a simple graph. Need layers? <code>size = len(queue)</code>. Topological sort is a must. Direction arrays: deltaX, deltaY, inBound.”
+      <span class="who">— Slide 30 conclusion (translated)</span>
+    </blockquote>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Chapter 4 “Breadth First Search” v4.0.2 deck plus the full 2h17m lecture
+  (audio transcribed with Whisper large-v3; quotes carry their <code>[mm:ss]</code> timestamps).
+  Code templates are rewritten in <b>Python</b> (the course's originals are in Java). Study guide
+  for personal use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

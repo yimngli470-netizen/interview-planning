@@ -33,6 +33,19 @@ export interface Question {
   owner_id: number | null; // null = default/shared (read-only); set = user's own
 }
 
+// Distilled HTML study-notes attached to a topic. The feed carries only metadata;
+// the (large) `html` body is fetched on demand via api.getSummary(id).
+export interface SummaryMeta {
+  id: number;
+  title: string;
+  source: string;
+}
+
+export interface Summary extends SummaryMeta {
+  topic_id: number;
+  html: string;
+}
+
 export interface Topic {
   id: number;
   domain_id: number;
@@ -47,6 +60,7 @@ export interface Topic {
   owner_id: number | null; // null = default/shared (read-only); set = user's own
   subtopics: Subtopic[];
   questions: Question[];
+  summaries: SummaryMeta[];
 }
 
 export interface Domain {

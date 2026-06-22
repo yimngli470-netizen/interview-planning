@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import type { CSSProperties, MouseEvent } from 'react';
+import { useRef, useState } from 'react';
+import type { CSSProperties, MouseEvent, KeyboardEvent } from 'react';
 import {
   ChevronRight, ChevronDown, Pin, Trash2, Pencil, X, Plus, Check,
   BookOpen, Sparkles, Loader, Youtube, GraduationCap, FileText, Link2,
 } from 'lucide-react';
-import type { Domain, Topic, Subtopic, Question, Resource, Level } from '../types';
+import type { Domain, Topic, Subtopic, Question, Resource, Level, Summary, SummaryMeta } from '../types';
 import { DomainChip, StatusButton, nextStatus } from '../lib/ui';
 import { api } from '../lib/api';
 import Markdown from '../lib/Markdown';
@@ -71,10 +71,36 @@ interface EditorCfg {
 
 function NoteDisplay({ value }: { value: string }) {
   if (!value) return null;
+  // Notes render as Markdown so a ```python fenced block becomes a runnable
+  // code snippet (and plain prose still works — single newlines are preserved).
   return (
-    <div style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.55, color: 'var(--muted)', whiteSpace: 'pre-wrap' }}>
-      {value}
+    <div style={{ marginTop: 6, color: 'var(--muted)' }}>
+      <Markdown>{value}</Markdown>
     </div>
+  );
+}
+
+// Trim the "— Study Notes" suffix so a topic carrying several docs shows tidy,
+// distinguishable button labels (e.g. "Week 4 · Breadth First Search").
+function summaryLabel(title: string): string {
+  return title.replace(/\s*[—–-]\s*study notes\s*$/i, '').trim() || 'Study notes';
+}
+
+// Render a distilled, self-contained HTML study-notes doc in a sandboxed iframe so
+// its bespoke design is preserved and fully isolated from the app theme. No
+// allow-scripts (the docs carry none) → maximal isolation; allow-popups lets the
+// injected <base target="_blank"> links (e.g. LintCode) open in a new tab.
+function SummaryViewer({ html }: { html: string }) {
+  const doc = /<head[^>]*>/i.test(html)
+    ? html.replace(/<head([^>]*)>/i, '<head$1><base target="_blank">')
+    : '<base target="_blank">' + html;
+  return (
+    <iframe
+      title="Study notes"
+      srcDoc={doc}
+      sandbox="allow-popups allow-popups-to-escape-sandbox"
+      style={{ width: '100%', height: '100%', border: 'none', borderRadius: 10, background: '#fff' }}
+    />
   );
 }
 
@@ -323,6 +349,15 @@ export default function TopicRow({
   const [editor, setEditor] = useState<EditorCfg | null>(null);
   const [editorTitle, setEditorTitle] = useState('');
   const [editorText, setEditorText] = useState('');
+  // Distilled HTML study notes: metadata rides in the topic feed; fetch the body
+  // on demand when opened, then show it in a sandboxed iframe modal.
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState<number | null>(null);
+  const openSummary = async (meta: SummaryMeta) => {
+    setLoadingSummary(meta.id);
+    try { setSummary(await api.getSummary(meta.id)); }
+    finally { setLoadingSummary(null); }
+  };
 
   const ownedTopic = topic.owner_id === currentUserId;
   const subDone = topic.subtopics.filter((s) => s.status === 'done').length;
@@ -331,6 +366,53 @@ export default function TopicRow({
 
   const openEditor = (cfg: EditorCfg) => { setEditorTitle(cfg.title || ''); setEditorText(cfg.notes || ''); setEditor(cfg); };
   const closeEditor = () => { if (editor) editor.onSave({ title: editorTitle, notes: editorText }); setEditor(null); };
+
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const INDENT = '    '; // 4 spaces — Python convention
+  // Move the caret/selection after a controlled-value update lands in the DOM.
+  const setCaret = (start: number, end: number) =>
+    requestAnimationFrame(() => { const ta = taRef.current; if (ta) { ta.focus(); ta.setSelectionRange(start, end); } });
+
+  // Make the notes textarea behave enough like a code editor: Tab indents
+  // (Shift+Tab dedents) instead of leaving the field, so Python code is easy to type.
+  const onEditorKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') { closeEditor(); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { closeEditor(); return; }
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const ta = e.currentTarget;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    if (!e.shiftKey && start === end) {
+      setEditorText(editorText.slice(0, start) + INDENT + editorText.slice(end));
+      setCaret(start + INDENT.length, start + INDENT.length);
+      return;
+    }
+    // Indent or dedent every line touched by the selection.
+    const lineStart = editorText.lastIndexOf('\n', start - 1) + 1;
+    const block = editorText.slice(lineStart, end);
+    const replaced = e.shiftKey
+      ? block.replace(/^( {1,4}|\t)/gm, '')
+      : block.replace(/^/gm, INDENT);
+    setEditorText(editorText.slice(0, lineStart) + replaced + editorText.slice(end));
+    setCaret(lineStart, end + (replaced.length - block.length));
+  };
+
+  // Insert a runnable ```python fence pre-filled with a LeetCode-style starter
+  // (a main() + __main__ guard, so ▶ Run executes immediately). Any selected
+  // text is dropped into the body; the caret lands inside main().
+  const insertCodeBlock = () => {
+    const ta = taRef.current; if (!ta) return;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const before = editorText.slice(0, start), after = editorText.slice(end);
+    const sel = editorText.slice(start, end);
+    const lead = before && !before.endsWith('\n') ? '\n' : '';
+    const body = sel ? sel.replace(/^/gm, INDENT) : INDENT;
+    const header = lead + '```python\ndef main():\n';
+    const footer = '\n\n\nif __name__ == "__main__":\n    main()\n```\n';
+    setEditorText(before + header + body + footer + after);
+    const caret = before.length + header.length + body.length;
+    setCaret(caret, caret);
+  };
 
   const addSub = () => { if (newSub.trim()) { onAddSubtopic(topic.id, newSub.trim()); setNewSub(''); } };
   const addQ = () => { if (newQ.trim()) { onAddQuestion(topic.id, newQ.trim(), 'common'); setNewQ(''); } };
@@ -374,6 +456,16 @@ export default function TopicRow({
       {expanded && (
         <div style={{ marginLeft: 35, marginTop: 12, paddingLeft: 16, borderLeft: '2px solid var(--accent-line)' }}>
           {topic.notes && <div className="muted" style={{ fontSize: 13.5, marginBottom: 14, lineHeight: 1.55 }}>{topic.notes}</div>}
+          {topic.summaries?.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              {topic.summaries.map((s) => (
+                <button key={s.id} className="btn btn-ghost btn-sm" onClick={() => openSummary(s)} disabled={loadingSummary !== null}
+                  title={`Open distilled study notes: ${s.title}`}>
+                  <FileText size={14} strokeWidth={2.2} /> {loadingSummary === s.id ? 'Loading…' : summaryLabel(s.title)}
+                </button>
+              ))}
+            </div>
+          )}
           <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)', marginBottom: 4 }}>Learning points</div>
           {topic.subtopics.length === 0 && <p className="faint" style={{ fontSize: 13, padding: '4px 0' }}>No learning points yet — add your own below.</p>}
           <div className="divide">
@@ -417,6 +509,23 @@ export default function TopicRow({
         </div>
       )}
 
+      {summary && (
+        <div onClick={() => setSummary(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'oklch(0.2 0.02 60 / 0.42)', backdropFilter: 'blur(3px)' }}>
+          <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 1060, height: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px -12px rgba(0,0,0,0.35)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '13px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="faint" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Study notes</div>
+                <div className="display" style={{ fontSize: 17, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{summary.title}</div>
+              </div>
+              <button onClick={() => setSummary(null)} title="Close" style={{ ...iconBtn, flexShrink: 0 }}><X size={20} strokeWidth={2.2} /></button>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden', padding: 10, background: 'var(--surface-2)' }}>
+              <SummaryViewer html={summary.html} />
+            </div>
+          </div>
+        </div>
+      )}
+
       {editor && (
         <div onClick={closeEditor} style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'oklch(0.2 0.02 60 / 0.42)', backdropFilter: 'blur(3px)' }}>
           <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: '100%', maxWidth: 760, height: '82vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px -12px rgba(0,0,0,0.35)' }}>
@@ -438,15 +547,19 @@ export default function TopicRow({
                 </div>
               )}
               <textarea
+                ref={taRef}
                 autoFocus={!editor.titleEditable} value={editorText}
                 onChange={(e) => setEditorText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') closeEditor(); if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') closeEditor(); }}
-                placeholder="Write your notes / answer…"
+                onKeyDown={onEditorKey}
+                placeholder="Write your notes / answer…  Tip: use the “{ } Code block” button (or ```python) to add runnable code."
                 style={{ flex: 1, width: '100%', border: 'none', outline: 'none', resize: 'none', padding: editor.titleEditable ? '8px 22px 22px' : '22px', fontFamily: 'var(--font-ui)', fontSize: 16, lineHeight: 1.65, color: 'var(--text)', background: 'var(--surface)' }}
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px', borderTop: '1px solid var(--border)' }}>
-              <span className="faint tnum" style={{ fontSize: 12.5 }}>{editorText.length} chars · Esc or ⌘/Ctrl+Enter to save</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 22px', borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={insertCodeBlock} title="Insert a runnable Python code block">{'{ }'} Code block</button>
+                <span className="faint tnum" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>{editorText.length} chars · Tab indents · Esc/⌘↵ saves</span>
+              </div>
               <button className="btn btn-primary btn-sm" onClick={closeEditor}>Done</button>
             </div>
           </div>

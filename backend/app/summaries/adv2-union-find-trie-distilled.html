@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Ch2 · Union Find & Trie — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Advanced · Ch2 · <b>Union Find &amp; Trie</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#unionfind">Union Find</a>
+      <a href="#connecting">Connecting Graph</a>
+      <a href="#uf-apps">UF Applications</a>
+      <a href="#trie">Trie</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Advanced Class · Chapter 2</div>
+    <h1>Union Find &amp; Trie</h1>
+    <p class="lede">Two data structures that solve problems nothing else does cleanly: <b>Union
+      Find</b> answers “are these in the same group?” and merges groups in near-O(1); <b>Trie</b>
+      stores strings by shared prefix for fast prefix queries and grid word-search.</p>
+    <div class="meta">
+      <span><b>Source</b> · “Data Structure I” deck + lecture</span>
+      <span><b>Version</b> · Advanced Ch2</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="kicker">Frame</div>
+    <h2>Pick the structure for the query</h2>
+    <p>A good data structure is the right <i>relationship</i> between data. Use <b>Union Find</b>
+      when the problem is about <b>set membership and merging</b>; use a <b>Trie</b> when it's about
+      <b>string prefixes</b> or matching characters one at a time across a grid.</p>
+  </section>
+
+  <!-- UNION FIND -->
+  <section id="unionfind">
+    <div class="kicker">Structure 1</div>
+    <h2>Union Find (Disjoint Set)</h2>
+    <p>Maintains a forest of disjoint sets. Two operations, both ~O(1) amortized (formally O(log*n),
+      essentially constant): <b>find</b> the representative (root) of an element's set, and
+      <b>union</b> two sets. Two techniques make it fast:</p>
+    <div class="cards">
+      <div class="card"><h4>Path compression</h4><p class="small">During <code>find</code>, point
+        every node on the path straight at the root — so future finds are O(1).</p></div>
+      <div class="card"><h4>Union by size/rank</h4><p class="small">Always hang the <b>smaller</b>
+        tree's root under the bigger one. Merge happens <b>between roots</b> — the children never
+        matter.</p></div>
+    </div>
+    <span class="filetag">Python · full template</span>
+    <pre><code><span class="k">class</span> <span class="t">UnionFind</span>:
+    <span class="k">def</span> <span class="f">__init__</span>(self, n):
+        self.parent = <span class="t">list</span>(<span class="f">range</span>(n))      <span class="c"># each node is its own root</span>
+        self.size = [<span class="n">1</span>] * n
+        self.count = n                       <span class="c"># number of disjoint sets</span>
+
+    <span class="k">def</span> <span class="f">find</span>(self, x):                       <span class="c"># with path compression</span>
+        root = x
+        <span class="k">while</span> self.parent[root] != root:
+            root = self.parent[root]
+        <span class="k">while</span> self.parent[x] != root:           <span class="c"># point the whole path at root</span>
+            self.parent[x], x = root, self.parent[x]
+        <span class="k">return</span> root
+
+    <span class="k">def</span> <span class="f">union</span>(self, a, b):
+        ra, rb = self.find(a), self.find(b)
+        <span class="k">if</span> ra == rb:
+            <span class="k">return</span>
+        <span class="k">if</span> self.size[ra] &lt; self.size[rb]:       <span class="c"># attach smaller under bigger</span>
+            ra, rb = rb, ra
+        self.parent[rb] = ra                 <span class="c"># merge roots only</span>
+        self.size[ra] += self.size[rb]
+        self.count -= <span class="n">1</span>
+
+    <span class="k">def</span> <span class="f">connected</span>(self, a, b):
+        <span class="k">return</span> self.find(a) == self.find(b)</code></pre>
+  </section>
+
+  <!-- CONNECTING GRAPH -->
+  <section id="connecting">
+    <div class="kicker">The native + derived operations</div>
+    <h2>Connecting Graph I / II / III</h2>
+    <p>n nodes, no edges; you connect <code>(a, b)</code> and answer queries. The three variants show
+      exactly which questions Union Find answers — two <b>native</b>, two <b>derived</b>:</p>
+    <table>
+      <thead><tr><th>Variant</th><th>Query</th><th>Mechanism</th></tr></thead>
+      <tbody>
+        <tr><td>Connecting Graph</td><td>are a and b connected?</td><td><b>native</b> — <code>find(a)==find(b)</code></td></tr>
+        <tr><td>Connecting Graph II</td><td>size of a's component</td><td><b>derived</b> — keep <code>size[root]</code></td></tr>
+        <tr><td>Connecting Graph III</td><td>how many components total?</td><td><b>derived</b> — keep a <code>count</code></td></tr>
+      </tbody>
+    </table>
+    <div class="note insight">
+      <span class="lbl">The exam reduction</span>
+      Union Find only really does two things: <b>merge two sets</b> and <b>test same-set</b>. The
+      skill is recognizing how to <b>rephrase the problem</b> into those two — component size and
+      component count are just counters you maintain alongside the merges.
+    </div>
+  </section>
+
+  <!-- UF APPS -->
+  <section id="uf-apps">
+    <div class="kicker">Where it shows up</div>
+    <h2>Union Find applications</h2>
+    <ul>
+      <li><b>Number of Islands II</b> — islands appear one at a time; each new land cell unions with
+        its land neighbors, decrementing the component count. (Online version that BFS can't do
+        efficiently.)</li>
+      <li><b>Graph Valid Tree</b> — n nodes form a tree iff exactly n−1 edges and no union ever joins
+        two already-connected nodes (no cycle), ending with one component — O(n).</li>
+      <li><b>Surrounded Regions</b> — union all border-connected ‘O’s to a virtual “escape” node;
+        whatever isn't connected to it gets captured.</li>
+      <li><b>Accounts Merge</b> — union accounts that share any email, then group by root.</li>
+    </ul>
+  </section>
+
+  <!-- TRIE -->
+  <section id="trie">
+    <div class="kicker">Structure 2</div>
+    <h2>Trie (Prefix Tree)</h2>
+    <p>A tree where each edge is a character and each root-to-node path spells a prefix. Shared
+      prefixes share nodes — so prefix queries and character-by-character matching are natural.</p>
+    <figure>
+      <svg viewBox="0 0 480 180" role="img" aria-label="Trie of a, abc, abd">
+        <style>
+          .trn{fill:#fff;stroke:#3a7a4e;stroke-width:1.8}.trw{fill:#fbf4e6;stroke:#b8893b;stroke-width:2.4}
+          .trt{font:600 13px Helvetica;text-anchor:middle;fill:#1a1a1f}
+          .tre{stroke:#6b6b76;stroke-width:1.6}.trl{font:11px 'SF Mono',monospace;fill:#6b6b76}
+        </style>
+        <line class="tre" x1="80" y1="42" x2="80" y2="78"/>
+        <line class="tre" x1="80" y1="100" x2="80" y2="118"/>
+        <line class="tre" x1="80" y1="140" x2="50" y2="158"/>
+        <line class="tre" x1="80" y1="140" x2="110" y2="158"/>
+        <circle class="trn" cx="80" cy="30" r="14"/><text class="trt" x="80" y="35">•</text>
+        <circle class="trw" cx="80" cy="92" r="14"/><text class="trt" x="80" y="97">a</text>
+        <circle class="trn" cx="80" cy="132" r="14"/><text class="trt" x="80" y="137">b</text>
+        <circle class="trw" cx="48" cy="166" r="13"/><text class="trt" x="48" y="171">c</text>
+        <circle class="trw" cx="112" cy="166" r="13"/><text class="trt" x="112" y="171">d</text>
+        <g class="trl">
+          <text x="150" y="95">a   ✓ (word: "a")</text>
+          <text x="150" y="135">ab  (prefix only)</text>
+          <text x="150" y="165">abc ✓   abd ✓</text>
+          <text x="150" y="40" style="fill:#b8893b;font-weight:700">gold = end of a word</text>
+        </g>
+      </svg>
+      <figcaption>Words <code>a</code>, <code>abc</code>, <code>abd</code> share the <code>a→b</code>
+        spine.</figcaption>
+    </figure>
+    <span class="filetag">Python · Implement Trie</span>
+    <pre><code><span class="k">class</span> <span class="t">TrieNode</span>:
+    <span class="k">def</span> <span class="f">__init__</span>(self):
+        self.children = {}                 <span class="c"># char -> TrieNode</span>
+        self.is_word = <span class="k">False</span>
+
+<span class="k">class</span> <span class="t">Trie</span>:
+    <span class="k">def</span> <span class="f">__init__</span>(self):
+        self.root = <span class="t">TrieNode</span>()
+
+    <span class="k">def</span> <span class="f">insert</span>(self, word):
+        node = self.root
+        <span class="k">for</span> ch <span class="k">in</span> word:
+            node = node.children.setdefault(ch, <span class="t">TrieNode</span>())
+        node.is_word = <span class="k">True</span>
+
+    <span class="k">def</span> <span class="f">_find</span>(self, s):
+        node = self.root
+        <span class="k">for</span> ch <span class="k">in</span> s:
+            <span class="k">if</span> ch <span class="k">not</span> <span class="k">in</span> node.children:
+                <span class="k">return</span> <span class="k">None</span>
+            node = node.children[ch]
+        <span class="k">return</span> node
+
+    <span class="k">def</span> <span class="f">search</span>(self, word):
+        node = self._find(word)
+        <span class="k">return</span> node <span class="k">is</span> <span class="k">not</span> <span class="k">None</span> <span class="k">and</span> node.is_word
+
+    <span class="k">def</span> <span class="f">starts_with</span>(self, prefix):
+        <span class="k">return</span> self._find(prefix) <span class="k">is</span> <span class="k">not</span> <span class="k">None</span></code></pre>
+
+    <div class="prob"><h3>Add and Search Word — wildcards</h3><span class="src">· search supports “.”</span></div>
+    <p>When <code>search</code> may contain <code>.</code> (matches any char), the lookup becomes a
+      small <b>DFS</b> over the Trie — branch into all children on a dot.</p>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">search</span>(self, word):
+    <span class="k">def</span> <span class="f">dfs</span>(node, i):
+        <span class="k">if</span> i == <span class="f">len</span>(word):
+            <span class="k">return</span> node.is_word
+        ch = word[i]
+        <span class="k">if</span> ch == <span class="s">"."</span>:
+            <span class="k">return</span> <span class="f">any</span>(<span class="f">dfs</span>(c, i + <span class="n">1</span>) <span class="k">for</span> c <span class="k">in</span> node.children.values())
+        <span class="k">if</span> ch <span class="k">in</span> node.children:
+            <span class="k">return</span> <span class="f">dfs</span>(node.children[ch], i + <span class="n">1</span>)
+        <span class="k">return</span> <span class="k">False</span>
+    <span class="k">return</span> <span class="f">dfs</span>(self.root, <span class="n">0</span>)</code></pre>
+    <div class="note">
+      <span class="lbl">Hash vs Trie</span>
+      A hash set finds a whole string in O(L) too — but it can't answer <b>prefix</b> queries or
+      share work across many strings. The Trie wins when you need prefixes, wildcard search, or
+      <b>character-by-character DFS over a grid</b> (e.g. Word Search II: walk the board while
+      walking the Trie, pruning dead prefixes instantly).
+    </div>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Union Find &amp; Trie checklist</h2>
+    <ol style="font-size:17px">
+      <li><b>Union Find</b> = near-O(1) “same set?” + “merge sets”, via <b>path compression</b> +
+        <b>union by size</b> (merge roots, ignore children).</li>
+      <li>Track <b>size[root]</b> and a <b>count</b> for the derived “component size / number of
+        components” queries.</li>
+      <li>Reach for it on <b>Number of Islands II</b>, <b>Graph Valid Tree</b>, <b>Surrounded
+        Regions</b>, <b>Accounts Merge</b> — rephrase the problem into merge + same-set.</li>
+      <li><b>Trie</b> stores strings by shared prefix: O(L) insert/search plus <b>prefix</b> and
+        <b>wildcard</b> queries a hash can't do.</li>
+      <li>Wildcard search = <b>DFS over the Trie</b>; grid word-search walks board and Trie together.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Advanced Class “Data Structure I” deck plus the lecture (audio transcribed with
+  Whisper large-v3). Code templates are written in Python (the course's originals are in Java). Study
+  guide for personal use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

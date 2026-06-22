@@ -64,6 +64,11 @@ class Topic(Base):
         cascade="all, delete-orphan",
         order_by="Question.order",
     )
+    summaries: Mapped[list["TopicSummary"]] = relationship(
+        back_populates="topic",
+        cascade="all, delete-orphan",
+        order_by="TopicSummary.id",
+    )
 
 
 class Subtopic(Base):
@@ -123,6 +128,31 @@ class Question(Base):
     )
 
     topic: Mapped["Topic"] = relationship(back_populates="questions")
+
+
+class TopicSummary(Base):
+    """A distilled, self-contained HTML study-notes document attached to a topic
+    (e.g. a week of lecture video distilled into one standalone page). Stored
+    verbatim and rendered READ-ONLY in a sandboxed iframe so its bespoke design
+    is preserved and isolated from the app theme. Ingested idempotently from
+    backend/app/summaries/ by the seeder, keyed by `source` (the filename)."""
+
+    __tablename__ = "topic_summaries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    topic_id: Mapped[int] = mapped_column(
+        ForeignKey("topics.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Filename slug of the source HTML — the idempotency key for re-ingest.
+    source: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(300), default="")
+    html: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    topic: Mapped["Topic"] = relationship(back_populates="summaries")
 
 
 class ExplainCache(Base):

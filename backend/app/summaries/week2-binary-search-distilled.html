@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 2 · Binary Search — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Week 2 · <b>Binary Search</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#template">Template</a>
+      <a href="#realm1">Realm 1 · OOXX</a>
+      <a href="#realm2">Realm 2 · Half-half</a>
+      <a href="#realm3">Realm 3 · On Result</a>
+      <a href="#recursion">Recursion?</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Week 2 · Algorithm Course</div>
+    <h1>Binary Search</h1>
+    <p class="lede">One bulletproof template, three levels of mastery. Halve the search space each
+      step for O(log n) — but the real skill is recognizing the problems that don't <i>look</i> like
+      search at all and binary-searching the <b>answer</b>.</p>
+    <div class="meta">
+      <span><b>Source</b> · Chapter “Binary Search” deck + full lecture</span>
+      <span><b>Version</b> · v4.0</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="kicker">Why O(log n)</div>
+    <h2>Complexity is a hint</h2>
+    <p>Binary search is <code>T(n) = T(n/2) + O(1) = O(log n)</code>: O(1) work shrinks the problem
+      by half. In interviews, the target complexity often <b>tells you the algorithm</b>:</p>
+    <table>
+      <thead><tr><th>Complexity</th><th>Usually means…</th></tr></thead>
+      <tbody>
+        <tr><td>O(log n)</td><td><b>almost always binary search</b></td></tr>
+        <tr><td>O(√n)</td><td>factoring / primes</td></tr>
+        <tr><td>O(n)</td><td>common — a single scan</td></tr>
+        <tr><td>O(n log n)</td><td>probably involves sorting</td></tr>
+        <tr><td>O(n²), O(n³)</td><td>arrays, enumeration, DP</td></tr>
+        <tr><td>O(2ⁿ) / O(n!)</td><td>combination / permutation search</td></tr>
+      </tbody>
+    </table>
+    <blockquote class="shifu">
+      “Anything <b>better than O(n)</b> is almost only ever <b>O(log n) binary search</b>.
+      Reverse-engineering the algorithm from the required complexity is a standard interview move.”
+      <span class="who">— the Sword-Breaking Form (the instructor's rule of thumb)</span>
+    </blockquote>
+  </section>
+
+  <!-- TEMPLATE -->
+  <section id="template">
+    <div class="kicker">The one template</div>
+    <h2>A binary search that never loops forever</h2>
+    <p>The three classic pain points: <b>infinite loops</b>, <b>which end condition?</b>
+      (<code>start &lt;= end</code> / <code>start &lt; end</code> / <code>start + 1 &lt; end</code>),
+      and <b>which pointer move?</b> (<code>start = mid</code> / <code>mid + 1</code> /
+      <code>mid - 1</code>). The course's template removes all three by fixing four things:</p>
+    <div class="cards">
+      <div class="card"><h4>1 · Loop while <code>start + 1 &lt; end</code></h4><p class="small">Stop
+        when the two pointers are <b>adjacent</b> — so they never collide and spin.</p></div>
+      <div class="card"><h4>2 · <code>mid = start + (end − start) // 2</code></h4><p class="small">
+        Overflow-safe midpoint (matters in Java's fixed-width ints).</p></div>
+      <div class="card"><h4>3 · Compare <code>nums[mid]</code> to target</h4><p class="small">Move
+        <code>start</code> or <code>end</code> to <code>mid</code> — <b>never</b> mid±1.</p></div>
+      <div class="card"><h4>4 · Check <code>nums[start]</code> &amp; <code>nums[end]</code></h4>
+        <p class="small">After the loop exactly two candidates remain — test both.</p></div>
+    </div>
+    <span class="filetag">Python · universal template (first position of target)</span>
+    <pre><code><span class="k">def</span> <span class="f">binary_search</span>(nums, target):
+    <span class="k">if</span> <span class="k">not</span> nums:
+        <span class="k">return</span> -<span class="n">1</span>
+    start, end = <span class="n">0</span>, <span class="f">len</span>(nums) - <span class="n">1</span>
+    <span class="k">while</span> start + <span class="n">1</span> &lt; end:                  <span class="c"># leave two candidates → no infinite loop</span>
+        mid = start + (end - start) // <span class="n">2</span>     <span class="c"># overflow-safe</span>
+        <span class="k">if</span> nums[mid] == target:
+            end = mid                          <span class="c"># first position → keep the left half</span>
+        <span class="k">elif</span> nums[mid] &lt; target:
+            start = mid                        <span class="c"># never mid+1 — the template forbids it</span>
+        <span class="k">else</span>:
+            end = mid
+    <span class="k">if</span> nums[start] == target:                  <span class="c"># check the two survivors, left first</span>
+        <span class="k">return</span> start
+    <span class="k">if</span> nums[end] == target:
+        <span class="k">return</span> end
+    <span class="k">return</span> -<span class="n">1</span></code></pre>
+    <div class="note tip">
+      <span class="lbl">Last position?</span>
+      For the <b>last</b> position, change only the equality branch to <code>start = mid</code>, and
+      check <code>nums[end]</code> <b>before</b> <code>nums[start]</code>. Same skeleton, mirror the
+      tie-breaking.
+    </div>
+  </section>
+
+  <!-- REALM 1 -->
+  <section id="realm1">
+    <div class="kicker">Level 1 of 3</div>
+    <h2>Binary search on index — OOXX</h2>
+    <p>The array splits into a run of “O” (condition false) then a run of “X” (condition true). You
+      hunt the <b>boundary</b> — the first X (or last O).</p>
+    <figure>
+      <svg viewBox="0 0 560 110" role="img" aria-label="OOXX boundary model">
+        <style>
+          .ox{fill:#eef6ef;stroke:#3a7a4e}.xx{fill:#fbeeec;stroke:#c44b42}
+          .oxt{font:600 14px Helvetica;text-anchor:middle}
+          .bd{stroke:#b8893b;stroke-width:2.5;stroke-dasharray:5 3}
+        </style>
+        <g>
+          <rect class="ox" x="30" y="34" width="44" height="38"/><text class="oxt" x="52" y="59" fill="#3a7a4e">O</text>
+          <rect class="ox" x="74" y="34" width="44" height="38"/><text class="oxt" x="96" y="59" fill="#3a7a4e">O</text>
+          <rect class="ox" x="118" y="34" width="44" height="38"/><text class="oxt" x="140" y="59" fill="#3a7a4e">O</text>
+          <rect class="ox" x="162" y="34" width="44" height="38"/><text class="oxt" x="184" y="59" fill="#3a7a4e">O</text>
+          <rect class="xx" x="206" y="34" width="44" height="38"/><text class="oxt" x="228" y="59" fill="#c44b42">X</text>
+          <rect class="xx" x="250" y="34" width="44" height="38"/><text class="oxt" x="272" y="59" fill="#c44b42">X</text>
+          <rect class="xx" x="294" y="34" width="44" height="38"/><text class="oxt" x="316" y="59" fill="#c44b42">X</text>
+          <rect class="xx" x="338" y="34" width="44" height="38"/><text class="oxt" x="360" y="59" fill="#c44b42">X</text>
+        </g>
+        <line class="bd" x1="206" y1="22" x2="206" y2="84"/>
+        <text x="206" y="100" style="font:700 12px Helvetica;fill:#b8893b;text-anchor:middle">first X — the answer</text>
+      </svg>
+      <figcaption>Find the first position satisfying the condition. Many problems are an OOXX in
+        disguise.</figcaption>
+    </figure>
+    <span class="filetag">Python · First Bad Version</span>
+    <pre><code><span class="k">def</span> <span class="f">find_first_bad_version</span>(n):
+    start, end = <span class="n">1</span>, n
+    <span class="k">while</span> start + <span class="n">1</span> &lt; end:
+        mid = start + (end - start) // <span class="n">2</span>
+        <span class="k">if</span> <span class="f">is_bad_version</span>(mid):
+            end = mid                  <span class="c"># bad → answer is mid or earlier (an X)</span>
+        <span class="k">else</span>:
+            start = mid                <span class="c"># good → answer is later (an O)</span>
+    <span class="k">return</span> start <span class="k">if</span> <span class="f">is_bad_version</span>(start) <span class="k">else</span> end</code></pre>
+    <p>Same shape: <b>Search in a Big Sorted Array</b> (exponentially probe to find a bound, then
+      binary search) and <b>Find Minimum in Rotated Sorted Array</b> (OOXX against the <b>last</b>
+      element — note: compare to the last number, not the first).</p>
+  </section>
+
+  <!-- REALM 2 -->
+  <section id="realm2">
+    <div class="kicker">Level 2 of 3</div>
+    <h2>Binary search on index — half-half</h2>
+    <p>No clean OOXX boundary exists, but at each <code>mid</code> you can still <b>decide which half
+      must contain a solution</b> and discard the other.</p>
+    <span class="filetag">Python · Find Peak Element</span>
+    <pre><code><span class="k">def</span> <span class="f">find_peak</span>(nums):
+    start, end = <span class="n">0</span>, <span class="f">len</span>(nums) - <span class="n">1</span>
+    <span class="k">while</span> start + <span class="n">1</span> &lt; end:
+        mid = start + (end - start) // <span class="n">2</span>
+        <span class="k">if</span> nums[mid] &lt; nums[mid + <span class="n">1</span>]:
+            start = mid                <span class="c"># still ascending → a peak lies to the right</span>
+        <span class="k">else</span>:
+            end = mid                  <span class="c"># descending → a peak is here or to the left</span>
+    <span class="k">return</span> start <span class="k">if</span> nums[start] &gt; nums[end] <span class="k">else</span> end</code></pre>
+    <div class="prob">
+      <h3>Search in Rotated Sorted Array</h3>
+      <span class="src">· “master this and you can say you know binary search”</span>
+    </div>
+    <p>At each step one half is sorted — figure out which, then test whether the target lies inside
+      that sorted half.</p>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">search_rotated</span>(nums, target):
+    <span class="k">if</span> <span class="k">not</span> nums:
+        <span class="k">return</span> -<span class="n">1</span>
+    start, end = <span class="n">0</span>, <span class="f">len</span>(nums) - <span class="n">1</span>
+    <span class="k">while</span> start + <span class="n">1</span> &lt; end:
+        mid = start + (end - start) // <span class="n">2</span>
+        <span class="k">if</span> nums[mid] == target:
+            <span class="k">return</span> mid
+        <span class="k">if</span> nums[start] &lt; nums[mid]:               <span class="c"># left half is sorted</span>
+            <span class="k">if</span> nums[start] &lt;= target &lt;= nums[mid]:
+                end = mid
+            <span class="k">else</span>:
+                start = mid
+        <span class="k">else</span>:                                    <span class="c"># right half is sorted</span>
+            <span class="k">if</span> nums[mid] &lt;= target &lt;= nums[end]:
+                start = mid
+            <span class="k">else</span>:
+                end = mid
+    <span class="k">if</span> nums[start] == target:
+        <span class="k">return</span> start
+    <span class="k">if</span> nums[end] == target:
+        <span class="k">return</span> end
+    <span class="k">return</span> -<span class="n">1</span></code></pre>
+  </section>
+
+  <!-- REALM 3 -->
+  <section id="realm3">
+    <div class="kicker">Level 3 of 3 · the real test</div>
+    <h2>Binary search on the answer</h2>
+    <p>No array is handed to you, and the problem doesn't look like search at all. The tell: it asks
+      for the <b>maximum or minimum value satisfying some condition</b>, and that condition is
+      <b>monotonic</b> (if value v works, everything below/above it works too). Binary-search the
+      answer space and test feasibility at each guess.</p>
+
+    <div class="prob"><h3>Sqrt(x)</h3><span class="src">· last n with n² ≤ x</span></div>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">sqrt</span>(x):
+    <span class="k">if</span> x &lt; <span class="n">2</span>:
+        <span class="k">return</span> x
+    start, end = <span class="n">1</span>, x
+    <span class="k">while</span> start + <span class="n">1</span> &lt; end:
+        mid = start + (end - start) // <span class="n">2</span>
+        <span class="k">if</span> mid * mid &lt;= x:
+            start = mid                <span class="c"># feasible → try a larger root</span>
+        <span class="k">else</span>:
+            end = mid
+    <span class="k">return</span> end <span class="k">if</span> end * end &lt;= x <span class="k">else</span> start</code></pre>
+
+    <div class="prob"><h3>Wood Cut</h3><span class="src">· biggest length giving ≥ k pieces</span></div>
+    <p>Binary-search the <b>cut length</b> L; longer L → fewer pieces (monotonic), so search for the
+      largest L that still yields ≥ k pieces.</p>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">wood_cut</span>(woods, k):
+    <span class="k">if</span> <span class="k">not</span> woods:
+        <span class="k">return</span> <span class="n">0</span>
+    start, end = <span class="n">1</span>, <span class="f">max</span>(woods)
+    <span class="k">while</span> start + <span class="n">1</span> &lt; end:
+        mid = start + (end - start) // <span class="n">2</span>
+        <span class="k">if</span> <span class="f">sum</span>(w // mid <span class="k">for</span> w <span class="k">in</span> woods) &gt;= k:   <span class="c"># enough pieces at length mid</span>
+            start = mid                            <span class="c"># try longer</span>
+        <span class="k">else</span>:
+            end = mid                              <span class="c"># too long → shorten</span>
+    <span class="k">return</span> end <span class="k">if</span> <span class="f">sum</span>(w // end <span class="k">for</span> w <span class="k">in</span> woods) &gt;= k \
+               <span class="k">else</span> (start <span class="k">if</span> <span class="f">sum</span>(w // start <span class="k">for</span> w <span class="k">in</span> woods) &gt;= k <span class="k">else</span> <span class="n">0</span>)</code></pre>
+    <p><b>Copy Books</b> is the same idea: “split the array into k subarrays minimizing the largest
+      subarray sum” — binary-search that largest sum.</p>
+  </section>
+
+  <!-- RECURSION -->
+  <section id="recursion">
+    <div class="kicker">Interview judgment</div>
+    <h2>Recursion or while-loop?</h2>
+    <p>Binary search works either way. Whether to use recursion in an interview comes down to four
+      questions — and the meta-rule: <b>don't decide silently, discuss it with the interviewer.</b></p>
+    <ol>
+      <li>Did the interviewer forbid recursion? (If unsure, ask.)</li>
+      <li>Would avoiding recursion make the code much more complex?</li>
+      <li>Could the recursion depth get very deep (stack-overflow risk)?</li>
+      <li>Is the point of the question recursion-vs-iteration, or just whether you can recurse?</li>
+    </ol>
+    <div class="note">
+      <span class="lbl">Bonus: Rotate Array — the three-step reversal</span>
+      To rotate, reverse in three moves: reverse the first part, reverse the second part, reverse the
+      whole. <code>[4,5,1,2,3] → [5,4,1,2,3] → [5,4,3,2,1] → [1,2,3,4,5]</code>. Powers
+      <b>Recover Rotated Sorted Array</b> and <b>Rotate String</b>.
+    </div>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Binary Search checklist</h2>
+    <ol style="font-size:17px">
+      <li>Better than O(n) ⇒ think <b>O(log n) binary search</b> (the Sword-Breaking Form).</li>
+      <li>The four-point template: <b><code>start + 1 &lt; end</code></b>,
+        <b><code>mid = start + (end−start)//2</code></b>, compare <code>nums[mid]</code>, then
+        <b>check both survivors</b>. Move pointers to <code>mid</code>, never mid±1.</li>
+      <li><b>Realm 1 (OOXX):</b> find the first/last position meeting a condition.</li>
+      <li><b>Realm 2 (half-half):</b> discard the half with no solution (Find Peak, Rotated Array).</li>
+      <li><b>Realm 3 (on the answer):</b> doesn't look like search — binary-search the value space
+        when feasibility is monotonic (Sqrt, Wood Cut, Copy Books).</li>
+      <li>Recursion vs loop: judge by the four questions, and <b>discuss with the interviewer</b>.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Chapter “Binary Search” v4.0 deck plus the full lecture (audio transcribed with
+  Whisper large-v3; quotes carry their <code>[mm:ss]</code> timestamps). Code templates are written
+  in Python (the course's originals are in Java). Study guide for personal use; problem links point
+  to LintCode.
+</footer>
+
+</body>
+</html>

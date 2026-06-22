@@ -114,6 +114,21 @@ class QuestionOut(BaseModel):
     owner_id: int | None = None
 
 
+# ---------- Topic summary (distilled HTML study notes) ----------
+class SummaryMeta(BaseModel):
+    """Lightweight summary metadata carried in the topic feed (no HTML body, so
+    the topics list stays small — the body is fetched on demand)."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    title: str
+    source: str
+
+
+class SummaryOut(SummaryMeta):
+    topic_id: int
+    html: str
+
+
 class TopicOut(TopicBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -121,6 +136,7 @@ class TopicOut(TopicBase):
     owner_id: int | None = None
     subtopics: list[SubtopicOut] = []
     questions: list[QuestionOut] = []
+    summaries: list[SummaryMeta] = []
 
 
 # ---------- Domain ----------

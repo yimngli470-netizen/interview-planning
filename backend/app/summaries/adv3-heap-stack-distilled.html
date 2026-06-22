@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Ch3 · Heap & Stack — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Advanced · Ch3 · <b>Heap &amp; Stack</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#rain">Trapping Rain Water</a>
+      <a href="#median">Window Medians</a>
+      <a href="#stack">Monotonic Stack</a>
+      <a href="#table">Cheat Table</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Advanced Class · Chapter 3</div>
+    <h1>Heap &amp; Stack (advanced)</h1>
+    <p class="lede">Two structures pushed to their hard cases: the <b>heap</b> for “the extreme of a
+      changing set” (boundary-inward flooding, streaming medians), and the <b>monotonic stack</b> for
+      “the first bigger/smaller neighbor” problems.</p>
+    <div class="meta">
+      <span><b>Source</b> · “Data Structure II” deck</span>
+      <span><b>Version</b> · Advanced Ch3</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview" style="border-top:none">
+    <div class="kicker">Frame</div>
+    <h2>What each does best</h2>
+    <p>A <b>heap</b> answers “what's the current min/max of this set?” as elements come and go. A
+      <b>stack</b> shines two ways here: <b>augmented</b> (carry extra info, like Min Stack) and
+      <b>monotonic</b> (maintain sorted order to find nearest bigger/smaller elements). A recurring
+      advanced idea: a <b>sliding window = one add + one delete</b>, so window problems reduce to a
+      structure that supports both efficiently.</p>
+  </section>
+
+  <!-- TRAPPING RAIN WATER -->
+  <section id="rain">
+    <div class="kicker">The signature heap problem</div>
+    <h2>Trapping Rain Water I → II</h2>
+    <p><b>I (1-D)</b> needs no heap — two opposite pointers, each capped by the smaller side's running
+      max:</p>
+    <figure>
+      <svg viewBox="0 0 420 130" role="img" aria-label="Trapping rain water cross-section">
+        <style>.bar{fill:#3c3c46}.wat{fill:#9ec7e8}.axis{stroke:#cfc8bb}</style>
+        <rect class="bar" x="40" y="50" width="24" height="60"/>
+        <rect class="wat" x="64" y="74" width="24" height="36"/><rect class="bar" x="64" y="86" width="24" height="24"/>
+        <rect class="wat" x="88" y="74" width="24" height="36"/><rect class="bar" x="88" y="98" width="24" height="12"/>
+        <rect class="bar" x="112" y="38" width="24" height="72"/>
+        <rect class="wat" x="136" y="62" width="24" height="48"/><rect class="bar" x="136" y="98" width="24" height="12"/>
+        <rect class="bar" x="160" y="74" width="24" height="36"/>
+        <line class="axis" x1="36" y1="110" x2="360" y2="110"/>
+        <text x="230" y="70" style="font:12px Helvetica;fill:#3c3c46">water at a cell =</text>
+        <text x="230" y="90" style="font:12px Helvetica;fill:#3c3c46">min(maxLeft, maxRight) − height</text>
+      </svg>
+      <figcaption>1-D: water above a bar is bounded by the lower of the two side maxima.</figcaption>
+    </figure>
+    <span class="filetag">Python · Trapping Rain Water I (two pointers)</span>
+    <pre><code><span class="k">def</span> <span class="f">trap</span>(heights):
+    <span class="k">if</span> <span class="k">not</span> heights:
+        <span class="k">return</span> <span class="n">0</span>
+    left, right = <span class="n">0</span>, <span class="f">len</span>(heights) - <span class="n">1</span>
+    left_max, right_max = heights[left], heights[right]
+    water = <span class="n">0</span>
+    <span class="k">while</span> left &lt; right:
+        <span class="k">if</span> left_max &lt; right_max:           <span class="c"># the lower side bounds the water</span>
+            left += <span class="n">1</span>
+            left_max = <span class="f">max</span>(left_max, heights[left])
+            water += left_max - heights[left]
+        <span class="k">else</span>:
+            right -= <span class="n">1</span>
+            right_max = <span class="f">max</span>(right_max, heights[right])
+            water += right_max - heights[right]
+    <span class="k">return</span> water</code></pre>
+    <div class="note insight">
+      <span class="lbl">II (2-D) — why a heap, and why boundary-inward</span>
+      In 2-D, water escapes through the <b>lowest point on the current boundary</b>. So push all
+      border cells into a <b>min-heap</b> and always process the lowest. Each popped cell floods its
+      unvisited neighbors up to its own height, then the neighbor joins the boundary at
+      <code>max(boundary height, its own height)</code>. Always expanding from the lowest wall is
+      exactly what the heap gives you — O(mn·log(mn)).
+    </div>
+    <span class="filetag">Python · Trapping Rain Water II (min-heap, outside-in)</span>
+    <pre><code><span class="k">import</span> heapq
+
+<span class="k">def</span> <span class="f">trap_rain_water_ii</span>(heights):
+    <span class="k">if</span> <span class="k">not</span> heights <span class="k">or</span> <span class="k">not</span> heights[<span class="n">0</span>]:
+        <span class="k">return</span> <span class="n">0</span>
+    m, n = <span class="f">len</span>(heights), <span class="f">len</span>(heights[<span class="n">0</span>])
+    visited = [[<span class="k">False</span>] * n <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(m)]
+    heap = []
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(m):                  <span class="c"># seed the heap with all border cells</span>
+        <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(n):
+            <span class="k">if</span> i <span class="k">in</span> (<span class="n">0</span>, m - <span class="n">1</span>) <span class="k">or</span> j <span class="k">in</span> (<span class="n">0</span>, n - <span class="n">1</span>):
+                heapq.heappush(heap, (heights[i][j], i, j))
+                visited[i][j] = <span class="k">True</span>
+    water = <span class="n">0</span>
+    dirs = [(<span class="n">0</span>, <span class="n">1</span>), (<span class="n">0</span>, -<span class="n">1</span>), (<span class="n">1</span>, <span class="n">0</span>), (-<span class="n">1</span>, <span class="n">0</span>)]
+    <span class="k">while</span> heap:
+        h, x, y = heapq.heappop(heap)      <span class="c"># lowest wall on the boundary</span>
+        <span class="k">for</span> dx, dy <span class="k">in</span> dirs:
+            nx, ny = x + dx, y + dy
+            <span class="k">if</span> <span class="n">0</span> &lt;= nx &lt; m <span class="k">and</span> <span class="n">0</span> &lt;= ny &lt; n <span class="k">and</span> <span class="k">not</span> visited[nx][ny]:
+                visited[nx][ny] = <span class="k">True</span>
+                water += <span class="f">max</span>(<span class="n">0</span>, h - heights[nx][ny])
+                heapq.heappush(heap, (<span class="f">max</span>(h, heights[nx][ny]), nx, ny))
+    <span class="k">return</span> water</code></pre>
+  </section>
+
+  <!-- MEDIANS -->
+  <section id="median">
+    <div class="kicker">Two heaps + lazy deletion</div>
+    <h2>Data Stream &amp; Sliding Window Median</h2>
+    <p><b>Data Stream Median</b> keeps a max-heap (smaller half) and a min-heap (larger half) balanced
+      so the median is a heap top — O(log n) per add. <b>Sliding Window Median</b> adds the window
+      twist: every step is <b>one add + one delete</b>, and a binary heap can't delete an arbitrary
+      element. Two fixes:</p>
+    <div class="cards">
+      <div class="card"><h4>Lazy deletion</h4><p class="small">Mark removed values in a hash map; skip
+        them when they surface at a heap top.</p></div>
+      <div class="card"><h4>HashHeap</h4><p class="small">A heap plus a map from value → its index, so
+        you can delete any element in O(log n). Stands in for a TreeSet.</p></div>
+    </div>
+    <span class="filetag">Python · Data Stream Median (two heaps)</span>
+    <pre><code><span class="k">import</span> heapq
+
+<span class="k">class</span> <span class="t">MedianFinder</span>:
+    <span class="k">def</span> <span class="f">__init__</span>(self):
+        self.lo, self.hi = [], []          <span class="c"># max-heap (neg), min-heap</span>
+
+    <span class="k">def</span> <span class="f">add</span>(self, num):
+        heapq.heappush(self.lo, -num)
+        heapq.heappush(self.hi, -heapq.heappop(self.lo))
+        <span class="k">if</span> <span class="f">len</span>(self.hi) &gt; <span class="f">len</span>(self.lo):
+            heapq.heappush(self.lo, -heapq.heappop(self.hi))
+
+    <span class="k">def</span> <span class="f">median</span>(self):
+        <span class="k">if</span> <span class="f">len</span>(self.lo) &gt; <span class="f">len</span>(self.hi):
+            <span class="k">return</span> -self.lo[<span class="n">0</span>]
+        <span class="k">return</span> (-self.lo[<span class="n">0</span>] + self.hi[<span class="n">0</span>]) / <span class="n">2</span></code></pre>
+    <div class="note tip">
+      <span class="lbl">The decomposition that unlocks window problems</span>
+      Any sliding-window problem = <b>(a) add one element</b> + <b>(b) remove one element</b>. Solve
+      those two operations on the right structure (two heaps, monotonic deque, hash map) and the
+      window falls out.
+    </div>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack">
+    <div class="kicker">Stack, three ways</div>
+    <h2>Stack: save state, reverse, go iterative — and monotonic</h2>
+    <p>Three reusable stack ideas: <b>temporarily hold valid info</b> (Min Stack), <b>reverse order</b>
+      (Implement Queue by Two Stacks), and <b>turn recursion iterative</b> (Expression Expand decodes
+      <code>2[a2[b]] → abbabb</code> with a stack of contexts).</p>
+    <p>The headline advanced technique is the <b>monotonic stack</b>: to find, for each element, the
+      <b>first bigger/smaller element to its left or right</b>, keep a stack whose values stay
+      sorted — pop until the order holds, and the element you pop against is your answer.</p>
+    <span class="filetag">Python · Largest Rectangle in Histogram (monotonic increasing stack)</span>
+    <pre><code><span class="k">def</span> <span class="f">largest_rectangle_area</span>(heights):
+    stack = []                             <span class="c"># indices, increasing heights</span>
+    best = <span class="n">0</span>
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="f">len</span>(heights) + <span class="n">1</span>):
+        h = heights[i] <span class="k">if</span> i &lt; <span class="f">len</span>(heights) <span class="k">else</span> <span class="n">0</span>
+        <span class="k">while</span> stack <span class="k">and</span> heights[stack[-<span class="n">1</span>]] &gt;= h:
+            top = stack.pop()
+            left = stack[-<span class="n">1</span>] <span class="k">if</span> stack <span class="k">else</span> -<span class="n">1</span>
+            best = <span class="f">max</span>(best, heights[top] * (i - left - <span class="n">1</span>))
+        stack.append(i)
+    <span class="k">return</span> best</code></pre>
+    <p>Same monotonic-stack engine: <b>Maximal Rectangle</b> (run histogram per row) and <b>Max
+      Tree</b> (build a tree where each node's parent is the nearest larger value).</p>
+  </section>
+
+  <!-- TABLE -->
+  <section id="table">
+    <div class="kicker">Reference</div>
+    <h2>Data-structure cheat table</h2>
+    <table>
+      <thead><tr><th>Structure</th><th>C++</th><th>Java</th><th>Python</th><th>Underlying</th></tr></thead>
+      <tbody>
+        <tr><td>Heap</td><td>priority_queue</td><td>PriorityQueue</td><td>heapq</td><td>binary heap</td></tr>
+        <tr><td>Hash</td><td>unordered_map</td><td>HashMap</td><td>dict</td><td>hash table</td></tr>
+        <tr><td>TreeMap</td><td>map</td><td>TreeMap</td><td>(sortedcontainers)</td><td>balanced BST</td></tr>
+        <tr><td>TreeSet</td><td>set</td><td>TreeSet</td><td>(sortedcontainers)</td><td>balanced BST</td></tr>
+      </tbody>
+    </table>
+    <p class="small" style="color:var(--muted)">Python's stdlib lacks a built-in ordered map/set;
+      use <code>sortedcontainers.SortedList/SortedDict</code>, or a HashHeap, when you need
+      TreeMap/TreeSet behavior.</p>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Heap &amp; Stack checklist</h2>
+    <ol style="font-size:17px">
+      <li><b>Heap</b> = the extreme of a changing set. Trapping Rain Water II floods <b>boundary-inward
+        from the lowest wall</b> via a min-heap.</li>
+      <li><b>Streaming median</b> = two balanced heaps; <b>window median</b> adds delete → lazy
+        deletion or a <b>HashHeap</b>.</li>
+      <li>Every <b>sliding window</b> decomposes into <b>add one + remove one</b>.</li>
+      <li><b>Monotonic stack</b> finds the nearest bigger/smaller neighbor — Largest Rectangle,
+        Maximal Rectangle, Max Tree, all O(n).</li>
+      <li>Know the per-language names; in Python reach for <code>heapq</code> and
+        <code>sortedcontainers</code>.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Advanced Class “Data Structure II” deck (Python code; course originals are in
+  Java). Study guide for personal use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

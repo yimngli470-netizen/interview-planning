@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Ch1 · Sliding Window — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Advanced · Ch1 · <b>Sliding Window</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#template">The Template</a>
+      <a href="#problems">Window Problems</a>
+      <a href="#fastslow">Fast / Slow</a>
+      <a href="#method">Study Method</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Advanced Class · Chapter 1</div>
+    <h1>Follow-Ups &amp; the Sliding-Window Template</h1>
+    <p class="lede">The advanced course is about <b>follow-up</b> questions — the “now make it
+      faster / handle this twist” turns of an interview. Chapter 1's thesis: one
+      <b>forward-pointer</b> template cracks a whole family of window problems, because the inner
+      pointer never moves backward.</p>
+    <div class="meta">
+      <span><b>Source</b> · “Crack the IT Company / Follow-Up” deck + lecture</span>
+      <span><b>Version</b> · V5.2</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="kicker">Framing</div>
+    <h2>One template, many problems</h2>
+    <p>A naïve substring/subarray scan is two nested loops — O(n²). The key observation: for these
+      problems, when the outer (left) pointer advances, the inner (right) pointer <b>doesn't need to
+      go back</b> to where it started. Both pointers only ever move forward, so the total work is
+      <b>O(n)</b>. That sweep is a <b>moving window</b>.</p>
+    <blockquote class="shifu">
+      “The optimization comes <i>from</i> the two nested for-loops: the outer pointer still walks
+      element by element, but you prove the inner pointer never has to retreat.”
+      <span class="who">— the instructor [26:10]</span>
+    </blockquote>
+  </section>
+
+  <!-- TEMPLATE -->
+  <section id="template">
+    <div class="kicker">The pattern</div>
+    <h2>The moving-window template</h2>
+    <figure>
+      <svg viewBox="0 0 560 120" role="img" aria-label="Moving window with two forward pointers">
+        <style>
+          .wc{fill:#fff;stroke:#3c3c46}.ww{fill:#fbf4e6;stroke:#b8893b;stroke-width:2}
+          .wt{font:600 13px Helvetica;text-anchor:middle;fill:#1a1a1f}
+          .wl{font:11px Helvetica;fill:#9e2b25;text-anchor:middle;font-weight:700}
+          .wa{stroke:#3a7a4e;stroke-width:2;marker-end:url(#wg)}
+        </style>
+        <defs><marker id="wg" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#3a7a4e"/></marker></defs>
+        <g>
+          <rect class="wc" x="30" y="40" width="44" height="38"/>
+          <rect class="ww" x="74" y="40" width="44" height="38"/>
+          <rect class="ww" x="118" y="40" width="44" height="38"/>
+          <rect class="ww" x="162" y="40" width="44" height="38"/>
+          <rect class="wc" x="206" y="40" width="44" height="38"/>
+          <rect class="wc" x="250" y="40" width="44" height="38"/>
+        </g>
+        <text class="wl" x="96" y="30">i (left)</text>
+        <text class="wl" x="184" y="30">j (right)</text>
+        <path class="wa" d="M96,90 L150,90"/><path class="wa" d="M184,90 L240,90"/>
+        <text x="400" y="48" style="font:700 13px Helvetica;fill:#b8893b">Both pointers</text>
+        <text x="400" y="68" style="font:13px Helvetica;fill:#3c3c46">only move right →</text>
+        <text x="400" y="88" style="font:13px Helvetica;fill:#3c3c46">total work O(n)</text>
+      </svg>
+      <figcaption>The window <code>[i, j)</code> slides right; neither end rewinds.</figcaption>
+    </figure>
+    <span class="filetag">Python · the generic shape</span>
+    <pre><code>j = <span class="n">0</span>
+<span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(n):                      <span class="c"># i = left edge of the window</span>
+    <span class="k">while</span> j &lt; n <span class="k">and</span> window_can_extend(j):    <span class="c"># push right edge as far as allowed</span>
+        add(s[j])
+        j += <span class="n">1</span>
+    update_answer(i, j)                <span class="c"># window [i, j) is now maximal/valid</span>
+    remove(s[i])                       <span class="c"># i is about to advance → drop it</span></code></pre>
+    <p>The only per-problem choices are the <b>extend condition</b>, what you track inside the
+      window, and <b>how you score</b> the answer.</p>
+  </section>
+
+  <!-- PROBLEMS -->
+  <section id="problems">
+    <div class="kicker">Four instantiations</div>
+    <h2>The window problems</h2>
+
+    <div class="prob"><h3>Minimum Size Subarray Sum</h3><span class="src">· shortest window with sum ≥ s</span></div>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">minimum_size_subarray_sum</span>(nums, s):
+    j, total, best = <span class="n">0</span>, <span class="n">0</span>, <span class="t">float</span>(<span class="s">"inf"</span>)
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="f">len</span>(nums)):
+        <span class="k">while</span> j &lt; <span class="f">len</span>(nums) <span class="k">and</span> total &lt; s:
+            total += nums[j]
+            j += <span class="n">1</span>
+        <span class="k">if</span> total &gt;= s:
+            best = <span class="f">min</span>(best, j - i)
+        total -= nums[i]                   <span class="c"># shrink from the left</span>
+    <span class="k">return</span> best <span class="k">if</span> best != <span class="t">float</span>(<span class="s">"inf"</span>) <span class="k">else</span> <span class="n">0</span></code></pre>
+
+    <div class="prob"><h3>Longest Substring Without Repeating Characters</h3><span class="src">· window + last-seen map</span></div>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">longest_unique_substring</span>(s):
+    last = {}                              <span class="c"># char -> last index seen</span>
+    start, best = <span class="n">0</span>, <span class="n">0</span>
+    <span class="k">for</span> i, ch <span class="k">in</span> <span class="f">enumerate</span>(s):
+        <span class="k">if</span> ch <span class="k">in</span> last <span class="k">and</span> last[ch] &gt;= start:
+            start = last[ch] + <span class="n">1</span>          <span class="c"># jump left edge past the duplicate</span>
+        last[ch] = i
+        best = <span class="f">max</span>(best, i - start + <span class="n">1</span>)
+    <span class="k">return</span> best</code></pre>
+
+    <div class="prob"><h3>Minimum Window Substring</h3><span class="src">· smallest window covering all of t</span></div>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">from</span> collections <span class="k">import</span> <span class="t">Counter</span>
+
+<span class="k">def</span> <span class="f">min_window</span>(s, t):
+    need = <span class="t">Counter</span>(t)
+    missing = <span class="f">len</span>(t)                      <span class="c"># chars still needed</span>
+    left = <span class="n">0</span>
+    best = (<span class="t">float</span>(<span class="s">"inf"</span>), <span class="n">0</span>, <span class="n">0</span>)
+    <span class="k">for</span> right, ch <span class="k">in</span> <span class="f">enumerate</span>(s):
+        <span class="k">if</span> need[ch] &gt; <span class="n">0</span>:
+            missing -= <span class="n">1</span>
+        need[ch] -= <span class="n">1</span>
+        <span class="k">while</span> missing == <span class="n">0</span>:                <span class="c"># window covers t → try to shrink</span>
+            <span class="k">if</span> right - left + <span class="n">1</span> &lt; best[<span class="n">0</span>]:
+                best = (right - left + <span class="n">1</span>, left, right)
+            need[s[left]] += <span class="n">1</span>
+            <span class="k">if</span> need[s[left]] &gt; <span class="n">0</span>:
+                missing += <span class="n">1</span>
+            left += <span class="n">1</span>
+    <span class="k">return</span> s[best[<span class="n">1</span>]:best[<span class="n">2</span>] + <span class="n">1</span>] <span class="k">if</span> best[<span class="n">0</span>] &lt; <span class="t">float</span>(<span class="s">"inf"</span>) <span class="k">else</span> <span class="s">""</span></code></pre>
+
+    <div class="prob"><h3>Longest Substring with At Most K Distinct Characters</h3><span class="src">· shrink when distinct &gt; k</span></div>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">from</span> collections <span class="k">import</span> defaultdict
+
+<span class="k">def</span> <span class="f">longest_k_distinct</span>(s, k):
+    count = defaultdict(<span class="t">int</span>)
+    left, best = <span class="n">0</span>, <span class="n">0</span>
+    <span class="k">for</span> right, ch <span class="k">in</span> <span class="f">enumerate</span>(s):
+        count[ch] += <span class="n">1</span>
+        <span class="k">while</span> <span class="f">len</span>(count) &gt; k:               <span class="c"># too many distinct → shrink left</span>
+            count[s[left]] -= <span class="n">1</span>
+            <span class="k">if</span> count[s[left]] == <span class="n">0</span>:
+                <span class="k">del</span> count[s[left]]
+            left += <span class="n">1</span>
+        best = <span class="f">max</span>(best, right - left + <span class="n">1</span>)
+    <span class="k">return</span> best</code></pre>
+  </section>
+
+  <!-- FAST SLOW -->
+  <section id="fastslow">
+    <div class="kicker">The other forward-pointer family</div>
+    <h2>Fast / slow pointers</h2>
+    <p>The same “forward-only” idea, but with the two pointers at a fixed speed/gap rather than a
+      condition-driven window: <b>Remove Nth Node From End</b> (gap of n), <b>Find the Middle of a
+      Linked List</b>, and <b>Linked List Cycle I / II</b>. Recognize both as instances of “two
+      indices, neither rewinds.”</p>
+  </section>
+
+  <!-- STUDY METHOD -->
+  <section id="method">
+    <div class="kicker">Meta-skill</div>
+    <h2>How to actually beat follow-up questions</h2>
+    <div class="note warn">
+      <span class="lbl">The common trap</span>
+      “I got it Accepted” or “I copied the solution once” is <b>not</b> learning — that's why people
+      still freeze on a problem they've technically already done. The number of problems grows, but
+      the number of <b>algorithm tags doesn't</b>.
+    </div>
+    <div class="note tip">
+      <span class="lbl">Periodically organize problems by type, and ask three questions</span>
+      <ol style="margin:.3em 0">
+        <li>Which <b>category</b> does this belong to?</li>
+        <li>What do problems in this category have <b>in common</b>?</li>
+        <li>What is the shared <b>line of thinking</b>?</li>
+      </ol>
+      Four study habits: <b>preview</b> before class, take <b>notes</b> during, <b>reflect</b>
+      afterward, and do the <b>homework</b>. The problems multiply; the ideas don't.
+    </div>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Sliding-Window checklist</h2>
+    <ol style="font-size:17px">
+      <li>If a brute force is a nested loop where the <b>inner pointer never needs to rewind</b>, it
+        collapses to an <b>O(n) moving window</b>.</li>
+      <li>Template: outer <code>i</code> = left edge; inner <code>while</code> extends <code>j</code>;
+        score the window; drop <code>s[i]</code> before advancing.</li>
+      <li>Per problem, pick only the <b>extend condition</b>, the <b>window state</b>, and the
+        <b>scoring</b>.</li>
+      <li>Fast/slow pointers are the same forward-only idea with a fixed gap (Nth-from-end, middle,
+        cycle).</li>
+      <li>Beat follow-ups by <b>grouping problems by type</b> and asking: category? commonality?
+        shared thinking?</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Advanced Class “Crack the IT Company / Follow-Up” V5.2 deck plus the lecture
+  (audio transcribed with Whisper large-v3; quotes carry their <code>[mm:ss]</code> timestamps).
+  Code templates are written in Python (the course's originals are in Java). Study guide for
+  personal use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

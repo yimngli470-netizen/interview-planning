@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 
 from .database import Base, engine, SessionLocal
-from .routers import domains, topics, subtopics, questions, sessions, progress, ai
+from .routers import domains, topics, subtopics, questions, sessions, progress, ai, summaries
 from .seed import seed_or_enrich
 
 
@@ -128,6 +128,7 @@ app.include_router(questions.router)
 app.include_router(sessions.router)
 app.include_router(progress.router)
 app.include_router(ai.router)
+app.include_router(summaries.router)
 
 
 @app.get("/api/health")

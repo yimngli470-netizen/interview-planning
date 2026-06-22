@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 3 · Binary Tree & Divide Conquer — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Week 3 · <b>Binary Tree &amp; Divide Conquer</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#complexity">Complexity</a>
+      <a href="#traversal">Traversal</a>
+      <a href="#dc">Traverse vs D&amp;C</a>
+      <a href="#resulttype">ResultType</a>
+      <a href="#bst">BST</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Week 3 · Algorithm Course</div>
+    <h1>Binary Tree &amp; Divide Conquer</h1>
+    <p class="lede">Recursion on trees comes in two flavors — <b>traverse</b> (carry the answer down
+      in a parameter) and <b>divide &amp; conquer</b> (return the answer up from the children).
+      Master the second and roughly 90% of binary-tree interview problems fall to one template.</p>
+    <div class="meta">
+      <span><b>Source</b> · Chapter “Binary Tree &amp; Divide Conquer” deck + lecture</span>
+      <span><b>Version</b> · v4.0</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="kicker">The core idea</div>
+    <h2>Think whole-vs-children</h2>
+    <blockquote class="shifu">
+      “For any binary-tree problem, think about the relationship between the <b>whole tree's</b>
+      answer and the answers of its <b>left and right children</b>.”
+      <span class="who">— the Spear-Breaking Form (the instructor's rule of thumb)</span>
+    </blockquote>
+    <p>That single habit <i>is</i> divide &amp; conquer: solve the two subtrees (assume the recursion
+      works), then combine their results into the answer for the current node. Recursion here is
+      simply one way to implement DFS on a tree.</p>
+  </section>
+
+  <!-- COMPLEXITY -->
+  <section id="complexity">
+    <div class="kicker">Warm-up</div>
+    <h2>Time-complexity training (tree recurrences)</h2>
+    <p>Reading a recurrence off the recursion tree:</p>
+    <table>
+      <thead><tr><th>Split one n-problem into two n/2-problems using…</th><th>Recurrence</th><th>Total</th></tr></thead>
+      <tbody>
+        <tr><td>O(n) merge work (e.g. merge sort)</td><td>T(n) = 2·T(n/2) + O(n)</td><td><b>O(n log n)</b></td></tr>
+        <tr><td>O(1) work (e.g. a plain tree traversal)</td><td>T(n) = 2·T(n/2) + O(1)</td><td><b>O(n)</b></td></tr>
+      </tbody>
+    </table>
+    <p>The difference between O(n) and O(n log n) is entirely the per-split combine cost — visiting
+      every node once is O(n); doing linear work at each of log n levels is O(n log n).</p>
+  </section>
+
+  <!-- TRAVERSAL -->
+  <section id="traversal">
+    <div class="kicker">Foundations</div>
+    <h2>Traversal orders</h2>
+    <p>Three depth-first orders, distinguished only by <b>when you visit the root</b> relative to its
+      subtrees:</p>
+    <figure>
+      <svg viewBox="0 0 600 210" role="img" aria-label="Pre/in/post-order on a small tree">
+        <style>
+          .tvn{fill:#fff;stroke:#3a7a4e;stroke-width:1.8}.tvt{font:600 14px Helvetica;text-anchor:middle;fill:#1a1a1f}
+          .tve{stroke:#b8893b;stroke-width:1.8}
+          .seq{font:13px 'SF Mono',monospace;fill:#3c3c46}.seql{font:700 12px Helvetica;fill:#9e2b25}
+        </style>
+        <line class="tve" x1="90" y1="42" x2="55" y2="92"/><line class="tve" x1="90" y1="42" x2="125" y2="92"/>
+        <line class="tve" x1="55" y1="108" x2="30" y2="158"/><line class="tve" x1="55" y1="108" x2="80" y2="158"/>
+        <circle class="tvn" cx="90" cy="38" r="18"/><text class="tvt" x="90" y="43">1</text>
+        <circle class="tvn" cx="55" cy="100" r="18"/><text class="tvt" x="55" y="105">2</text>
+        <circle class="tvn" cx="125" cy="100" r="18"/><text class="tvt" x="125" y="105">3</text>
+        <circle class="tvn" cx="30" cy="162" r="18"/><text class="tvt" x="30" y="167">4</text>
+        <circle class="tvn" cx="80" cy="162" r="18"/><text class="tvt" x="80" y="167">5</text>
+        <g>
+          <text class="seql" x="210" y="58">Preorder</text><text class="seq" x="300" y="58">root·L·R → 1 2 4 5 3</text>
+          <text class="seql" x="210" y="106">Inorder</text><text class="seq" x="300" y="106">L·root·R → 4 2 5 1 3</text>
+          <text class="seql" x="210" y="154">Postorder</text><text class="seq" x="300" y="154">L·R·root → 4 5 2 3 1</text>
+        </g>
+      </svg>
+      <figcaption>Pre = root first, In = root in the middle (sorted order for a BST), Post = root
+        last.</figcaption>
+    </figure>
+    <span class="filetag">Python · must-memorize iterative inorder</span>
+    <pre><code><span class="k">def</span> <span class="f">inorder</span>(root):
+    stack, result, node = [], [], root
+    <span class="k">while</span> stack <span class="k">or</span> node:
+        <span class="k">while</span> node:                    <span class="c"># dive to the leftmost node</span>
+            stack.append(node)
+            node = node.left
+        node = stack.pop()
+        result.append(node.val)         <span class="c"># visit root after its left subtree</span>
+        node = node.right
+    <span class="k">return</span> result</code></pre>
+    <p>The course flags the <b>non-recursive preorder and inorder</b> traversals as must-memorize
+      programs.</p>
+  </section>
+
+  <!-- DIVIDE CONQUER -->
+  <section id="dc">
+    <div class="kicker">The big distinction</div>
+    <h2>Traverse vs Divide &amp; Conquer</h2>
+    <p>Both are recursion — the difference is <b>where the answer lives</b>:</p>
+    <table>
+      <thead><tr><th></th><th>Traverse</th><th>Divide &amp; Conquer</th></tr></thead>
+      <tbody>
+        <tr><td>Answer lives in…</td><td>a <b>parameter</b> carried down</td><td>the <b>return value</b> passed up</td></tr>
+        <tr><td>Direction</td><td>top-down</td><td>bottom-up</td></tr>
+        <tr><td>Return type</td><td>usually <code>void</code> (mutates shared state)</td><td>a meaningful value</td></tr>
+        <tr><td>Feels like</td><td>“walk and record”</td><td>merge sort / quick sort</td></tr>
+      </tbody>
+    </table>
+    <blockquote class="shifu">
+      “In traverse, 99% of the time you return nothing — you operate on a global. In divide &amp;
+      conquer you almost always return a value with a specific meaning: solve the left subtree,
+      solve the right subtree, then merge.”
+      <span class="who">— the instructor [30:03]</span>
+    </blockquote>
+
+    <h4>Maximum Depth — both ways</h4>
+    <span class="filetag">Python · divide &amp; conquer (answer in return value)</span>
+    <pre><code><span class="k">def</span> <span class="f">max_depth</span>(root):
+    <span class="k">if</span> <span class="k">not</span> root:
+        <span class="k">return</span> <span class="n">0</span>
+    left = <span class="f">max_depth</span>(root.left)         <span class="c"># solve children, trust the recursion</span>
+    right = <span class="f">max_depth</span>(root.right)
+    <span class="k">return</span> <span class="f">max</span>(left, right) + <span class="n">1</span>        <span class="c"># merge</span></code></pre>
+    <span class="filetag">Python · traverse (answer in a shared variable)</span>
+    <pre><code><span class="k">def</span> <span class="f">max_depth</span>(root):
+    best = [<span class="n">0</span>]
+    <span class="k">def</span> <span class="f">traverse</span>(node, depth):
+        <span class="k">if</span> <span class="k">not</span> node:
+            <span class="k">return</span>
+        best[<span class="n">0</span>] = <span class="f">max</span>(best[<span class="n">0</span>], depth)   <span class="c"># record into shared state</span>
+        <span class="f">traverse</span>(node.left, depth + <span class="n">1</span>)
+        <span class="f">traverse</span>(node.right, depth + <span class="n">1</span>)
+    <span class="f">traverse</span>(root, <span class="n">1</span>)
+    <span class="k">return</span> best[<span class="n">0</span>]</code></pre>
+    <div class="note tip">
+      <span class="lbl">Default to divide &amp; conquer</span>
+      Prefer the return-value style: no shared mutable state, naturally parallel-looking, and it
+      generalizes to every “relate whole to children” problem — <b>Binary Tree Paths</b>,
+      <b>Minimum Subtree</b>, <b>Path Sum</b>, <b>Flatten Binary Tree to Linked List</b>,
+      <b>Longest Consecutive Sequence</b>, <b>Lowest Common Ancestor</b>.
+    </div>
+    <span class="filetag">Python · Lowest Common Ancestor (classic D&amp;C)</span>
+    <pre><code><span class="k">def</span> <span class="f">lowest_common_ancestor</span>(root, a, b):
+    <span class="k">if</span> <span class="k">not</span> root <span class="k">or</span> root <span class="k">is</span> a <span class="k">or</span> root <span class="k">is</span> b:
+        <span class="k">return</span> root
+    left = <span class="f">lowest_common_ancestor</span>(root.left, a, b)
+    right = <span class="f">lowest_common_ancestor</span>(root.right, a, b)
+    <span class="k">if</span> left <span class="k">and</span> right:                 <span class="c"># a, b split across the two sides → root is the LCA</span>
+        <span class="k">return</span> root
+    <span class="k">return</span> left <span class="k">or</span> right             <span class="c"># otherwise bubble up whichever side found one</span></code></pre>
+  </section>
+
+  <!-- RESULTTYPE -->
+  <section id="resulttype">
+    <div class="kicker">When one return value isn't enough</div>
+    <h2>ResultType</h2>
+    <p>Sometimes the merge needs <b>several facts</b> from each subtree. Return a small bundle (a
+      tuple, or a tiny class) instead of a single number. Canonical case: <b>Balanced Binary
+      Tree</b> needs both “is it balanced?” and “how tall is it?” in one pass.</p>
+    <span class="filetag">Python · Balanced Binary Tree — return (is_balanced, height)</span>
+    <pre><code><span class="k">def</span> <span class="f">is_balanced</span>(root):
+    <span class="k">def</span> <span class="f">helper</span>(node):
+        <span class="k">if</span> <span class="k">not</span> node:
+            <span class="k">return</span> <span class="k">True</span>, <span class="n">0</span>                <span class="c"># (balanced?, height)</span>
+        lb, lh = <span class="f">helper</span>(node.left)
+        rb, rh = <span class="f">helper</span>(node.right)
+        balanced = lb <span class="k">and</span> rb <span class="k">and</span> <span class="f">abs</span>(lh - rh) &lt;= <span class="n">1</span>
+        <span class="k">return</span> balanced, <span class="f">max</span>(lh, rh) + <span class="n">1</span>
+    <span class="k">return</span> <span class="f">helper</span>(root)[<span class="n">0</span>]</code></pre>
+    <p>Same pattern for <b>Subtree with Maximum Average</b> (carry <code>(sum, count)</code> up so the
+      average is computable at each node in O(1)).</p>
+  </section>
+
+  <!-- BST -->
+  <section id="bst">
+    <div class="kicker">A special tree</div>
+    <h2>Binary Search Tree</h2>
+    <p>Definition: every node's <b>left subtree is smaller</b>, its <b>right subtree is not
+      smaller</b>. The defining consequence:</p>
+    <div class="note insight">
+      <span class="lbl">The BST ⇔ inorder property</span>
+      A BST's <b>in-order traversal is a non-decreasing sequence</b>. So if a tree's inorder isn't
+      non-decreasing, it's definitely <i>not</i> a BST — but the converse is <b>not</b> guaranteed
+      (a tree of all equal values can be non-decreasing in-order without being a valid BST). Use it
+      as a fast necessary check, and operations run in <b>O(h)</b> (tree height) for find / insert /
+      delete.
+    </div>
+    <span class="filetag">Python · Validate BST (divide &amp; conquer with bounds)</span>
+    <pre><code><span class="k">def</span> <span class="f">is_valid_bst</span>(root):
+    <span class="k">def</span> <span class="f">helper</span>(node, lo, hi):
+        <span class="k">if</span> <span class="k">not</span> node:
+            <span class="k">return</span> <span class="k">True</span>
+        <span class="k">if</span> <span class="k">not</span> (lo &lt; node.val &lt; hi):       <span class="c"># node must fit its allowed range</span>
+            <span class="k">return</span> <span class="k">False</span>
+        <span class="k">return</span> (<span class="f">helper</span>(node.left, lo, node.val) <span class="k">and</span>
+                <span class="f">helper</span>(node.right, node.val, hi))
+    <span class="k">return</span> <span class="f">helper</span>(root, <span class="t">float</span>(<span class="s">"-inf"</span>), <span class="t">float</span>(<span class="s">"inf"</span>))</code></pre>
+    <p>Other BST staples: <b>Convert BST to Doubly Linked List</b>, <b>BST Iterator</b>, <b>In-order
+      Successor</b>, <b>Search Range</b>, and <b>Insert / Remove Node</b> (removal is the fiddly one —
+      replace with the in-order successor).</p>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Binary Tree checklist</h2>
+    <ol style="font-size:17px">
+      <li>Compute tree complexity from the recurrence: <b>+O(n)/level ⇒ O(n log n)</b>,
+        <b>+O(1)/level ⇒ O(n)</b>.</li>
+      <li>Recursion is one implementation of DFS; tree DFS comes as <b>traverse</b> or <b>divide &amp;
+        conquer</b>.</li>
+      <li><b>Traverse</b> = answer in a parameter (void, mutates state); <b>D&amp;C</b> = answer in
+        the return value (merge children). Prefer D&amp;C.</li>
+      <li>The Spear-Breaking Form: <b>relate the whole tree's answer to its children's</b>.</li>
+      <li>Need multiple facts per subtree ⇒ a <b>ResultType</b> bundle (Balanced Tree, Max-Average).</li>
+      <li>BST: <b>inorder is non-decreasing</b>; find/insert/delete in <b>O(h)</b>.</li>
+      <li>Memorize the <b>non-recursive preorder &amp; inorder</b> traversals.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Chapter “Binary Tree &amp; Divide Conquer” v4.0 deck plus the lecture (audio
+  transcribed with Whisper large-v3; quotes carry their <code>[mm:ss]</code> timestamps). Code
+  templates are written in Python (the course's originals are in Java). Study guide for personal
+  use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

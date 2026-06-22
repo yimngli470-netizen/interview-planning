@@ -14,7 +14,8 @@ SDE/MLE loop. Phase 1 = personal use, fully local in Docker. (Product name
   - **dev** (laptop, subscription): `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`
   - **prod** (servers, API key): `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
   - Plain `docker compose up --build` uses the base file (defaults to the `api` provider).
-- Ports: frontend :5173, API :8000 (`/docs`), Postgres host :5434.
+- Ports: frontend :5173, API host **:8001** → container :8000 (`http://localhost:8001/docs`;
+  host 8001 avoids clashing with another local backend on 8000), Postgres host :5434.
 
 ## Theme / design
 
@@ -43,11 +44,41 @@ modal model (no always-on textareas).
 - `Subtopic.explanation` = long-form **markdown** "learn more" body (the terse `notes`
   stays the headline). May contain KaTeX math (`$…$`) and ```` ```mermaid ```` diagrams —
   rendered client-side by `frontend/src/lib/Markdown.tsx` (react-markdown + remark-gfm +
-  remark-math + rehype-katex + mermaid; **no images stored**, diagrams are text).
+  remark-math + remark-breaks + rehype-katex + mermaid; **no images stored**, diagrams are text).
+- **Notes-as-code (no schema change):** `Subtopic.notes` and question answers
+  (`QuestionProgress.notes`) are now rendered through the same `Markdown.tsx`, so a
+  user can drop a ```` ```python ```` fenced block into any note and it persists as part
+  of the plain-`Text` `notes` column — no new table/column. The note editor's textarea
+  is code-friendly: **Tab indents / Shift+Tab dedents** (4 spaces), and a **"{ } Code
+  block"** button inserts a runnable ```` ```python ```` fence pre-filled with a
+  LeetCode-style starter (`def main(): … if __name__ == "__main__": main()`, caret
+  inside `main()`; any selected text is dropped into the body). Any ```` ```python ```` block
+  (in notes *or* explanations) gets a **▶ Run** button that executes the snippet
+  **in-browser via Pyodide** (CPython→WASM, `frontend/src/lib/pyodide.ts`) — the ~6 MB
+  runtime is lazy-loaded from the jsDelivr CDN on first Run (not bundled), shared as a
+  singleton, captures stdout/stderr + the final expression. No backend, no eval, no
+  stored output. `remark-breaks` keeps single newlines in plain notes rendering as line
+  breaks (pre-Markdown behaviour).
 - `Subtopic.resources_json` = JSON list of `{title, url, kind, query}` free resources
   (1-3 per point). `url` is used only when confidently real; otherwise the client links
   to a YouTube/Google **search** for `query`, so links are never dead. API exposes these
   as `resources: list[ResourceOut]` (parsed by `schemas.to_subtopic_out`).
+
+**Topic study-notes summaries (distilled HTML):** `TopicSummary` (new table
+`topic_summaries`, 1—* on Topic) holds a self-contained, bespoke-designed HTML study-notes
+doc (e.g. a week of lecture video distilled to one page) attached to a topic. **New table,
+not a column** — `create_all` auto-creates tables but can't add a column to `topics` (no
+Alembic). Source files live in `backend/app/summaries/*.html` (version-controlled, ship in
+the image); `seed.SUMMARY_MAP` (`filename → exact topic title`) attaches each, and a seeder
+pass ingests them idempotently keyed by `source` (re-ingests on change). Rendered
+**read-only in a sandboxed `<iframe srcDoc>`** (`SummaryViewer` in `TopicRow.tsx`) — no
+`allow-scripts` (docs carry none) for maximal isolation, `allow-popups` + an injected
+`<base target="_blank">` so outbound links open out; this preserves the doc's own design
+and fully isolates its CSS/fonts from Hearth. The topic feed carries only **metadata**
+(`summaries: list[SummaryMeta]` = `{id, title, source}`, no body); the bulky HTML is fetched
+on demand via `GET /api/summaries/{id}` (`routers/summaries.py`) when the **"Study notes"**
+button on the expanded topic is clicked. To add one: drop the HTML in `app/summaries/`, add a
+`SUMMARY_MAP` line, restart the backend.
 - On-demand depth (B4): `POST /api/ai/explain {point_title, topic_title, domain_name, mode,
   subtopic_id?, refresh?}` (`mode` = `simpler|deeper`) → `{markdown, cached}` via
   `llm.explain_learning_point`. The UI's **"Explain simpler / Go deeper"** buttons call it
@@ -162,6 +193,18 @@ Server timestamps are naive UTC — frontend appends 'Z' (`lib/time.parseUTC`).
 - To add/edit content, edit `content.py` (or regenerate `content_generated.py`)
   and restart the backend — the seeder tops up the DB idempotently on next start.
   Existing topic titles must stay byte-identical to match existing rows.
+- `backend/app/content_point_order.py` = AUTO-GENERATED **within-topic** learning-point
+  ordering (`POINT_ORDER`: topic title → point titles in grouped, pedagogical order — e.g.
+  all DFS points contiguous, then all BFS), produced by the one-off
+  `backend/scripts/_order_points.py` (LLM pass via `llm.order_topic_points`; reads each
+  topic's *live* default points from the DB, returns a validated permutation; resumable via
+  the gitignored `_point_order_cache.json`). Unlike `Subtopic.order` at insert time, the
+  seeder **re-applies** `order` from `POINT_ORDER` on every startup so related points sit
+  together — default points only (`owner_id IS NULL`, matched by exact title), user-owned
+  points untouched, titles not in the list keep their relative order after the listed ones.
+  Fully idempotent. Regenerate with
+  `docker compose exec -T backend python scripts/_order_points.py "Coding" "System Design" "AI Infra" "AI/ML"`
+  then restart the backend to apply.
 
 ## AI auto-fill (Anthropic / Claude)
 

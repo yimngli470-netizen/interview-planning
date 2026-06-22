@@ -11,11 +11,13 @@ So re-running never overwrites your edits, and it tops up new content on deploy.
 """
 
 import json
+import os
+import re
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Domain, Question, Subtopic, Topic, User
+from .models import Domain, Question, Subtopic, Topic, TopicSummary, User
 from .security import EMPTY_PASSWORD_HASH
 from .content import CONTENT_BY_DOMAIN, QUESTIONS
 
@@ -36,6 +38,39 @@ try:
 except Exception:  # noqa: BLE001
     AUTHORED = {}
     AUTHORED_ORDER = {}
+
+try:
+    # Canonical within-topic learning-point ordering (topic title -> point titles
+    # in pedagogical, grouped order), produced by scripts/_order_points.py. Applied
+    # to existing DEFAULT points so related points sit together. Optional.
+    from .content_point_order import POINT_ORDER
+except Exception:  # noqa: BLE001
+    POINT_ORDER = {}
+
+# Distilled HTML study-notes summaries: file in app/summaries/ -> exact topic
+# title it summarizes. Drop a new <name>.html in that dir, add a line here, and
+# restart; the seeder ingests it into topic_summaries (idempotent, by filename).
+SUMMARY_DIR = os.path.join(os.path.dirname(__file__), "summaries")
+SUMMARY_MAP: dict[str, str] = {
+    # 九章算法 (basics, weeks 2-9)
+    "week2-binary-search-distilled.html": "Binary Search (incl. on the answer)",
+    "week3-binary-tree-distilled.html": "BFS / DFS on graphs and trees",
+    "week4-bfs-distilled.html": "BFS / DFS on graphs and trees",
+    "week5-dfs-distilled.html": "BFS / DFS on graphs and trees",
+    "week6-linkedlist-array-distilled.html": "Linked lists & in-place pointer manipulation",
+    "week7-two-pointers-distilled.html": "Arrays, Hashmaps, Two Pointers — foundation patterns",
+    "week8-data-structure-distilled.html": "Design data structures (LRU/LFU, iterators, stream)",
+    "week9-dp-distilled.html": "Dynamic Programming — 1D, 2D, knapsack patterns",
+    # Advanced (senior algorithm, chapters 1-7)
+    "adv1-sliding-window-distilled.html": "Sliding Window / Prefix Sum",
+    "adv2-union-find-trie-distilled.html": "Trie / Union-Find",
+    "adv3-heap-stack-distilled.html": "Heap / Priority Queue patterns",
+    "adv4-binary-search-sweepline-distilled.html": "Binary Search (incl. on the answer)",
+    "adv5-senior-dp-1-distilled.html": "Dynamic Programming — 1D, 2D, knapsack patterns",
+    "adv6-senior-dp-2-distilled.html": "Dynamic Programming — 1D, 2D, knapsack patterns",
+    "adv7-follow-up-problems-distilled.html": "Implementation-heavy problems w/ evolving requirements",
+}
+_TITLE_RE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 # Flagship topics authored by hand (Opus) directly in content.py — skip the
 # generated/Sonnet versions for these so they stay clean (no overlap).
@@ -340,6 +375,52 @@ def seed_or_enrich(db: Session) -> None:
 
     _apply_order(ORDER, override=False)        # generated ordering: fill gaps only
     _apply_order(AUTHORED_ORDER, override=True)  # hand-authored ordering wins
+
+    # --- apply within-topic learning-point ordering (default points) ---
+    # Re-assign Subtopic.order so related points sit together (e.g. all DFS, then
+    # all BFS). Only default points (owner_id IS NULL) are touched, matched by
+    # exact title; titles not in the canonical list keep their relative order and
+    # follow the listed ones. Fully idempotent. User-owned points are untouched.
+    if POINT_ORDER:
+        db.flush()
+        for topic_title, ordered_titles in POINT_ORDER.items():
+            topic = by_title.get(topic_title)
+            if topic is None:
+                continue
+            subs = db.scalars(
+                select(Subtopic).where(
+                    Subtopic.topic_id == topic.id, Subtopic.owner_id.is_(None)
+                )
+            ).all()
+            rank = {t: i for i, t in enumerate(ordered_titles)}
+            tail = len(ordered_titles)
+            # listed points by canonical rank; any unlisted point keeps its old
+            # order but sorts after every listed one (stable on current order).
+            for new_order, s in enumerate(
+                sorted(subs, key=lambda s: (rank.get(s.title, tail), s.order)), start=1
+            ):
+                if s.order != new_order:
+                    s.order = new_order
+
+    # --- ingest distilled HTML study-notes summaries (idempotent, keyed by source) ---
+    # Files live in app/summaries/ and ship in the image; SUMMARY_MAP attaches each
+    # to its topic. Re-ingests on change (edit the HTML + restart to update).
+    for fname, topic_title in SUMMARY_MAP.items():
+        path = os.path.join(SUMMARY_DIR, fname)
+        topic = by_title.get(topic_title)
+        if topic is None or not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            html = fh.read()
+        m = _TITLE_RE.search(html)
+        disp = (m.group(1).strip() if m else "") or topic_title
+        existing = db.scalars(
+            select(TopicSummary).where(TopicSummary.source == fname)
+        ).first()
+        if existing is None:
+            db.add(TopicSummary(topic_id=topic.id, source=fname, title=disp, html=html))
+        elif (existing.html, existing.topic_id, existing.title) != (html, topic.id, disp):
+            existing.html, existing.topic_id, existing.title = html, topic.id, disp
 
     # --- users ---
     existing_users = {u.name for u in db.scalars(select(User)).all()}

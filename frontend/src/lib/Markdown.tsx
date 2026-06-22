@@ -3,9 +3,11 @@ import type { ErrorInfo, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 import mermaid from 'mermaid';
 import 'katex/dist/katex.min.css';
+import { runPython } from './pyodide';
 
 // Initialize mermaid once. `neutral` reads well on the warm paper background.
 let mermaidReady = false;
@@ -52,6 +54,51 @@ function Mermaid({ chart }: { chart: string }) {
   return <div ref={ref} className="md-mermaid" style={{ textAlign: 'center', margin: '12px 0' }} />;
 }
 
+const PYTHON_RE = /\blanguage-(python|py)\b/;
+
+// A fenced code block. Python blocks (```python) get a "Run" button that
+// executes the snippet in-browser via Pyodide and shows the output inline.
+function RunnableCode({ className, code }: { className?: string; code: string }) {
+  const runnable = !!className && PYTHON_RE.test(className);
+  const [out, setOut] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
+  const [running, setRunning] = useState(false);
+
+  const run = async () => {
+    setRunning(true);
+    setOut(null);
+    try {
+      const { output, error } = await runPython(code);
+      setOut(output);
+      setErr(error);
+    } catch (e) {
+      setOut(e instanceof Error ? e.message : String(e));
+      setErr(true);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="md-code-block">
+      <pre className="md-pre"><code className={className}>{code}</code></pre>
+      {runnable && (
+        <div className="md-run">
+          <button type="button" className="md-run-btn" onClick={run} disabled={running}>
+            {running ? 'Running…' : '▶ Run'}
+          </button>
+          {out !== null && (
+            <button type="button" className="md-run-clear" onClick={() => setOut(null)}>Clear</button>
+          )}
+        </div>
+      )}
+      {out !== null && (
+        <pre className={'md-out' + (err ? ' md-out-err' : '')}>{out}</pre>
+      )}
+    </div>
+  );
+}
+
 function CodeBlock({ className, children }: { className?: string; children?: React.ReactNode }) {
   const text = String(children ?? '');
   if (className && /\blanguage-mermaid\b/.test(className)) {
@@ -59,7 +106,7 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
   }
   // A fenced block (has a language- class or contains newlines) vs inline code.
   if (className || text.includes('\n')) {
-    return <pre className="md-pre"><code className={className}>{children}</code></pre>;
+    return <RunnableCode className={className} code={text.replace(/\n$/, '')} />;
   }
   return <code className="md-code">{children}</code>;
 }
@@ -84,7 +131,7 @@ class MdBoundary extends Component<{ raw: string; children: ReactNode }, { faile
 // subtree — which made Mermaid diagrams flicker out/in and the page jump.
 const PresPassthrough = ({ children }: { children?: ReactNode }) => <>{children}</>;
 const MD_COMPONENTS = { code: CodeBlock as never, pre: PresPassthrough };
-const REMARK_PLUGINS = [remarkGfm, remarkMath];
+const REMARK_PLUGINS = [remarkGfm, remarkMath, remarkBreaks];
 const REHYPE_PLUGINS = [rehypeKatex];
 
 function MarkdownInner({ children }: { children: string }) {

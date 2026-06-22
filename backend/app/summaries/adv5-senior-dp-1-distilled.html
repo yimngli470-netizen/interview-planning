@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Ch5 · Senior DP I — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Advanced · Ch5 · <b>Senior DP I</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#rolling">Rolling Array</a>
+      <a href="#robber">House Robber</a>
+      <a href="#square">Maximal Square</a>
+      <a href="#game">Game DP</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Advanced Class · Chapter 5</div>
+    <h1>Senior DP I — Rolling Array &amp; Game DP</h1>
+    <p class="lede">Two upgrades to basic DP: the <b>rolling array</b>, which collapses the space
+      when a state only depends on the last row or two; and <b>game / memoized-search DP</b>, where
+      you reason about the opponent's best play.</p>
+    <div class="meta">
+      <span><b>Source</b> · “Senior Dynamic Programming I” deck + lecture</span>
+      <span><b>Version</b> · Advanced Ch5</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview" style="border-top:none">
+    <div class="kicker">Recap</div>
+    <h2>The four elements, still</h2>
+    <p>Every DP is <b>State · Function · Initialization · Answer</b>, and the state computes one of
+      three things: an <b>optimum</b> (max/min), a <b>yes/no</b>, or a <b>count</b>. This chapter
+      keeps that recipe and adds two optimizations/twists on top.</p>
+  </section>
+
+  <!-- ROLLING ARRAY -->
+  <section id="rolling">
+    <div class="kicker">Optimization</div>
+    <h2>Rolling array</h2>
+    <p>If <code>f[i]</code> depends only on a <b>fixed window</b> of recent states, you don't need
+      the whole table — reuse slots with <b>modular indexing</b>. The modulus equals how many prior
+      states you must keep.</p>
+    <table>
+      <thead><tr><th>Original</th><th>Rolling</th><th>Space</th></tr></thead>
+      <tbody>
+        <tr><td><code>f[i] = max(f[i-1], f[i-2]+A[i])</code></td><td><code>f[i%2] = …f[(i-1)%2]…f[(i-2)%2]</code></td><td>O(n) → O(1)</td></tr>
+        <tr><td><code>f[i][j]</code> uses only row <code>i-1</code></td><td><code>f[i%2][j]</code> uses <code>f[(i-1)%2][j]</code></td><td>O(mn) → O(n)</td></tr>
+      </tbody>
+    </table>
+    <p>The trick: <b>look at which states you actually retain</b>, and let the modulus match.</p>
+  </section>
+
+  <!-- HOUSE ROBBER -->
+  <section id="robber">
+    <div class="kicker">Sequence DP</div>
+    <h2>House Robber I &amp; II</h2>
+    <p><b>State</b> <code>f[i]</code> = most you can rob from the first i houses. At house i you
+      either skip it (<code>f[i-1]</code>) or rob it and skip its neighbor
+      (<code>f[i-2] + A[i-1]</code>). Only two prior states matter → roll down to <b>O(1) space</b>:</p>
+    <span class="filetag">Python · House Robber (rolled to two variables)</span>
+    <pre><code><span class="k">def</span> <span class="f">rob</span>(nums):
+    prev2, prev1 = <span class="n">0</span>, <span class="n">0</span>             <span class="c"># f[i-2], f[i-1]</span>
+    <span class="k">for</span> x <span class="k">in</span> nums:
+        prev2, prev1 = prev1, <span class="f">max</span>(prev1, prev2 + x)
+    <span class="k">return</span> prev1</code></pre>
+    <div class="note insight">
+      <span class="lbl">House Robber II — the circular twist</span>
+      The houses form a <b>circle</b>, so the first and last are adjacent and can't both be robbed.
+      Reduce to the line version twice: rob <code>nums[:-1]</code> (skip the last) or
+      <code>nums[1:]</code> (skip the first), and take the better:
+      <pre style="margin:.5em 0"><code><span class="k">def</span> <span class="f">rob_circular</span>(nums):
+    <span class="k">if</span> <span class="f">len</span>(nums) == <span class="n">1</span>:
+        <span class="k">return</span> nums[<span class="n">0</span>]
+    <span class="k">return</span> <span class="f">max</span>(<span class="f">rob</span>(nums[:-<span class="n">1</span>]), <span class="f">rob</span>(nums[<span class="n">1</span>:]))</code></pre>
+    </div>
+  </section>
+
+  <!-- MAXIMAL SQUARE -->
+  <section id="square">
+    <div class="kicker">2-D coordinate DP</div>
+    <h2>Maximal Square</h2>
+    <p>Largest all-ones square in a 0/1 matrix. <b>State</b> <code>f[i][j]</code> = the side of the
+      biggest square whose <b>bottom-right corner</b> is (i, j). If the cell is 1, it extends the
+      smallest of its three neighbors:</p>
+    <figure>
+      <svg viewBox="0 0 520 150" role="img" aria-label="Maximal square transition">
+        <style>
+          .mc{fill:#fff;stroke:#3c3c46}.mca{fill:#eef3f8;stroke:#2f5d8a}.mcx{fill:#fbf4e6;stroke:#b8893b;stroke-width:2.4}
+          .mt{font:600 13px Helvetica;text-anchor:middle;fill:#1a1a1f}.ml{font:12px Helvetica;fill:#3c3c46}
+        </style>
+        <rect class="mca" x="40" y="30" width="44" height="44"/><text class="mt" x="62" y="57">↖</text>
+        <rect class="mca" x="84" y="30" width="44" height="44"/><text class="mt" x="106" y="57">↑</text>
+        <rect class="mca" x="40" y="74" width="44" height="44"/><text class="mt" x="62" y="101">←</text>
+        <rect class="mcx" x="84" y="74" width="44" height="44"/><text class="mt" x="106" y="101">i,j</text>
+        <text class="ml" x="170" y="60">f[i][j] = min( f[i-1][j], f[i][j-1], f[i-1][j-1] ) + 1</text>
+        <text class="ml" x="170" y="86">     when matrix[i][j] == 1   (else 0)</text>
+        <text class="ml" x="170" y="118" style="fill:#9e2b25;font-weight:700">a square only grows if all three neighbors back it</text>
+      </svg>
+      <figcaption>Bottom-right corner addressing: the new square is limited by its weakest neighbor.</figcaption>
+    </figure>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">maximal_square</span>(matrix):
+    <span class="k">if</span> <span class="k">not</span> matrix <span class="k">or</span> <span class="k">not</span> matrix[<span class="n">0</span>]:
+        <span class="k">return</span> <span class="n">0</span>
+    m, n = <span class="f">len</span>(matrix), <span class="f">len</span>(matrix[<span class="n">0</span>])
+    f = [[<span class="n">0</span>] * n <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(m)]
+    best = <span class="n">0</span>
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(m):
+        <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(n):
+            <span class="k">if</span> matrix[i][j] == <span class="n">1</span>:
+                f[i][j] = <span class="n">1</span> <span class="k">if</span> i == <span class="n">0</span> <span class="k">or</span> j == <span class="n">0</span> \
+                          <span class="k">else</span> <span class="f">min</span>(f[i-<span class="n">1</span>][j], f[i][j-<span class="n">1</span>], f[i-<span class="n">1</span>][j-<span class="n">1</span>]) + <span class="n">1</span>
+                best = <span class="f">max</span>(best, f[i][j])
+    <span class="k">return</span> best * best                    <span class="c"># area = side²</span></code></pre>
+    <div class="note tip">
+      <span class="lbl">Grid addressing tip</span>
+      Locate <b>squares by their bottom-right corner</b>; locate <b>rectangles by top-left +
+      bottom-right</b>. Since <code>f[i][j]</code> needs only row <code>i-1</code>, you can roll it
+      to <code>f[i%2][j]</code> for O(n) space.
+    </div>
+  </section>
+
+  <!-- GAME DP -->
+  <section id="game">
+    <div class="kicker">Memoized search · game theory</div>
+    <h2>Coin in a Line (game DP)</h2>
+    <p>Two players alternate; you must reason about the <b>opponent playing optimally</b>. The
+      mindset: <b>I win if I can hand the opponent a losing position.</b></p>
+    <p><b>Coin in a Line I</b> — n coins, take 1 or 2 each turn, whoever takes the last coin wins.
+      <b>State</b> <code>f[i]</code> = does the player to move win with i coins left?</p>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">first_will_win</span>(n):
+    <span class="k">if</span> n == <span class="n">0</span>:
+        <span class="k">return</span> <span class="k">False</span>
+    f = [<span class="k">False</span>] * (n + <span class="n">1</span>)
+    f[<span class="n">1</span>] = f[<span class="n">2</span>] = <span class="k">True</span>
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">3</span>, n + <span class="n">1</span>):
+        <span class="c"># win if either move leaves the opponent in a losing state</span>
+        f[i] = (<span class="k">not</span> f[i - <span class="n">1</span>]) <span class="k">or</span> (<span class="k">not</span> f[i - <span class="n">2</span>])
+    <span class="k">return</span> f[n]                            <span class="c"># (first player loses ⇔ n % 3 == 0)</span></code></pre>
+    <div class="note">
+      <span class="lbl">II and III</span>
+      <b>Coin in a Line II</b> — coins have values, take 1 or 2 from the front, maximize <i>your</i>
+      total: <code>f[i] = max(A[i] + min(f[i+2], f[i+3]), A[i]+A[i+1] + min(f[i+3], f[i+4]))</code>
+      (the <code>min</code> is the opponent minimizing your future). <b>Coin in a Line III</b> — take
+      from <b>either end</b>: an <b>interval DP</b> <code>f[i][j]</code>, which leads straight into
+      the next chapter. Also in this chapter: <b>Longest Increasing Subsequence</b> as memoized
+      search.
+    </div>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Senior DP I checklist</h2>
+    <ol style="font-size:17px">
+      <li><b>Rolling array</b>: when a state depends only on the last k rows, index by <code>i % k</code>
+        to shrink space (O(n)→O(1), O(mn)→O(n)).</li>
+      <li><b>House Robber</b> = sequence DP <code>f[i]=max(f[i-1], f[i-2]+A[i])</code>; the circular
+        II solves the line twice (drop first or last).</li>
+      <li><b>Maximal Square</b>: address by bottom-right corner; <code>f=min(3 neighbors)+1</code>.</li>
+      <li><b>Game DP</b>: I win iff I can move the opponent into a losing state; the opponent's turn
+        is a <code>min</code> over my futures.</li>
+      <li>Take-from-both-ends games become <b>interval DP</b> — the bridge to Senior DP II.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Advanced Class “Senior Dynamic Programming I” deck plus the lecture (audio
+  transcribed with Whisper large-v3). Code templates are written in Python (the course's originals
+  are in Java). Study guide for personal use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

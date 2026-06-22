@@ -27,6 +27,9 @@ pgdata/
 
 # LLM enrichment intermediate cache (resumable artifact of scripts/_enrich.py)
 backend/scripts/_generated_cache.json
+# Learning-point ordering cache + run log (artifacts of scripts/_order_points.py)
+backend/scripts/_point_order_cache.json
+backend/scripts/_order.log
 
 # TS incremental build info
 frontend/tsconfig.tsbuildinfo

@@ -391,3 +391,55 @@ def order_domain(domain_name: str, titles: list[str]) -> list[dict] | None:
         return data.get("ordered_topics") if data else None
     out = _api_tool_call(_ORDER_SYSTEM, user, _ORDER_TOOL, "save_learning_path", 8192)
     return out.get("ordered_topics") if out else None
+
+
+_POINT_ORDER_TOOL = {
+    "name": "save_point_order",
+    "description": "Save the grouped, pedagogically sequenced order of one topic's learning points.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "ordered_points": {
+                "type": "array",
+                "description": (
+                    "EVERY input learning point, reordered so that points about the SAME sub-concept "
+                    "are CONTIGUOUS (e.g. keep all DFS points together, then all BFS points — never "
+                    "interleaved), and the groups flow as a learner should study them: foundations and "
+                    "core mechanics first, then applications, then advanced / edge-case variants last. "
+                    "Include every input title EXACTLY once, byte-identical to the input — do not add, "
+                    "drop, merge, split, or rename any point."
+                ),
+                "items": {"type": "string", "description": "A learning-point title, byte-identical to an input title."},
+            }
+        },
+        "required": ["ordered_points"],
+        "additionalProperties": False,
+    },
+}
+
+
+def order_topic_points(
+    topic_title: str, domain_name: str, point_titles: list[str]
+) -> list[str] | None:
+    """Regroup + reorder a topic's learning points (returns the same titles in a
+    new order), or None on failure. The caller MUST validate the result is a
+    permutation of the input before trusting it."""
+    if not ai_configured() or not point_titles:
+        return None
+    listing = "\n".join(f"- {t}" for t in point_titles)
+    user = (
+        f"Domain: {domain_name}\nTopic: {topic_title}\n\n"
+        f"Here are the learning points currently under this topic, in their present order:\n{listing}\n\n"
+        "Reorder them for a learner studying this topic. Two rules:\n"
+        "1) GROUP related points so they are contiguous — all points about one sub-concept together "
+        "(e.g. every DFS point in one run, every BFS point in another), never interleaved.\n"
+        "2) Sequence the groups and the points within them from foundations/core mechanics → "
+        "applications → advanced/edge-case variants.\n"
+        "Return EVERY point exactly once with its title byte-identical to the input. Do not add, drop, "
+        "merge, or rename points."
+    )
+    if LLM_PROVIDER == "subscription":
+        data = _subscription_structured(_ORDER_SYSTEM, user, _POINT_ORDER_TOOL["input_schema"])
+        return data.get("ordered_points") if data else None
+    out = _api_tool_call(_ORDER_SYSTEM, user, _POINT_ORDER_TOOL, "save_point_order", 8192)
+    return out.get("ordered_points") if out else None

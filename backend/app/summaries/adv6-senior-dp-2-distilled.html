@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Ch6 · Senior DP II — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Advanced · Ch6 · <b>Senior DP II</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#interval">Interval DP</a>
+      <a href="#matching">Matching DP</a>
+      <a href="#knapsack">Knapsack DP</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Advanced Class · Chapter 6</div>
+    <h1>Senior DP II — Interval, Matching &amp; Knapsack</h1>
+    <p class="lede">The three “heavy” DP families that show up in hard interviews: <b>interval DP</b>
+      (think about the last operation, big-to-small), <b>matching DP</b> on two sequences (fill a
+      grid), and <b>knapsack DP</b> (capacity as a dimension).</p>
+    <div class="meta">
+      <span><b>Source</b> · “Senior Dynamic Programming II” deck + lecture</span>
+      <span><b>Version</b> · Advanced Ch6</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- INTERVAL -->
+  <section id="interval" style="border-top:none">
+    <div class="kicker">Family 1</div>
+    <h2>Interval DP</h2>
+    <p>Signature: the answer is over a range, you build up by <b>merging sub-intervals</b>, and the
+      final answer is the whole interval <code>[0, n-1]</code>. The trap (“dead end”) is enumerating
+      the <b>first</b> operation; the unlock is <b>reverse thinking</b> — reason about the
+      <b>last</b> merge/burst (big-to-small, like divide &amp; conquer).</p>
+
+    <div class="prob"><h3>Stone Game</h3><span class="src">· min cost to merge all stones</span></div>
+    <p><b>State</b> <code>dp[i][j]</code> = min cost to merge stones i…j. Split at the last merge
+      point k: <code>dp[i][j] = min(dp[i][k] + dp[k+1][j]) + sum(i…j)</code>.</p>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">stone_game</span>(A):
+    n = <span class="f">len</span>(A)
+    <span class="k">if</span> n &lt;= <span class="n">1</span>:
+        <span class="k">return</span> <span class="n">0</span>
+    prefix = [<span class="n">0</span>] * (n + <span class="n">1</span>)
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(n):
+        prefix[i + <span class="n">1</span>] = prefix[i] + A[i]
+    dp = [[<span class="n">0</span>] * n <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(n)]
+    <span class="k">for</span> length <span class="k">in</span> <span class="f">range</span>(<span class="n">2</span>, n + <span class="n">1</span>):             <span class="c"># grow the interval</span>
+        <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(n - length + <span class="n">1</span>):
+            j = i + length - <span class="n">1</span>
+            dp[i][j] = <span class="f">min</span>(dp[i][k] + dp[k + <span class="n">1</span>][j] <span class="k">for</span> k <span class="k">in</span> <span class="f">range</span>(i, j)) \
+                       + (prefix[j + <span class="n">1</span>] - prefix[i])
+    <span class="k">return</span> dp[<span class="n">0</span>][n - <span class="n">1</span>]</code></pre>
+
+    <div class="prob"><h3>Burst Balloons</h3><span class="src">· max coins, last-to-burst trick</span></div>
+    <p>Pad with 1s on both ends. <b>State</b> <code>dp[i][j]</code> = max coins from bursting all
+      balloons strictly between i and j. Pick k as the <b>last</b> balloon burst in that gap — then
+      its neighbors are exactly the boundaries i and j:</p>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">burst_balloons</span>(nums):
+    arr = [<span class="n">1</span>] + nums + [<span class="n">1</span>]
+    n = <span class="f">len</span>(arr)
+    dp = [[<span class="n">0</span>] * n <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(n)]
+    <span class="k">for</span> length <span class="k">in</span> <span class="f">range</span>(<span class="n">2</span>, n):                  <span class="c"># gap between boundaries</span>
+        <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(n - length):
+            j = i + length
+            <span class="k">for</span> k <span class="k">in</span> <span class="f">range</span>(i + <span class="n">1</span>, j):           <span class="c"># k = last balloon burst</span>
+                dp[i][j] = <span class="f">max</span>(dp[i][j],
+                               dp[i][k] + dp[k][j] + arr[i] * arr[k] * arr[j])
+    <span class="k">return</span> dp[<span class="n">0</span>][n - <span class="n">1</span>]</code></pre>
+    <div class="note insight">
+      <span class="lbl">The interval-DP mindset</span>
+      Don't ask “what happens <b>first</b>?” — ask “what happens <b>last</b>?” Fixing the last
+      operation cleanly splits the interval into two independent sub-intervals. Also includes
+      <b>Coin in a Line III</b> and <b>Scramble String</b> (a 3-D interval DP).
+    </div>
+  </section>
+
+  <!-- MATCHING -->
+  <section id="matching">
+    <div class="kicker">Family 2</div>
+    <h2>Matching (two-sequence) DP</h2>
+    <p><b>State</b> <code>f[i][j]</code> = an answer for the first i chars of sequence A against the
+      first j chars of B. <b>Transition</b> studies the relationship between char i and char j.
+      <b>Technique: draw the matrix and fill it.</b></p>
+    <figure>
+      <svg viewBox="0 0 360 180" role="img" aria-label="LCS fill matrix">
+        <style>
+          .gh{font:600 12px Helvetica;text-anchor:middle;fill:#9e2b25}
+          .gc{fill:#fff;stroke:#cfc8bb}.gd{fill:#fbf4e6;stroke:#b8893b}
+          .gv{font:12px 'SF Mono',monospace;text-anchor:middle;fill:#3c3c46}
+        </style>
+        <text class="gh" x="60" y="20">∅</text><text class="gh" x="100" y="20">A</text><text class="gh" x="140" y="20">B</text><text class="gh" x="180" y="20">C</text><text class="gh" x="220" y="20">D</text>
+        <text class="gh" x="30" y="48">∅</text><text class="gh" x="30" y="80">E</text><text class="gh" x="30" y="112">A</text><text class="gh" x="30" y="144">C</text>
+        <!-- row dnull -->
+        <g>
+          <rect class="gc" x="44" y="32" width="32" height="28"/><text class="gv" x="60" y="51">0</text>
+          <rect class="gc" x="84" y="32" width="32" height="28"/><text class="gv" x="100" y="51">0</text>
+          <rect class="gc" x="124" y="32" width="32" height="28"/><text class="gv" x="140" y="51">0</text>
+          <rect class="gc" x="164" y="32" width="32" height="28"/><text class="gv" x="180" y="51">0</text>
+          <rect class="gc" x="204" y="32" width="32" height="28"/><text class="gv" x="220" y="51">0</text>
+        </g>
+        <g>
+          <rect class="gc" x="44" y="64" width="32" height="28"/><text class="gv" x="60" y="83">0</text>
+          <rect class="gc" x="84" y="64" width="32" height="28"/><text class="gv" x="100" y="83">0</text>
+          <rect class="gc" x="124" y="64" width="32" height="28"/><text class="gv" x="140" y="83">0</text>
+          <rect class="gc" x="164" y="64" width="32" height="28"/><text class="gv" x="180" y="83">0</text>
+          <rect class="gc" x="204" y="64" width="32" height="28"/><text class="gv" x="220" y="83">0</text>
+        </g>
+        <g>
+          <rect class="gc" x="44" y="96" width="32" height="28"/><text class="gv" x="60" y="115">0</text>
+          <rect class="gd" x="84" y="96" width="32" height="28"/><text class="gv" x="100" y="115">1</text>
+          <rect class="gc" x="124" y="96" width="32" height="28"/><text class="gv" x="140" y="115">1</text>
+          <rect class="gc" x="164" y="96" width="32" height="28"/><text class="gv" x="180" y="115">1</text>
+          <rect class="gc" x="204" y="96" width="32" height="28"/><text class="gv" x="220" y="115">1</text>
+        </g>
+        <g>
+          <rect class="gc" x="44" y="128" width="32" height="28"/><text class="gv" x="60" y="147">0</text>
+          <rect class="gc" x="84" y="128" width="32" height="28"/><text class="gv" x="100" y="147">1</text>
+          <rect class="gc" x="124" y="128" width="32" height="28"/><text class="gv" x="140" y="147">1</text>
+          <rect class="gd" x="164" y="128" width="32" height="28"/><text class="gv" x="180" y="147">2</text>
+          <rect class="gc" x="204" y="128" width="32" height="28"/><text class="gv" x="220" y="147">2</text>
+        </g>
+      </svg>
+      <figcaption>LCS of “EAC” vs “ABCD” = 2 (“AC”). On a match, take the diagonal + 1.</figcaption>
+    </figure>
+    <span class="filetag">Python · Longest Common Subsequence (max)</span>
+    <pre><code><span class="k">def</span> <span class="f">longest_common_subsequence</span>(A, B):
+    n, m = <span class="f">len</span>(A), <span class="f">len</span>(B)
+    f = [[<span class="n">0</span>] * (m + <span class="n">1</span>) <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(n + <span class="n">1</span>)]
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, n + <span class="n">1</span>):
+        <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, m + <span class="n">1</span>):
+            <span class="k">if</span> A[i - <span class="n">1</span>] == B[j - <span class="n">1</span>]:          <span class="c"># the i-th char of A is A[i-1]</span>
+                f[i][j] = f[i - <span class="n">1</span>][j - <span class="n">1</span>] + <span class="n">1</span>
+            <span class="k">else</span>:
+                f[i][j] = <span class="f">max</span>(f[i - <span class="n">1</span>][j], f[i][j - <span class="n">1</span>])
+    <span class="k">return</span> f[n][m]</code></pre>
+    <span class="filetag">Python · Edit Distance (min)</span>
+    <pre><code><span class="k">def</span> <span class="f">edit_distance</span>(word1, word2):
+    n, m = <span class="f">len</span>(word1), <span class="f">len</span>(word2)
+    f = [[<span class="n">0</span>] * (m + <span class="n">1</span>) <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(n + <span class="n">1</span>)]
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(n + <span class="n">1</span>):
+        f[i][<span class="n">0</span>] = i                          <span class="c"># delete all i chars</span>
+    <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(m + <span class="n">1</span>):
+        f[<span class="n">0</span>][j] = j                          <span class="c"># insert all j chars</span>
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, n + <span class="n">1</span>):
+        <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, m + <span class="n">1</span>):
+            <span class="k">if</span> word1[i - <span class="n">1</span>] == word2[j - <span class="n">1</span>]:
+                f[i][j] = f[i - <span class="n">1</span>][j - <span class="n">1</span>]
+            <span class="k">else</span>:
+                f[i][j] = <span class="n">1</span> + <span class="f">min</span>(f[i - <span class="n">1</span>][j],      <span class="c"># delete</span>
+                                  f[i][j - <span class="n">1</span>],      <span class="c"># insert</span>
+                                  f[i - <span class="n">1</span>][j - <span class="n">1</span>])  <span class="c"># replace</span>
+    <span class="k">return</span> f[n][m]</code></pre>
+    <p>Same template: <b>K Edit Distance</b>, <b>Distinct Subsequence</b>, <b>Interleaving String</b>
+      (and <b>Longest Common Substring</b>, which must be <i>contiguous</i> — reset to 0 on mismatch).</p>
+  </section>
+
+  <!-- KNAPSACK -->
+  <section id="knapsack">
+    <div class="kicker">Family 3</div>
+    <h2>Knapsack DP</h2>
+    <p>The capacity becomes a <b>dimension of the state</b>. <b>Backpack I</b>: can items fill a
+      capacity (yes/no, or max filled weight)? <b>Backpack II</b>: maximize value within capacity.
+      The 1-D rolling form iterates capacity <b>backward</b> so each item is used once.</p>
+    <span class="filetag">Python · Backpack II (max value, 0/1)</span>
+    <pre><code><span class="k">def</span> <span class="f">backpack_ii</span>(capacity, weights, values):
+    f = [<span class="n">0</span>] * (capacity + <span class="n">1</span>)             <span class="c"># f[w] = best value using capacity w</span>
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="f">len</span>(weights)):
+        <span class="k">for</span> w <span class="k">in</span> <span class="f">range</span>(capacity, weights[i] - <span class="n">1</span>, -<span class="n">1</span>):   <span class="c"># backward ⇒ item used once</span>
+            f[w] = <span class="f">max</span>(f[w], f[w - weights[i]] + values[i])
+    <span class="k">return</span> f[capacity]</code></pre>
+    <div class="note">
+      <span class="lbl">Family members</span>
+      <b>Backpack I</b> (feasible fill), <b>Backpack II</b> (max value), <b>K Sum</b> (count subsets
+      of size k summing to a target — add a count dimension), <b>Minimum Adjustment Cost</b> (value
+      range as a dimension). Iterate capacity <b>forward</b> instead for unbounded knapsack (item
+      reusable).
+    </div>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Senior DP II checklist</h2>
+    <ol style="font-size:17px">
+      <li><b>Interval DP</b>: state <code>dp[i][j]</code> over a range; reason about the <b>last</b>
+        operation; grow intervals by length (Stone Game, Burst Balloons, Scramble String).</li>
+      <li><b>Matching DP</b>: <code>f[i][j]</code> over prefixes of two sequences; on a match take the
+        <b>diagonal</b>, else combine neighbors (LCS max, Edit Distance min). Draw &amp; fill the grid.</li>
+      <li>Remember <b>the i-th char is index i−1</b> in 1-indexed states.</li>
+      <li><b>Knapsack DP</b>: capacity is a state dimension; 1-D rolling iterates capacity
+        <b>backward</b> (0/1) or <b>forward</b> (unbounded).</li>
+      <li>Hard DP almost always reduces to one of these three shapes.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Advanced Class “Senior Dynamic Programming II” deck plus the lecture (audio
+  transcribed with Whisper large-v3). Code templates are written in Python (the course's originals
+  are in Java). Study guide for personal use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

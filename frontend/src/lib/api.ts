@@ -1,4 +1,4 @@
-import type { Domain, Topic, Subtopic, Question, StudySession, User } from '../types';
+import type { Domain, Topic, Subtopic, Question, StudySession, User, Summary } from '../types';
 
 export interface LoginResult {
   user: User;
@@ -51,6 +51,9 @@ export const api = {
   // Pass subtopic_id so the server caches/reuses the result across users & sessions.
   explain: (body: { point_title: string; topic_title?: string; domain_name?: string; mode?: 'simpler' | 'deeper'; subtopic_id?: number; refresh?: boolean }) =>
     req<{ markdown: string; cached: boolean }>('/ai/explain', { method: 'POST', body: JSON.stringify(body) }),
+
+  // Distilled HTML study-notes body (metadata rides along in the topic feed)
+  getSummary: (id: number) => req<Summary>(`/summaries/${id}`),
 
   // Topics (user-scoped: defaults + that user's own; defaults are read-only)
   listTopics: (userId: number) => req<Topic[]>(`/topics?user_id=${userId}`),

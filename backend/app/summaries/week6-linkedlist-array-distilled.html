@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 6 · Linked List & Array — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Week 6 · <b>Linked List &amp; Array</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#dummy">Dummy Node</a>
+      <a href="#fastslow">Fast / Slow</a>
+      <a href="#sortlist">Sort List</a>
+      <a href="#prefix">Prefix Sum</a>
+      <a href="#sorted">Sorted Arrays</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Week 6 · Algorithm Course</div>
+    <h1>Linked List &amp; Array</h1>
+    <p class="lede">Two workhorses with two signature techniques. Linked lists live and die by the
+      <b>dummy node</b> and <b>fast/slow pointers</b>; arrays by the <b>prefix sum</b> and clean
+      <b>merging</b>. Small tricks, enormous reach.</p>
+    <div class="meta">
+      <span><b>Source</b> · Chapter “Linked List &amp; Array” deck + full lecture</span>
+      <span><b>Version</b> · v4.0</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="kicker">Map</div>
+    <h2>Four techniques</h2>
+    <div class="cards">
+      <div class="card"><h4>Dummy Node</h4><p class="small">A sentinel before the head so you never
+        special-case an empty/changing head.</p></div>
+      <div class="card"><h4>Fast / Slow Pointers</h4><p class="small">Two speeds to find the middle
+        or detect a cycle in O(1) space.</p></div>
+      <div class="card"><h4>Prefix Sum</h4><p class="small">Pre-compute running totals → any
+        subarray sum in O(1).</p></div>
+      <div class="card"><h4>Merge</h4><p class="small">Combine sorted lists/arrays in linear time;
+        the core of merge sort.</p></div>
+    </div>
+  </section>
+
+  <!-- DUMMY -->
+  <section id="dummy">
+    <div class="kicker">Linked List · technique 1</div>
+    <h2>The Dummy Node</h2>
+    <blockquote class="shifu">
+      “When do you need a dummy node? Whenever the list's <b>structure changes</b> — because then
+      the <b>head might change</b>. You store the head in <code>dummy.next</code> and return
+      <code>dummy.next</code> at the end. You don't need to delete the dummy; the garbage collector
+      reclaims it.”
+      <span class="who">— the instructor [48:19]</span>
+    </blockquote>
+    <p>The template is always the same: create <code>dummy</code>, point it at the head, build using
+      a moving pointer, then return <code>dummy.next</code>. Here it removes the “what if the result
+      head differs from the input head?” worry from <b>Merge Two Sorted Lists</b>:</p>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">merge_two_lists</span>(l1, l2):
+    dummy = <span class="t">ListNode</span>(<span class="n">0</span>)                  <span class="c"># sentinel; real head ends up at dummy.next</span>
+    tail = dummy
+    <span class="k">while</span> l1 <span class="k">and</span> l2:
+        <span class="k">if</span> l1.val &lt;= l2.val:
+            tail.next, l1 = l1, l1.next
+        <span class="k">else</span>:
+            tail.next, l2 = l2, l2.next
+        tail = tail.next
+    tail.next = l1 <span class="k">or</span> l2                  <span class="c"># attach the remaining tail</span>
+    <span class="k">return</span> dummy.next</code></pre>
+    <p>The deck's “eight questions” boil down to: use it when the head may move; one dummy is enough;
+      its value doesn't matter; you needn't delete it. Problems worth doing with it: <b>Partition
+      List</b> (two dummies — a “small” list and a “big” list, then stitch), <b>Reverse Linked List
+      II</b>, <b>Swap Two Nodes</b>, <b>Reorder List</b>, <b>Rotate List</b>, <b>Reverse Nodes in
+      k-Group</b>.</p>
+  </section>
+
+  <!-- FAST SLOW -->
+  <section id="fastslow">
+    <div class="kicker">Linked List · technique 2</div>
+    <h2>Fast / Slow Pointers</h2>
+    <p>Advance one pointer twice as fast as the other. Two payoffs in O(1) extra space: <b>find the
+      middle</b> (slow is at the midpoint when fast reaches the end) and <b>detect a cycle</b> (a
+      faster runner laps a slower one only on a circular track).</p>
+    <span class="filetag">Python · cycle detection</span>
+    <pre><code><span class="k">def</span> <span class="f">has_cycle</span>(head):
+    slow = fast = head
+    <span class="k">while</span> fast <span class="k">and</span> fast.next:
+        slow = slow.next                <span class="c"># +1</span>
+        fast = fast.next.next            <span class="c"># +2</span>
+        <span class="k">if</span> slow <span class="k">is</span> fast:               <span class="c"># they meet ⇒ there is a cycle</span>
+            <span class="k">return</span> <span class="k">True</span>
+    <span class="k">return</span> <span class="k">False</span></code></pre>
+    <div class="note">
+      <span class="lbl">Follow-ups</span>
+      <b>Linked List Cycle II</b> (find the entry node), and <b>Intersection of Two Linked Lists</b>
+      — both are the same two-runner idea. The middle-finder also powers Sort List below.
+    </div>
+  </section>
+
+  <!-- SORT LIST -->
+  <section id="sortlist">
+    <div class="kicker">Putting it together</div>
+    <h2>Sort List — merge sort on a linked list</h2>
+    <p>Merge sort is the natural fit: split with fast/slow, sort each half, then merge — <b>O(n log
+      n)</b> time. (A linked list splits in O(1) with no scratch array, which is why it's preferred
+      over quicksort here.)</p>
+    <span class="filetag">Python</span>
+    <pre><code><span class="k">def</span> <span class="f">sort_list</span>(head):
+    <span class="k">if</span> <span class="k">not</span> head <span class="k">or</span> <span class="k">not</span> head.next:
+        <span class="k">return</span> head
+    slow, fast = head, head.next         <span class="c"># split into two halves</span>
+    <span class="k">while</span> fast <span class="k">and</span> fast.next:
+        slow, fast = slow.next, fast.next.next
+    mid = slow.next
+    slow.next = <span class="k">None</span>
+    <span class="k">return</span> <span class="f">merge_two_lists</span>(<span class="f">sort_list</span>(head), <span class="f">sort_list</span>(mid))</code></pre>
+    <div class="note insight">
+      <span class="lbl">The deck's two quiz questions</span>
+      <b>Which sorts are O(n log n) time?</b> Merge sort, quicksort (average), heap sort.
+      <b>Which sorts are O(1) extra space?</b> Insertion, selection, bubble, and heap sort.
+      Merge-sorting a linked list is the sweet spot of O(n log n) time with no auxiliary array.
+    </div>
+    <p>Related: <b>Copy List with Random Pointer</b> (HashMap old→new, or interleave-and-split),
+      <b>Convert Sorted List to Balanced BST</b>, <b>Convert BST to Doubly Linked List</b>.</p>
+  </section>
+
+  <!-- PREFIX -->
+  <section id="prefix">
+    <div class="kicker">Array · technique 3</div>
+    <h2>Prefix Sum (subarray problems)</h2>
+    <p>Almost every <b>subarray</b> problem wants a prefix sum. Define
+      <code>P[i] = A[0] + A[1] + … + A[i-1]</code> with <code>P[0] = 0</code> — built in O(n). Then
+      <b>any</b> subarray sum is a single subtraction:</p>
+    <figure>
+      <svg viewBox="0 0 560 150" role="img" aria-label="Prefix sum range subtraction">
+        <style>
+          .ac{fill:#fff;stroke:#3c3c46}.ach{fill:#fbf4e6;stroke:#b8893b;stroke-width:2}
+          .at{font:600 13px Helvetica;text-anchor:middle;fill:#1a1a1f}
+          .pl{font:11px 'SF Mono',monospace;fill:#6b6b76;text-anchor:middle}
+        </style>
+        <g>
+          <rect class="ac" x="40" y="40" width="50" height="34"/><text class="at" x="65" y="62">3</text>
+          <rect class="ach" x="90" y="40" width="50" height="34"/><text class="at" x="115" y="62">1</text>
+          <rect class="ach" x="140" y="40" width="50" height="34"/><text class="at" x="165" y="62">-4</text>
+          <rect class="ach" x="190" y="40" width="50" height="34"/><text class="at" x="215" y="62">5</text>
+          <rect class="ac" x="240" y="40" width="50" height="34"/><text class="at" x="265" y="62">2</text>
+        </g>
+        <g class="pl">
+          <text x="40" y="92">P0=0</text><text x="90" y="92">P1=3</text><text x="140" y="92">P2=4</text>
+          <text x="190" y="92">P3=0</text><text x="240" y="92">P4=5</text><text x="290" y="92">P5=7</text>
+        </g>
+        <text x="420" y="48" style="font:700 13px Helvetica;fill:#b8893b">Sum of A[1..3]</text>
+        <text x="420" y="72" style="font:13px 'SF Mono',monospace;fill:#3c3c46">= P4 − P1</text>
+        <text x="420" y="92" style="font:13px 'SF Mono',monospace;fill:#3c3c46">= 5 − 3 = 2</text>
+        <text x="420" y="116" style="font:11px Helvetica;fill:#6b6b76">(1 + −4 + 5 = 2 ✓)</text>
+      </svg>
+      <figcaption><code>Sum(i…j) = P[j+1] − P[i]</code> — O(1) per query after O(n) setup.</figcaption>
+    </figure>
+
+    <span class="filetag">Python · Maximum Subarray (prefix-min)</span>
+    <pre><code><span class="k">def</span> <span class="f">max_subarray</span>(nums):
+    prefix, min_prefix, best = <span class="n">0</span>, <span class="n">0</span>, <span class="t">float</span>(<span class="s">"-inf"</span>)
+    <span class="k">for</span> x <span class="k">in</span> nums:
+        prefix += x
+        best = <span class="f">max</span>(best, prefix - min_prefix)   <span class="c"># best subarray ending here</span>
+        min_prefix = <span class="f">min</span>(min_prefix, prefix)      <span class="c"># cheapest left edge so far</span>
+    <span class="k">return</span> best</code></pre>
+
+    <span class="filetag">Python · Subarray Sum (find a zero-sum range)</span>
+    <pre><code><span class="k">def</span> <span class="f">subarray_sum</span>(nums):
+    prefix = <span class="n">0</span>
+    seen = {<span class="n">0</span>: -<span class="n">1</span>}                       <span class="c"># prefix value -> index</span>
+    <span class="k">for</span> i, x <span class="k">in</span> <span class="f">enumerate</span>(nums):
+        prefix += x
+        <span class="k">if</span> prefix <span class="k">in</span> seen:                 <span class="c"># same prefix twice ⇒ zeros in between</span>
+            <span class="k">return</span> [seen[prefix] + <span class="n">1</span>, i]
+        seen[prefix] = i</code></pre>
+    <p>Same toolbox: <b>Window Sum</b>, <b>Subarray Sum Closest</b> (sort the prefix sums, then the
+      closest pair of prefixes gives the closest-to-zero subarray).</p>
+  </section>
+
+  <!-- SORTED -->
+  <section id="sorted">
+    <div class="kicker">Array · technique 4</div>
+    <h2>Sorted Arrays — merging</h2>
+    <p>Two pointers walking two sorted arrays. The neat variant is <b>Merge Sorted Array</b> (merge B
+      into A in place): fill <b>from the back</b> so you never overwrite unread elements of A.</p>
+    <span class="filetag">Python · merge B into A (A has trailing space)</span>
+    <pre><code><span class="k">def</span> <span class="f">merge</span>(A, m, B, n):
+    i, j, k = m - <span class="n">1</span>, n - <span class="n">1</span>, m + n - <span class="n">1</span>     <span class="c"># write from the largest end</span>
+    <span class="k">while</span> i &gt;= <span class="n">0</span> <span class="k">and</span> j &gt;= <span class="n">0</span>:
+        <span class="k">if</span> A[i] &gt; B[j]:
+            A[k] = A[i]; i -= <span class="n">1</span>
+        <span class="k">else</span>:
+            A[k] = B[j]; j -= <span class="n">1</span>
+        k -= <span class="n">1</span>
+    <span class="k">while</span> j &gt;= <span class="n">0</span>:                          <span class="c"># leftover B (leftover A is already in place)</span>
+        A[k] = B[j]; j -= <span class="n">1</span>; k -= <span class="n">1</span></code></pre>
+    <div class="note">
+      <span class="lbl">Related</span>
+      <b>Intersection of Two Arrays</b>; <b>sparse dot product</b> — when both arrays are huge but
+      mostly zeros, store only <code>(index, value)</code> pairs and two-pointer the non-zeros;
+      <b>Median of Two Sorted Arrays</b> — the hard one, a binary-search-on-partition that finds the
+      kth element in O(log(m+n)).
+    </div>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Linked List &amp; Array checklist</h2>
+    <ol style="font-size:17px">
+      <li><b>Dummy node</b> whenever the list's structure (and thus the head) can change; return
+        <code>dummy.next</code>, no deletion needed.</li>
+      <li><b>Fast/slow pointers</b> find the middle and detect cycles in O(1) space.</li>
+      <li><b>Sort List</b> = merge sort (split with fast/slow + merge) → O(n log n).</li>
+      <li>Subarray problems ⇒ <b>prefix sum</b>: <code>Sum(i…j) = P[j+1] − P[i]</code> in O(1).</li>
+      <li>Max subarray via <b>prefix − running min</b>; zero-sum range via <b>prefix-in-hashmap</b>.</li>
+      <li>Merge sorted arrays in place by writing <b>from the back</b>.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Chapter “Linked List &amp; Array” v4.0 deck plus the full lecture (audio
+  transcribed with Whisper large-v3; quotes carry their <code>[mm:ss]</code> timestamps). Code
+  templates are written in Python (the course's originals are in Java). Study guide for personal
+  use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

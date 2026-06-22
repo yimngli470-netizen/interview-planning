@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 9 · Dynamic Programming — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Week 9 · <b>Dynamic Programming</b></span>
+    <nav class="toc">
+      <a href="#overview">Overview</a>
+      <a href="#triangle">Triangle · 4 ways</a>
+      <a href="#when">When to use</a>
+      <a href="#elements">4 Elements</a>
+      <a href="#coordinate">Coordinate DP</a>
+      <a href="#sequence">Sequence DP</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Week 9 · Algorithm Course</div>
+    <h1>Dynamic Programming</h1>
+    <p class="lede">DP is just <b>memoized search</b>: a recursion that remembers its answers so it
+      never solves the same subproblem twice. Master one worked example — the number triangle —
+      and the four-part recipe behind every DP falls out of it.</p>
+    <div class="meta">
+      <span><b>Source</b> · Chapter “Dynamic Programming” deck + full lecture</span>
+      <span><b>Version</b> · v4.0</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="kicker">The big picture</div>
+    <h2>What dynamic programming really is</h2>
+    <p>Two sentences carry the whole topic:</p>
+    <div class="cards">
+      <div class="card">
+        <h4>Essence</h4>
+        <p class="small">DP = <b>memoized search</b>. Take a divide-and-conquer recursion and
+          cache each subproblem's answer in a table.</p>
+      </div>
+      <div class="card">
+        <h4>Why it's fast</h4>
+        <p class="small">It <b>eliminates repeated computation</b>. The same subproblem is solved
+          <b>once</b>, not exponentially many times.</p>
+      </div>
+    </div>
+    <blockquote class="shifu">
+      “Why is DP fast? Because I avoid repeated computation — I never compute the same state many
+      times. That is the whole reason.”
+      <span class="who">— the instructor [33:42]</span>
+    </blockquote>
+    <p>This is also the hardest week. As the instructor likes to contrast: BFS you can learn in a
+      day; DP you might study for months and still not finish. The good news is that almost every
+      interview DP reduces to a small recipe you can drill.</p>
+  </section>
+
+  <!-- TRIANGLE -->
+  <section id="triangle">
+    <div class="kicker">One problem, four solutions</div>
+    <h2>The number triangle</h2>
+    <p>Given a triangle of numbers, walk from the top to the bottom (each step goes to the cell
+      directly below-left or below-right) and return the <b>minimum path sum</b>. We solve it four
+      ways — the progression <i>is</i> the lesson.</p>
+
+    <figure>
+      <svg viewBox="0 0 620 230" role="img" aria-label="Number triangle with overlapping subproblem">
+        <style>
+          .tn{fill:#fff;stroke:#3c3c46;stroke-width:1.5}
+          .tnh{fill:#fbf4e6;stroke:#b8893b;stroke-width:2.5}
+          .tt{font:600 15px Helvetica;fill:#1a1a1f;text-anchor:middle}
+          .pa{stroke:#c44b42;stroke-width:2.5;marker-end:url(#ph);fill:none}
+          .pb{stroke:#2f5d8a;stroke-width:2.5;marker-end:url(#ph2);fill:none}
+        </style>
+        <defs>
+          <marker id="ph" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#c44b42"/></marker>
+          <marker id="ph2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#2f5d8a"/></marker>
+        </defs>
+        <!-- converging arrows onto (2,1) -->
+        <path class="pa" d="M180,98 L195,128"/>
+        <path class="pb" d="M222,98 L208,128"/>
+        <!-- nodes -->
+        <circle class="tn" cx="200" cy="42" r="18"/><text class="tt" x="200" y="47">7</text>
+        <circle class="tn" cx="170" cy="90" r="18"/><text class="tt" x="170" y="95">3</text>
+        <circle class="tn" cx="230" cy="90" r="18"/><text class="tt" x="230" y="95">8</text>
+        <circle class="tn" cx="140" cy="138" r="18"/><text class="tt" x="140" y="143">8</text>
+        <circle class="tnh" cx="200" cy="138" r="18"/><text class="tt" x="200" y="143">1</text>
+        <circle class="tn" cx="260" cy="138" r="18"/><text class="tt" x="260" y="143">0</text>
+        <circle class="tn" cx="110" cy="186" r="18"/><text class="tt" x="110" y="191">2</text>
+        <circle class="tn" cx="170" cy="186" r="18"/><text class="tt" x="170" y="191">7</text>
+        <circle class="tn" cx="230" cy="186" r="18"/><text class="tt" x="230" y="191">4</text>
+        <circle class="tn" cx="290" cy="186" r="18"/><text class="tt" x="290" y="191">4</text>
+        <g style="font:13px Helvetica;fill:#3c3c46">
+          <text x="340" y="70" style="font:700 13px Helvetica;fill:#b8893b">The overlap</text>
+          <text x="340" y="95">Cell (2,1) is reached</text>
+          <text x="340" y="114">both via 7→3 (red) and</text>
+          <text x="340" y="133">via 7→8 (blue). Plain</text>
+          <text x="340" y="152">recursion solves dfs(2,1)</text>
+          <text x="340" y="171"><tspan style="fill:#c44b42;font-weight:700">twice</tspan> — memoization solves</text>
+          <text x="340" y="190">it <tspan style="fill:#3a7a4e;font-weight:700">once</tspan>.</text>
+        </g>
+      </svg>
+      <figcaption>Overlapping subproblems are exactly what makes memoization (and therefore DP)
+        pay off.</figcaption>
+    </figure>
+
+    <h3>① DFS — traverse (enumerate every path)</h3>
+    <p>Carry the running sum down each path; record the best at the bottom.</p>
+    <span class="filetag">Python · O(2ⁿ)</span>
+    <pre><code><span class="k">def</span> <span class="f">minimum_total</span>(triangle):
+    n = <span class="f">len</span>(triangle)
+    best = [<span class="t">float</span>(<span class="s">"inf"</span>)]
+
+    <span class="k">def</span> <span class="f">traverse</span>(x, y, path_sum):
+        <span class="k">if</span> x == n:                       <span class="c"># walked past the bottom</span>
+            best[<span class="n">0</span>] = <span class="f">min</span>(best[<span class="n">0</span>], path_sum)
+            <span class="k">return</span>
+        <span class="f">traverse</span>(x + <span class="n">1</span>, y,     path_sum + triangle[x][y])
+        <span class="f">traverse</span>(x + <span class="n">1</span>, y + <span class="n">1</span>, path_sum + triangle[x][y])
+
+    <span class="f">traverse</span>(<span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>)
+    <span class="k">return</span> best[<span class="n">0</span>]</code></pre>
+    <p>Every cell branches into two, so the path count doubles each row → <b>O(2ⁿ)</b>.</p>
+
+    <h3>② DFS — divide &amp; conquer (return the answer)</h3>
+    <p>Instead of carrying state down, ask each cell: “what is the best sum from <i>me</i> to the
+      bottom?”</p>
+    <span class="filetag">Python · O(2ⁿ)</span>
+    <pre><code><span class="k">def</span> <span class="f">divide_conquer</span>(x, y):                <span class="c"># best sum from (x,y) to the bottom</span>
+    <span class="k">if</span> x == n:
+        <span class="k">return</span> <span class="n">0</span>
+    left  = <span class="f">divide_conquer</span>(x + <span class="n">1</span>, y)
+    right = <span class="f">divide_conquer</span>(x + <span class="n">1</span>, y + <span class="n">1</span>)
+    <span class="k">return</span> <span class="f">min</span>(left, right) + triangle[x][y]
+<span class="c"># answer = divide_conquer(0, 0)</span></code></pre>
+    <p>Cleaner, but still <b>O(2ⁿ)</b> — it recomputes shared cells like (2,1) over and over.</p>
+
+    <h3>③ Divide &amp; conquer + memoization — the leap</h3>
+    <p>One cache turns the exponential recursion into a polynomial one. <b>This is dynamic
+      programming</b>, written as top-down search.</p>
+    <span class="filetag">Python · O(n²)</span>
+    <pre><code><span class="k">def</span> <span class="f">minimum_total</span>(triangle):
+    n = <span class="f">len</span>(triangle)
+    memo = {}
+
+    <span class="k">def</span> <span class="f">dfs</span>(x, y):
+        <span class="k">if</span> x == n:
+            <span class="k">return</span> <span class="n">0</span>
+        <span class="k">if</span> (x, y) <span class="k">in</span> memo:                 <span class="c"># already solved → reuse</span>
+            <span class="k">return</span> memo[(x, y)]
+        memo[(x, y)] = <span class="f">min</span>(<span class="f">dfs</span>(x + <span class="n">1</span>, y),
+                            <span class="f">dfs</span>(x + <span class="n">1</span>, y + <span class="n">1</span>)) + triangle[x][y]
+        <span class="k">return</span> memo[(x, y)]
+
+    <span class="k">return</span> <span class="f">dfs</span>(<span class="n">0</span>, <span class="n">0</span>)</code></pre>
+    <p>There are only ~n²/2 distinct (x, y) states and each is computed once → <b>O(n²)</b>.</p>
+
+    <div class="note insight">
+      <span class="lbl">Why a binary tree needs no memoization but a triangle does</span>
+      The instructor's sharpest point [34:01]: a binary-tree recursion never benefits from a cache
+      because the left and right subtrees <b>never reconverge</b> — you can't reach the same node
+      two ways. In the number triangle you <b>can</b> (go right-then-left vs left-then-right both
+      land on (2,1)), so the same subproblem repeats. <b>Overlapping subproblems = the precondition
+      for DP.</b> No overlap, no speedup.
+    </div>
+
+    <h3>④ Bottom-up multi-loop DP</h3>
+    <p>The same recurrence, filled iteratively from the bottom row up — no recursion at all.</p>
+    <span class="filetag">Python · O(n²)</span>
+    <pre><code><span class="k">def</span> <span class="f">minimum_total</span>(triangle):
+    n = <span class="f">len</span>(triangle)
+    <span class="c"># f[y] = best sum from the current row's cell y down to the bottom</span>
+    f = triangle[n - <span class="n">1</span>][:]                  <span class="c"># initialize with the bottom row</span>
+    <span class="k">for</span> x <span class="k">in</span> <span class="f">range</span>(n - <span class="n">2</span>, -<span class="n">1</span>, -<span class="n">1</span>):       <span class="c"># work upward</span>
+        <span class="k">for</span> y <span class="k">in</span> <span class="f">range</span>(x + <span class="n">1</span>):
+            f[y] = <span class="f">min</span>(f[y], f[y + <span class="n">1</span>]) + triangle[x][y]
+    <span class="k">return</span> f[<span class="n">0</span>]</code></pre>
+
+    <div class="note">
+      <span class="lbl">Top-down memoized search vs bottom-up loops</span>
+      <table style="margin:.4em 0">
+        <thead><tr><th></th><th>Bottom-up loops</th><th>Top-down memoized search</th></tr></thead>
+        <tbody>
+          <tr><td><b>Pros</b></td><td>Conventional; most interviewers expect it; allows space
+            optimization (rolling array).</td><td>Mechanical to derive straight from a search;
+            sometimes skips unreachable states, saving time.</td></tr>
+          <tr><td><b>Cons</b></td><td>Requires thinking out the fill order.</td><td>Recursion (stack
+            depth / overhead).</td></tr>
+        </tbody>
+      </table>
+      Bottom-up and top-down have no big advantage over each other — one thinks forward, the other
+      backward. (The course standardizes on the top-down direction for teaching.)
+    </div>
+  </section>
+
+  <!-- WHEN -->
+  <section id="when">
+    <div class="kicker">Pattern recognition</div>
+    <h2>When to use DP — and when not to</h2>
+    <p>You usually can't be told “this is a DP problem” — you infer it from the question's shape.</p>
+
+    <div class="cards">
+      <div class="card" style="border-color:#3a7a4e">
+        <h4 style="color:#3a7a4e">Likely DP if it asks for one of…</h4>
+        <ol class="small" style="margin:.3em 0">
+          <li>a <b>maximum or minimum</b> value,</li>
+          <li>whether something is <b>feasible</b> (yes/no), or</li>
+          <li>the <b>number of ways</b> (count of plans).</li>
+        </ol>
+      </div>
+      <div class="card" style="border-color:#c44b42">
+        <h4 style="color:#9e2b25">Very unlikely DP if…</h4>
+        <ol class="small" style="margin:.3em 0">
+          <li>it wants <b>all concrete plans</b>, not a count (that's DFS — e.g. Palindrome
+            Partitioning),</li>
+          <li>the input is a <b>set</b>, not a <b>sequence</b> (e.g. Longest Consecutive Sequence), or</li>
+          <li>brute force is <b>already polynomial</b>.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="note tip">
+      <span class="lbl">What DP is good at</span>
+      DP shines at collapsing <b>exponential</b> brute force (2ⁿ, n!) down to <b>polynomial</b>
+      (n², n³). It is <i>not</i> the tool for shaving n³ down to n² — don't reach for it there.
+    </div>
+  </section>
+
+  <!-- FOUR ELEMENTS -->
+  <section id="elements">
+    <div class="kicker">The recipe</div>
+    <h2>The four elements of DP</h2>
+    <p>Every DP is four decisions, and they map one-to-one onto the three elements of recursion:</p>
+    <table>
+      <thead><tr><th>DP element</th><th>What it is</th><th>Recursion analogue</th></tr></thead>
+      <tbody>
+        <tr><td><b>State</b></td><td>What a table entry <code>f[…]</code> means. Needs inspiration —
+          it's the creative step.</td><td>Definition (the params &amp; return value)</td></tr>
+        <tr><td><b>Function</b> (transition)</td><td>How a bigger state is computed from smaller
+          ones.</td><td>The recursive decomposition</td></tr>
+        <tr><td><b>Initialization</b></td><td>The smallest/base states — the starting point.</td>
+          <td>The recursion's exit / base case</td></tr>
+        <tr><td><b>Answer</b></td><td>The largest state — what you finally return.</td>
+          <td>(the top-level call's result)</td></tr>
+      </tbody>
+    </table>
+    <blockquote class="shifu">
+      “Once you've nailed the <b>state</b> — say <code>f[i][j]</code> = the best path from (i, j) to
+      the bottom — everything after it is easy: the transition almost writes itself, because from
+      (i, j) you can only step two ways.”
+      <span class="who">— the instructor [57:05]</span>
+    </blockquote>
+    <p>Finding the <b>state</b> is the hard, creative part; the other three usually follow
+      mechanically once the state is right.</p>
+
+    <h4>Interview frequency by DP type</h4>
+    <table>
+      <thead><tr><th>Type</th><th>Share</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Coordinate (matrix) DP</td><td>10%</td><td>Minimum Path Sum</td></tr>
+        <tr><td>Sequence / chaining DP</td><td>20%</td><td>Longest Increasing Subsequence</td></tr>
+        <tr><td>Partition DP</td><td>20%</td><td>(advanced)</td></tr>
+        <tr><td>Two-sequence DP</td><td>20%</td><td>(advanced)</td></tr>
+        <tr><td>Knapsack DP</td><td>20%</td><td>(advanced)</td></tr>
+        <tr><td>Interval DP</td><td>10%</td><td>(advanced)</td></tr>
+      </tbody>
+    </table>
+    <p>This week covers the two most common entry-level types: <b>coordinate</b> and
+      <b>sequence</b> DP.</p>
+  </section>
+
+  <!-- COORDINATE -->
+  <section id="coordinate">
+    <div class="kicker">Type 1 of 2</div>
+    <h2>Coordinate DP</h2>
+    <p>The state is a position. <code>f[x]</code> or <code>f[x][y]</code> = the best/optimal value
+      of getting from the start to coordinate x (or x, y). The transition looks at <b>the one step
+      before</b> reaching that cell; initialization is the start; the answer is the end.</p>
+
+    <div class="prob">
+      <h3>Minimum Path Sum</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/minimum-path-sum/">LintCode</a></span>
+    </div>
+    <p><b>State</b> <code>f[i][j]</code> = min cost from (0,0) to (i,j). <b>Transition</b>
+      <code>f[i][j] = min(f[i-1][j], f[i][j-1]) + grid[i][j]</code>.</p>
+    <span class="filetag">Python · O(m·n)</span>
+    <pre><code><span class="k">def</span> <span class="f">min_path_sum</span>(grid):
+    m, n = <span class="f">len</span>(grid), <span class="f">len</span>(grid[<span class="n">0</span>])
+    f = [[<span class="n">0</span>] * n <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(m)]
+    f[<span class="n">0</span>][<span class="n">0</span>] = grid[<span class="n">0</span>][<span class="n">0</span>]
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, m):                  <span class="c"># initialize column 0</span>
+        f[i][<span class="n">0</span>] = f[i - <span class="n">1</span>][<span class="n">0</span>] + grid[i][<span class="n">0</span>]
+    <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, n):                  <span class="c"># initialize row 0</span>
+        f[<span class="n">0</span>][j] = f[<span class="n">0</span>][j - <span class="n">1</span>] + grid[<span class="n">0</span>][j]
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, m):
+        <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, n):
+            f[i][j] = <span class="f">min</span>(f[i - <span class="n">1</span>][j], f[i][j - <span class="n">1</span>]) + grid[i][j]
+    <span class="k">return</span> f[m - <span class="n">1</span>][n - <span class="n">1</span>]</code></pre>
+    <div class="note insight">
+      <span class="lbl">The Qi-Breaking Form — initializing a 2-D DP</span>
+      A reliable rule of thumb the instructor gives for any 2-D coordinate DP: <b>when you
+      initialize, initialize row 0 and column 0 first.</b> Those are the cells with no “up” or
+      “left” neighbor, so the general transition can't reach them — they must be seeded by hand.
+    </div>
+
+    <div class="prob">
+      <h3>Unique Paths</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/unique-paths/">LintCode</a></span>
+    </div>
+    <p><b>State</b> <code>f[i][j]</code> = number of distinct paths to (i,j). <b>Transition</b> (look
+      at the last step) <code>f[i][j] = f[i-1][j] + f[i][j-1]</code>. Row 0 and column 0 each have
+      exactly one path → initialize to 1.</p>
+    <span class="filetag">Python · O(m·n)</span>
+    <pre><code><span class="k">def</span> <span class="f">unique_paths</span>(m, n):
+    f = [[<span class="n">1</span>] * n <span class="k">for</span> _ <span class="k">in</span> <span class="f">range</span>(m)]   <span class="c"># row 0 &amp; col 0 already 1</span>
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, m):
+        <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(<span class="n">1</span>, n):
+            f[i][j] = f[i - <span class="n">1</span>][j] + f[i][j - <span class="n">1</span>]
+    <span class="k">return</span> f[m - <span class="n">1</span>][n - <span class="n">1</span>]</code></pre>
+
+    <div class="prob">
+      <h3>Climbing Stairs</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/climbing-stairs/">LintCode</a></span>
+    </div>
+    <p>1-D coordinate DP. <code>f[i]</code> = number of ways to reach step i; you arrive from one or
+      two steps below → <code>f[i] = f[i-1] + f[i-2]</code> (Fibonacci).</p>
+    <span class="filetag">Python · O(n)</span>
+    <pre><code><span class="k">def</span> <span class="f">climb_stairs</span>(n):
+    <span class="k">if</span> n &lt;= <span class="n">1</span>:
+        <span class="k">return</span> <span class="n">1</span>
+    f = [<span class="n">0</span>] * (n + <span class="n">1</span>)
+    f[<span class="n">0</span>], f[<span class="n">1</span>] = <span class="n">1</span>, <span class="n">1</span>
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="n">2</span>, n + <span class="n">1</span>):
+        f[i] = f[i - <span class="n">1</span>] + f[i - <span class="n">2</span>]
+    <span class="k">return</span> f[n]</code></pre>
+    <div class="note">
+      <span class="lbl">Note on Jump Game I / II</span>
+      They look like coordinate DP, but the <b>optimal</b> solution is greedy — DP works only
+      because the data ranges were lowered. Recognize when a cheaper technique dominates.
+    </div>
+  </section>
+
+  <!-- SEQUENCE -->
+  <section id="sequence">
+    <div class="kicker">Type 2 of 2</div>
+    <h2>Sequence (chaining) DP</h2>
+    <p>A special case of coordinate DP where the “coordinate” is an index into a sequence and each
+      state chains onto an <b>earlier</b> index that satisfies some condition.</p>
+
+    <div class="prob">
+      <h3>Longest Increasing Subsequence (LIS)</h3>
+      <span class="src">· <a href="http://www.lintcode.com/problem/longest-increasing-subsequence/">LintCode</a></span>
+    </div>
+    <p>The instructor's picture: think of the n numbers as n <b>wooden stakes</b>. Moving
+      front-to-back and low-to-high, how many stakes can you step on? <b>State</b> <code>f[i]</code>
+      = the longest increasing run that <b>ends at</b> stake i. <b>Transition</b>
+      <code>f[i] = max(f[j] + 1)</code> over all <code>j &lt; i</code> with
+      <code>nums[j] &lt; nums[i]</code>.</p>
+    <span class="filetag">Python · O(n²)</span>
+    <pre><code><span class="k">def</span> <span class="f">longest_increasing_subsequence</span>(nums):
+    <span class="k">if</span> <span class="k">not</span> nums:
+        <span class="k">return</span> <span class="n">0</span>
+    n = <span class="f">len</span>(nums)
+    f = [<span class="n">1</span>] * n                          <span class="c"># every stake is a run of length 1</span>
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(n):
+        <span class="k">for</span> j <span class="k">in</span> <span class="f">range</span>(i):
+            <span class="k">if</span> nums[j] &lt; nums[i]:           <span class="c"># can chain i onto j</span>
+                f[i] = <span class="f">max</span>(f[i], f[j] + <span class="n">1</span>)
+    <span class="k">return</span> <span class="f">max</span>(f)</code></pre>
+    <p>The answer is <code>max(f)</code> — the longest run can end at any stake, not just the last.</p>
+
+    <div class="note warn">
+      <span class="lbl">DP records only ONE optimal value — not all optimal plans</span>
+      A DP table stores <i>the best value</i> for each state, so it can reconstruct <b>one</b>
+      optimal solution, but it <b>cannot enumerate all</b> optimal solutions. The instant a problem
+      asks for <i>every</i> optimal plan, you're back in DFS territory — this is the same boundary
+      as the “all concrete plans ⇒ not DP” rule above.
+    </div>
+    <p>More chaining practice: <b>Perfect Squares</b>, <b>Largest Divisible Subset</b>,
+      <b>Russian Doll Envelopes</b>, <b>Frog Jump</b>.</p>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The DP checklist</h2>
+    <ol style="font-size:17px">
+      <li>DP = <b>memoized search</b>; it's fast because it <b>kills repeated computation</b>.</li>
+      <li>Precondition: <b>overlapping subproblems</b> (no overlap ⇒ no benefit, e.g. a binary
+        tree).</li>
+      <li>Smells like DP when it asks for <b>max/min</b>, <b>feasibility</b>, or a <b>count of
+        ways</b>.</li>
+      <li>Not DP when it wants <b>all concrete plans</b>, the input is a <b>set</b> not a
+        <b>sequence</b>, or brute force is <b>already polynomial</b>.</li>
+      <li>Write any DP as four parts: <b>State · Function · Initialization · Answer</b>. State is
+        the creative step.</li>
+      <li>2-D coordinate DP: <b>initialize row 0 and column 0</b> (the Qi-Breaking Form).</li>
+      <li>A DP table yields <b>one</b> optimal value, never <b>all</b> optimal plans.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Chapter “Dynamic Programming” v4.0 deck plus the full lecture (audio
+  transcribed with Whisper large-v3; quotes carry their <code>[mm:ss]</code> timestamps). Code
+  templates are written in Python (the course's originals are in Java). Study guide for personal
+  use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>

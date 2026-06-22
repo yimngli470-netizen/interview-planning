@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 from .. import llm
 from ..database import get_db
 from ..models import Domain, Question, Subtopic, Topic
-from ..schemas import STATUSES, QuestionOut, TopicCreate, TopicOut, TopicUpdate, to_subtopic_out
+from ..schemas import (
+    STATUSES, QuestionOut, SummaryMeta, TopicCreate, TopicOut, TopicUpdate, to_subtopic_out,
+)
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +42,8 @@ def _serialize(topic: Topic, user_id: int | None) -> TopicOut:
     out = TopicOut.model_validate(topic)
     out.subtopics = [to_subtopic_out(s) for s in _visible_subtopics(topic, user_id)]
     out.questions = [QuestionOut.model_validate(q) for q in _visible_questions(topic, user_id)]
+    # metadata only — the (bulky) HTML body is fetched on demand via /api/summaries/{id}
+    out.summaries = [SummaryMeta.model_validate(s) for s in topic.summaries]
     return out
 
 

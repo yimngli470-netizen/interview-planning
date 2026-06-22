@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Ch7 · Follow-Up Problems — Study Notes</title>
+<style>
+  :root{
+    --ink:#1a1a1f; --ink-soft:#3c3c46; --muted:#6b6b76;
+    --paper:#faf8f4; --paper-2:#f2efe8; --line:#e3ddd2;
+    --red:#9e2b25; --red-soft:#c44b42; --gold:#b8893b;
+    --blue:#2f5d8a; --green:#3a7a4e; --teal:#2c7a7b;
+    --code-bg:#1d2026; --code-ink:#e6e6e6;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; scroll-padding-top:78px}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,"Songti SC","Source Han Serif SC",serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased; font-size:17px;
+  }
+  .sans{font-family:"Helvetica Neue","PingFang SC","Segoe UI",system-ui,sans-serif}
+  code,pre,.mono{font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+
+  /* ---- top nav ---- */
+  header.topbar{
+    position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    background:rgba(250,248,244,.86); border-bottom:1px solid var(--line);
+  }
+  .topbar .wrap{max-width:var(--maxw); margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .brand{font-family:"Helvetica Neue",sans-serif; font-weight:800; letter-spacing:.5px;
+    color:var(--red); font-size:15px; white-space:nowrap}
+  .brand b{color:var(--ink)}
+  nav.toc{display:flex; gap:4px; flex-wrap:wrap; font-size:13px}
+  nav.toc a{color:var(--ink-soft); text-decoration:none; padding:4px 9px;
+    border-radius:999px; font-family:"Helvetica Neue",sans-serif; transition:.15s}
+  nav.toc a:hover{background:var(--paper-2); color:var(--red)}
+
+  main{max-width:var(--maxw); margin:0 auto; padding:0 22px 120px}
+
+  /* ---- hero ---- */
+  .hero{padding:54px 0 26px; border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:"Helvetica Neue",sans-serif; text-transform:uppercase;
+    letter-spacing:3px; font-size:12px; color:var(--red); font-weight:700}
+  h1{font-size:clamp(34px,6vw,56px); line-height:1.04; margin:.18em 0 .1em;
+    letter-spacing:-.5px}
+  h1 .zh{display:block; font-size:.5em; color:var(--muted); font-weight:400;
+    letter-spacing:2px; margin-top:.25em}
+  .meta{display:flex; gap:22px; flex-wrap:wrap; margin-top:20px; font-size:14px;
+    color:var(--muted); font-family:"Helvetica Neue",sans-serif}
+  .meta b{color:var(--ink)}
+  .lede{font-size:20px; color:var(--ink-soft); max-width:62ch; margin:22px 0 0}
+
+  /* ---- sections ---- */
+  section{padding:46px 0; border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Helvetica Neue",sans-serif; font-size:13px; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  h2{font-size:clamp(26px,4vw,36px); margin:.15em 0 .5em; letter-spacing:-.3px}
+  h2 .zh,h3 .zh{color:var(--muted); font-weight:400}
+  h3{font-size:22px; margin:1.7em 0 .5em; letter-spacing:-.2px}
+  h4{font-family:"Helvetica Neue",sans-serif; font-size:15px; letter-spacing:.4px;
+    text-transform:uppercase; color:var(--red); margin:1.6em 0 .4em}
+  p{margin:.7em 0}
+  a{color:var(--red)}
+
+  /* ---- callouts ---- */
+  .note{border-left:4px solid var(--blue); background:#eef3f8; padding:14px 18px;
+    border-radius:0 10px 10px 0; margin:1.2em 0; font-size:15.5px}
+  .warn{border-left:4px solid var(--red-soft); background:#fbeeec}
+  .tip{border-left:4px solid var(--green); background:#eef6ef}
+  .insight{border-left:4px solid var(--gold); background:#fbf4e6}
+  .note .lbl{display:block; font-family:"Helvetica Neue",sans-serif; font-weight:800;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px}
+  .note.warn .lbl{color:var(--red)} .note.tip .lbl{color:var(--green)}
+  .note.insight .lbl{color:var(--gold)} .note .lbl{color:var(--blue)}
+
+  /* quote from instructor */
+  blockquote.shifu{margin:1.2em 0; padding:16px 20px; background:#2b2522;
+    color:#f3ece2; border-radius:12px; font-size:16px; position:relative}
+  blockquote.shifu .who{display:block; font-family:"Helvetica Neue",sans-serif;
+    font-size:12px; letter-spacing:1px; color:var(--gold); margin-top:8px}
+  blockquote.shifu .zh{color:#e9dcc8; font-style:normal}
+
+  /* ---- code ---- */
+  pre{background:var(--code-bg); color:var(--code-ink); padding:18px 20px;
+    border-radius:12px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    margin:1em 0; tab-size:4}
+  pre code{color:inherit; font-size:inherit}
+  :not(pre)>code{background:var(--paper-2); padding:2px 6px; border-radius:6px;
+    font-size:.88em; color:var(--red)}
+  .filetag{font-family:"Helvetica Neue",sans-serif; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:1.4em 0 -.4em; display:block}
+  /* token colors */
+  .k{color:#c792ea} .t{color:#7fdbca} .s{color:#c3e88d} .c{color:#697098; font-style:italic}
+  .n{color:#f78c6c} .f{color:#82aaff} .o{color:#89ddff}
+
+  /* ---- pills / tags ---- */
+  .pill{display:inline-block; font-family:"Helvetica Neue",sans-serif; font-size:12px;
+    font-weight:700; letter-spacing:.5px; padding:3px 10px; border-radius:999px;
+    background:var(--paper-2); color:var(--ink-soft); margin:2px 4px 2px 0}
+  .pill.red{background:#f6e4e2; color:var(--red)}
+  .pill.blue{background:#e6eef6; color:var(--blue)}
+  .pill.green{background:#e6f1e9; color:var(--green)}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:1.2em 0; font-size:15px;
+    font-family:"Helvetica Neue",sans-serif}
+  th,td{text-align:left; padding:11px 13px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted)}
+  tbody tr:hover{background:var(--paper-2)}
+  td code{font-size:.85em}
+
+  /* ---- cards ---- */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:1.2em 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px}
+  .card h4{margin-top:0}
+  .card .small{font-size:14px; color:var(--muted)}
+
+  /* ---- problem header ---- */
+  .prob{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin:2.2em 0 .2em; padding-top:.4em}
+  .prob h3{margin:0}
+  .prob .src{font-family:"Helvetica Neue",sans-serif; font-size:13px}
+
+  /* ---- figures / svg ---- */
+  figure{margin:1.4em 0; text-align:center}
+  figure svg{max-width:100%; height:auto; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px}
+  figcaption{font-family:"Helvetica Neue",sans-serif; font-size:13px; color:var(--muted);
+    margin-top:8px}
+
+  ul,ol{padding-left:1.3em} li{margin:.35em 0}
+  .lead-num{color:var(--red); font-weight:800; font-family:"Helvetica Neue",sans-serif}
+
+  hr.soft{border:none; border-top:1px dashed var(--line); margin:2.4em 0}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:40px 22px 80px; color:var(--muted);
+    font-family:"Helvetica Neue",sans-serif; font-size:13px}
+  .toc-num{display:inline-block; width:1.6em; color:var(--red); font-weight:800}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">Advanced · Ch7 · <b>Follow-Up Problems</b></span>
+    <nav class="toc">
+      <a href="#overview">5 Patterns</a>
+      <a href="#subarray">Subarray Sum</a>
+      <a href="#partition">Partition</a>
+      <a href="#iterator">Iterator</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <div class="eyebrow">Advanced Class · Chapter 7</div>
+    <h1>Follow-Up Problems</h1>
+    <p class="lede">Interviewers rarely ask a brand-new problem — they twist one you know. This
+      capstone classifies the <b>five ways a follow-up transforms a base problem</b>, so you can
+      recognize the twist and reuse the core idea.</p>
+    <div class="meta">
+      <span><b>Source</b> · “Follow-Up Problems” deck + lecture</span>
+      <span><b>Version</b> · Advanced Ch7</span>
+      <span><b>Language</b> · Python templates</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview" style="border-top:none">
+    <div class="kicker">The whole chapter</div>
+    <h2>Five kinds of follow-up</h2>
+    <div class="cards">
+      <div class="card"><h4>1 · 1-D → 2-D</h4><p class="small">Try the same idea one dimension up.
+        Find Peak I→II, Trapping Water I→II, Subarray Sum → Submatrix Sum.</p></div>
+      <div class="card"><h4>2 · Array → circular array</h4><p class="small">Apply the circular-array
+        trick. Continuous Subarray Sum.</p></div>
+      <div class="card"><h4>3 · Strengthen the condition</h4><p class="small">The method may have to
+        change entirely. Wiggle Sort I → II.</p></div>
+      <div class="card"><h4>4 · Same essence, new costume</h4><p class="small">Reworded but identical.
+        Number of Airplanes ≡ Meeting Rooms; many Backpack variants.</p></div>
+      <div class="card"><h4>5 · Different description, same method</h4><p class="small">Needs analysis
+        to see through. Forward-pointer problems; Quick Sort ≡ Nuts &amp; Bolts.</p></div>
+    </div>
+    <div class="note insight">
+      <span class="lbl">The skill</span>
+      Each pattern is a lens: when a question feels new, ask “is this a dimension bump? a circular
+      twist? a strengthened constraint? a re-skin? or the same method in disguise?” Naming the
+      transformation usually hands you the solution.
+    </div>
+  </section>
+
+  <!-- SUBARRAY -->
+  <section id="subarray">
+    <div class="kicker">Pattern 1 &amp; 2 in action</div>
+    <h2>Subarray Sum &amp; its follow-ups</h2>
+    <p>Base: <b>Subarray Sum</b> (find a zero-sum range) uses a <b>prefix-sum → index</b> hash map.
+      Two follow-ups:</p>
+    <ul>
+      <li><b>Submatrix Sum</b> (1-D→2-D): fix a pair of rows, collapse the band between them into a
+        1-D column-sum array, then it's exactly the 1-D zero-sum subarray problem — O(rows²·cols).</li>
+      <li><b>Continuous Subarray Sum II</b> (array→circular): the best circular subarray is either a
+        normal max subarray, or <code>total − (min subarray)</code> when it wraps.</li>
+    </ul>
+    <figure>
+      <svg viewBox="0 0 540 120" role="img" aria-label="Circular max subarray = total minus min subarray">
+        <style>.cb{font:13px 'SF Mono',monospace;fill:#3c3c46}.ch{font:700 12px Helvetica;fill:#9e2b25}</style>
+        <text class="ch" x="30" y="30">Case A — no wrap:</text>
+        <text class="cb" x="30" y="52">max subarray via Kadane</text>
+        <text class="ch" x="30" y="84">Case B — wraps around:</text>
+        <text class="cb" x="30" y="106">total − (min subarray)   → answer = max(A, B)</text>
+      </svg>
+      <figcaption>Circular subarray max: compare the normal Kadane max against
+        <code>total − minSubarray</code> (guard the all-negative case).</figcaption>
+    </figure>
+    <span class="filetag">Python · max circular subarray</span>
+    <pre><code><span class="k">def</span> <span class="f">max_circular_subarray</span>(nums):
+    <span class="k">def</span> <span class="f">kadane</span>(a, sign):                <span class="c"># sign=+1 for max, -1 for min</span>
+        best = cur = a[<span class="n">0</span>] * sign
+        <span class="k">for</span> x <span class="k">in</span> a[<span class="n">1</span>:]:
+            x *= sign
+            cur = <span class="f">max</span>(x, cur + x)
+            best = <span class="f">max</span>(best, cur)
+        <span class="k">return</span> best * sign
+    total = <span class="f">sum</span>(nums)
+    max_normal = <span class="f">kadane</span>(nums, <span class="n">1</span>)
+    min_sub = <span class="f">kadane</span>(nums, -<span class="n">1</span>)
+    <span class="k">if</span> total == min_sub:                  <span class="c"># all negative → wrap would be empty</span>
+        <span class="k">return</span> max_normal
+    <span class="k">return</span> <span class="f">max</span>(max_normal, total - min_sub)</code></pre>
+  </section>
+
+  <!-- PARTITION -->
+  <section id="partition">
+    <div class="kicker">Pattern 5 in action</div>
+    <h2>Partition follow-ups</h2>
+    <div class="note">
+      <span class="lbl">Quick Select vs a heap — pick by the question</span>
+      <table style="margin:.3em 0">
+        <thead><tr><th></th><th>Heap / PriorityQueue</th><th>Quick Select</th></tr></thead>
+        <tbody>
+          <tr><td>Time</td><td>O(n log k)</td><td>O(n) average</td></tr>
+          <tr><td>Best for</td><td><b>Top-K</b> (you want all k)</td><td><b>the kth</b> element alone</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><b>Nuts &amp; Bolts</b> (Quick Sort in disguise): you can only compare a nut to a bolt, never
+      nut-to-nut. Use one bolt to partition the nuts, then the matching nut to partition the bolts —
+      quicksort with cross-comparisons.</p>
+    <p><b>Wiggle Sort</b> (strengthened condition): want <code>a[0] ≤ a[1] ≥ a[2] ≤ …</code>. One
+      greedy pass — fix each adjacent pair that violates the up/down rule:</p>
+    <span class="filetag">Python · Wiggle Sort</span>
+    <pre><code><span class="k">def</span> <span class="f">wiggle_sort</span>(nums):
+    <span class="k">for</span> i <span class="k">in</span> <span class="f">range</span>(<span class="f">len</span>(nums) - <span class="n">1</span>):
+        <span class="k">if</span> (i % <span class="n">2</span> == <span class="n">0</span>) == (nums[i] &gt; nums[i + <span class="n">1</span>]):   <span class="c"># wrong direction</span>
+            nums[i], nums[i + <span class="n">1</span>] = nums[i + <span class="n">1</span>], nums[i]</code></pre>
+    <p><b>Wiggle Sort II</b> (strict <code>&lt;</code>/<code>&gt;</code>, duplicates allowed) needs a
+      different method: find the median (Quick Select), then place numbers at interleaved
+      indices — a genuine method change, not a tweak.</p>
+  </section>
+
+  <!-- ITERATOR -->
+  <section id="iterator">
+    <div class="kicker">A reusable design pattern</div>
+    <h2>Iterator problems</h2>
+    <div class="note insight">
+      <span class="lbl">The iterator template (3 rules)</span>
+      <b>1.</b> Turn the structure into a <b>stack</b>. <b>2.</b> Put the real logic in
+      <code>has_next</code> (advance lazily to the next valid element). <b>3.</b> <code>next</code>
+      just does one <b>pop</b>. This keeps <code>next</code>/<code>has_next</code> consistent and
+      idempotent.
+    </div>
+    <span class="filetag">Python · BST Iterator (in-order, O(h) space)</span>
+    <pre><code><span class="k">class</span> <span class="t">BSTIterator</span>:
+    <span class="k">def</span> <span class="f">__init__</span>(self, root):
+        self.stack = []
+        self._push_left(root)
+
+    <span class="k">def</span> <span class="f">_push_left</span>(self, node):
+        <span class="k">while</span> node:
+            self.stack.append(node)
+            node = node.left
+
+    <span class="k">def</span> <span class="f">has_next</span>(self):
+        <span class="k">return</span> <span class="f">len</span>(self.stack) &gt; <span class="n">0</span>
+
+    <span class="k">def</span> <span class="f">next</span>(self):
+        node = self.stack.pop()
+        self._push_left(node.right)        <span class="c"># next smallest is leftmost of right subtree</span>
+        <span class="k">return</span> node</code></pre>
+    <p>Same shape: <b>Flatten List</b>, <b>Flatten Nested List Iterator</b>, <b>Flatten 2D
+      Vector</b>.</p>
+  </section>
+
+  <!-- TAKEAWAYS -->
+  <section id="takeaways" style="border-bottom:none">
+    <div class="kicker">Conclusion</div>
+    <h2>The Follow-Up checklist</h2>
+    <ol style="font-size:17px">
+      <li>Classify the twist: <b>1-D→2-D</b>, <b>circular</b>, <b>stronger condition</b>, <b>re-skin</b>,
+        or <b>same method, new description</b>.</li>
+      <li>Subarray sum ⇒ <b>prefix-sum hashmap</b>; 2-D collapses to 1-D by fixing a row band;
+        circular = <code>max(normal, total − minSub)</code>.</li>
+      <li>kth element ⇒ <b>Quick Select O(n)</b>; all of Top-K ⇒ <b>heap O(n log k)</b>.</li>
+      <li>Nuts &amp; Bolts = quicksort with cross-comparisons; Wiggle Sort II = median + interleave.</li>
+      <li>Iterators: <b>stack + logic in <code>has_next</code> + <code>next</code> pops once</b>.</li>
+    </ol>
+  </section>
+
+</main>
+
+<footer>
+  Distilled from the Advanced Class “Follow-Up Problems” deck plus the lecture (audio transcribed
+  with Whisper large-v3). Code templates are written in Python (the course's originals are in Java).
+  Study guide for personal use; problem links point to LintCode.
+</footer>
+
+</body>
+</html>
