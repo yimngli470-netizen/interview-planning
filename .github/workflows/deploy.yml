@@ -84,6 +84,8 @@ jobs:
           cat > remote.sh <<EOF
           set -e
           cd /opt/forge
+          # SSM runs as root but /opt/forge is owned by ubuntu; allow git to operate.
+          git config --global --add safe.directory /opt/forge
           git pull --ff-only
           aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
           export TAG=${TAG}
