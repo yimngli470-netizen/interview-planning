@@ -83,6 +83,9 @@ jobs:
           # runs ON THE BOX, not on the runner; ${REGION} is baked in by the runner.
           cat > remote.sh <<EOF
           set -e
+          # SSM Run Command runs as root with a minimal env (no HOME); set it so
+          # git --global and docker login can write ~/.gitconfig / ~/.docker.
+          export HOME=/root
           cd /opt/forge
           # SSM runs as root but /opt/forge is owned by ubuntu; allow git to operate.
           git config --global --add safe.directory /opt/forge
