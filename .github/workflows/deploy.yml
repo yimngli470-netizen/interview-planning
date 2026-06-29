@@ -1,0 +1,110 @@
+# Manual deploy: build ARM64 images -> push to ECR -> roll out on the EC2 box
+# via SSM. Runs ONLY when you click "Run workflow" (or `gh workflow run deploy`).
+# Nothing happens on push. No SSH, no inbound ports needed for the deploy.
+#
+# One-time setup (repo Settings -> Secrets and variables -> Actions) — see DEPLOY.md:
+#   AWS_REGION     e.g. us-east-1
+#   AWS_ROLE_ARN   arn of the GitHub-OIDC deploy role (ECR push + ssm:SendCommand)
+#   ECR_REGISTRY   <acct>.dkr.ecr.<region>.amazonaws.com
+#   INSTANCE_ID    the EC2 instance id (i-0abc...)
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to build/deploy (default: short commit SHA)"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write   # for AWS OIDC
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: meta
+        run: echo "tag=${{ inputs.tag != '' && inputs.tag || github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # t4g (Graviton) is ARM64; ubuntu-latest is x86, so emulate via QEMU.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.ECR_REGISTRY }}/forge/forge-backend:${{ steps.meta.outputs.tag }}
+            ${{ secrets.ECR_REGISTRY }}/forge/forge-backend:latest
+
+      - name: Build & push web
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          platforms: linux/arm64
+          push: true
+          build-args: |
+            VITE_API_BASE=/
+          tags: |
+            ${{ secrets.ECR_REGISTRY }}/forge/forge-web:${{ steps.meta.outputs.tag }}
+            ${{ secrets.ECR_REGISTRY }}/forge/forge-web:latest
+
+      - name: Roll out on EC2 via SSM
+        env:
+          REGION: ${{ secrets.AWS_REGION }}
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          INSTANCE_ID: ${{ secrets.INSTANCE_ID }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Remote script run on the box. /opt/forge is a clone of this public
+          # repo with an untracked chmod-600 .env (ECR_REGISTRY only). The secret
+          # ANTHROPIC_API_KEY is pulled from AWS Secrets Manager at deploy time
+          # via the instance role (never stored on disk). \$(...) is escaped so it
+          # runs ON THE BOX, not on the runner; ${REGION} is baked in by the runner.
+          CMD=$(cat <<EOF
+          set -e
+          cd /opt/forge
+          git pull --ff-only
+          aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+          export TAG=${TAG}
+          export ANTHROPIC_API_KEY=\$(aws secretsmanager get-secret-value --secret-id forge/anthropic-api-key --region ${REGION} --query SecretString --output text 2>/dev/null || echo "")
+          docker compose -f docker-compose.deploy.yml pull
+          docker compose -f docker-compose.deploy.yml up -d
+          docker image prune -f
+          EOF
+          )
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "${INSTANCE_ID}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Forge deploy ${TAG}" \
+            --parameters commands="[$(jq -Rs . <<< "$CMD")]" \
+            --query "Command.CommandId" --output text)
+          echo "SSM command: ${CMD_ID}"
+          aws ssm wait command-executed --command-id "${CMD_ID}" --instance-id "${INSTANCE_ID}" || true
+          STATUS=$(aws ssm get-command-invocation --command-id "${CMD_ID}" --instance-id "${INSTANCE_ID}" --query Status --output text)
+          echo "--- stdout ---"
+          aws ssm get-command-invocation --command-id "${CMD_ID}" --instance-id "${INSTANCE_ID}" --query StandardOutputContent --output text
+          echo "--- stderr ---"
+          aws ssm get-command-invocation --command-id "${CMD_ID}" --instance-id "${INSTANCE_ID}" --query StandardErrorContent --output text
+          echo "Status: ${STATUS}"
+          [ "${STATUS}" = "Success" ]

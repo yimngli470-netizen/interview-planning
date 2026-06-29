@@ -14,13 +14,20 @@ export interface QuestionProgress {
   notes: string;
 }
 
-// Talk to the backend on the SAME host that served this page, port 8001.
-// This makes it work both locally (localhost:5173 -> localhost:8001) and from
-// another device on the LAN (10.0.0.24:5173 -> 10.0.0.24:8001) without baking
-// in an address. An explicit VITE_API_BASE still overrides if you set one.
+// Where to reach the backend. VITE_API_BASE:
+//   unset / "" -> DEV default: same host on :8001. Local (localhost:5173 ->
+//                 localhost:8001) and LAN (10.0.0.24:5173 -> 10.0.0.24:8001)
+//                 both work with two open ports. (The dev compose passes "" —
+//                 treated the same as unset, so dev is unchanged.)
+//   "/"        -> SAME-ORIGIN: requests go to /api/... on whatever host served
+//                 the page. Used by the production single-origin build (one
+//                 origin behind Caddy / the Cloudflare tunnel, no separate port).
+//   any URL    -> that explicit base.
+const raw = import.meta.env.VITE_API_BASE?.trim();
 const BASE =
-  import.meta.env.VITE_API_BASE?.trim() ||
-  `${window.location.protocol}//${window.location.hostname}:8001`;
+  raw === '/'
+    ? ''
+    : raw || `${window.location.protocol}//${window.location.hostname}:8001`;
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}/api${path}`, {

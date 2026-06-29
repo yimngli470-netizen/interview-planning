@@ -17,6 +17,23 @@ SDE/MLE loop. Phase 1 = personal use, fully local in Docker. (Product name
 - Ports: frontend :5173, API host **:8001** → container :8000 (`http://localhost:8001/docs`;
   host 8001 avoids clashing with another local backend on 8000), Postgres host :5434.
 
+## Deployment (AWS) — see `DEPLOY.md`
+
+Production is a **single-origin** stack: the `web` image (`frontend/Dockerfile.prod`
+→ `caddy`) serves the built SPA and reverse-proxies `/api/*` to `backend` via
+`frontend/Caddyfile`, so the whole app lives on one port/host (needed behind a
+Cloudflare tunnel — one hostname over 443, no `:8001`). `frontend/src/lib/api.ts`:
+unset/empty `VITE_API_BASE` keeps the dev `:8001` LAN default (so the dev compose's
+`""` is unchanged); the prod build passes `"/"` to mean same-origin `/api`.
+- **Stack:** `docker-compose.deploy.yml` (STANDALONE — do not stack on the dev base;
+  it appends bind-mounts/`--reload`). Pulls `forge-backend`/`forge-web` from ECR; a
+  `cloudflared` quick tunnel (no domain → ephemeral `*.trycloudflare.com`) is the only
+  ingress (no host ports). Verify locally with `-f docker-compose.deploy.local.yml`
+  (builds images, exposes web on :8099).
+- **Deploy:** manual `.github/workflows/deploy.yml` (`workflow_dispatch` only) → build
+  ARM64 (t4g/Graviton) → push ECR → `aws ssm send-command` rolls out on the EC2 box
+  (no SSH, no inbound). One small EC2 + nightly `pg_dump`→S3; ECS/RDS/ALB deferred.
+
 ## Theme / design
 
 Frontend uses the **"Hearth"** design (warm paper + terracotta, Spectral display

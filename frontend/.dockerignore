@@ -1,0 +1,7 @@
+# Keep host artifacts out of the build context so the image installs its own
+# platform-correct deps (avoids the esbuild wrong-arch binary problem) and the
+# context stays small.
+node_modules
+dist
+.vite
+*.log

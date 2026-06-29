@@ -1,0 +1,19 @@
+# Single-origin front door for Forge (production).
+# Serves the built SPA and reverse-proxies the API to the backend container, so
+# the whole app lives on ONE origin/port (port 80 inside the container). A
+# Cloudflare tunnel points at this; the browser only ever talks to one host.
+:80 {
+	# API -> FastAPI backend (same compose network, service name `backend`).
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# Everything else -> static SPA assets with client-side-routing fallback.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	encode gzip zstd
+}

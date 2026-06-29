@@ -1,0 +1,26 @@
+# Local verification of the PRODUCTION stack — no AWS, no ECR needed.
+# Builds the same prod images on your laptop, overrides the ECR image names,
+# and exposes the web front on :8099 so you can confirm the app is single-origin
+# and test the Cloudflare quick tunnel before touching AWS.
+#
+#   docker compose -f docker-compose.deploy.yml -f docker-compose.deploy.local.yml up --build
+#
+# Then:
+#   - open http://localhost:8099  -> app loads, API calls go to same-origin /api/*
+#   - tunnel URL:  docker compose -f docker-compose.deploy.yml -f docker-compose.deploy.local.yml logs cloudflared
+services:
+  backend:
+    image: forge-backend:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+  web:
+    image: forge-web:local
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_BASE: "/"
+    ports:
+      - "8099:80"

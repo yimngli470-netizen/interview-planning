@@ -1,0 +1,63 @@
+# Production deploy stack — STANDALONE. Use only this file (do NOT stack it on
+# docker-compose.yml; the dev base appends bind-mounts/--reload that prod must
+# not have):
+#
+#   docker compose -f docker-compose.deploy.yml up -d
+#
+# Images are pulled from ECR (built + pushed by .github/workflows/deploy.yml).
+# NO host ports are published — the only path in is the outbound Cloudflare
+# tunnel (cloudflared dials out to Cloudflare on 443).
+#
+# Required env (from the box's chmod-600 env file, see DEPLOY.md):
+#   ECR_REGISTRY   e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com
+#   ANTHROPIC_API_KEY
+# Optional: TAG (image tag, default `latest`), POSTGRES_* , ANTHROPIC_MODEL.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-prep}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prep}
+      POSTGRES_DB: ${POSTGRES_DB:-prep}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prep} -d ${POSTGRES_DB:-prep}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    image: ${ECR_REGISTRY}/forge/forge-backend:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-prep}:${POSTGRES_PASSWORD:-prep}@db:5432/${POSTGRES_DB:-prep}
+      LLM_PROVIDER: api
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      ANTHROPIC_MAX_TOKENS: ${ANTHROPIC_MAX_TOKENS:-100000}
+    # CMD comes from backend/Dockerfile: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  web:
+    image: ${ECR_REGISTRY}/forge/forge-web:${TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    # Quick tunnel: no domain, ephemeral https://<random>.trycloudflare.com URL.
+    # Find it in:  docker compose -f docker-compose.deploy.yml logs cloudflared
+    # To upgrade to a STABLE named tunnel (after adding a domain to Cloudflare),
+    # swap this for:  command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate --url http://web:80
+    depends_on:
+      - web
+
+volumes:
+  pgdata:
