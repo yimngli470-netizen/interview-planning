@@ -81,7 +81,7 @@ jobs:
           # ANTHROPIC_API_KEY is pulled from AWS Secrets Manager at deploy time
           # via the instance role (never stored on disk). \$(...) is escaped so it
           # runs ON THE BOX, not on the runner; ${REGION} is baked in by the runner.
-          CMD=$(cat <<EOF
+          cat > remote.sh <<EOF
           set -e
           cd /opt/forge
           git pull --ff-only
@@ -92,12 +92,14 @@ jobs:
           docker compose -f docker-compose.deploy.yml up -d
           docker image prune -f
           EOF
-          )
+          # Pass the script as proper JSON ({"commands":["<script>"]}) via file:// so
+          # newlines survive — the --parameters shorthand mangles multi-line scripts.
+          jq -n --rawfile script remote.sh '{commands: [$script]}' > params.json
           CMD_ID=$(aws ssm send-command \
             --instance-ids "${INSTANCE_ID}" \
             --document-name "AWS-RunShellScript" \
             --comment "Forge deploy ${TAG}" \
-            --parameters commands="[$(jq -Rs . <<< "$CMD")]" \
+            --parameters file://params.json \
             --query "Command.CommandId" --output text)
           echo "SSM command: ${CMD_ID}"
           aws ssm wait command-executed --command-id "${CMD_ID}" --instance-id "${INSTANCE_ID}" || true
