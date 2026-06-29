@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm   # native ARM64 (free for public repos) — no QEMU
     steps:
       - uses: actions/checkout@v4
 
@@ -40,8 +40,8 @@ jobs:
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # t4g (Graviton) is ARM64; ubuntu-latest is x86, so emulate via QEMU.
-      - uses: docker/setup-qemu-action@v3
+      # Native ARM64 runner (runs-on: ubuntu-24.04-arm) builds linux/arm64 for the
+      # t4g (Graviton) box directly — no QEMU emulation, ~10x faster.
       - uses: docker/setup-buildx-action@v3
 
       - name: Build & push backend
