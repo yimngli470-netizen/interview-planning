@@ -3,7 +3,7 @@ import { Target, Contrast, Clock, Flame, Trash2, ChevronRight } from 'lucide-rea
 import type { LucideIcon } from 'lucide-react';
 import type { Domain, Topic, StudySession, User } from '../types';
 import { DomainChip } from '../lib/ui';
-import { parseUTC, localDateKey, formatHM } from '../lib/time';
+import { parseUTC, localDateKey, formatHM, sessionMinutes } from '../lib/time';
 
 interface Props {
   domains: Domain[];
@@ -13,11 +13,6 @@ interface Props {
   nowTs: number;
   onRemoveSession: (id: number) => void;
   onSelectDomain: (domainId: number) => void;
-}
-
-function sessionMinutes(s: StudySession, nowTs: number): number {
-  if (s.active) return (nowTs - parseUTC(s.started_at).getTime()) / 60000;
-  return s.duration_min;
 }
 
 function StatTile({

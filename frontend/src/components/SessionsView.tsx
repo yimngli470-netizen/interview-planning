@@ -1,17 +1,12 @@
 import { useMemo } from 'react';
 import { Clock } from 'lucide-react';
 import type { StudySession, User } from '../types';
-import { parseUTC, localDateKey, formatHM } from '../lib/time';
+import { parseUTC, localDateKey, formatHM, sessionMinutes } from '../lib/time';
 
 interface Props {
   sessions: StudySession[];
   currentUser: User | null;
   nowTs: number;
-}
-
-function sessionMinutes(s: StudySession, nowTs: number): number {
-  if (s.active) return (nowTs - parseUTC(s.started_at).getTime()) / 60000;
-  return s.duration_min;
 }
 
 export default function SessionsView({ sessions, currentUser, nowTs }: Props) {

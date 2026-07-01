@@ -64,6 +64,7 @@ def _to_out(s: StudySession, now: datetime) -> SessionOut:
         id=s.id,
         user_id=s.user_id,
         started_at=s.started_at,
+        last_active_at=s.last_active_at,
         ended_at=s.ended_at,
         date=s.date,
         duration_min=duration,
@@ -168,6 +169,18 @@ def heartbeat(
     # The client reports whether the user is actually present. A missing flag
     # (old/stale client) is treated as NOT present, so it can never accrue time.
     present = bool(payload.get("active", False)) if isinstance(payload, dict) else False
+
+    # A long gap since the LAST beat means the client was dormant — laptop asleep/
+    # closed, tab discarded, machine off. That whole gap is not study time. Finalize
+    # the block at the last real activity and make the client open a fresh one. This
+    # MUST run before advancing last_active_at: otherwise a single present beat after
+    # a 26h sleep (e.g. the reload path sends active=true while the tab is visible)
+    # would set last_active_at = now and retroactively count the entire gap.
+    if _is_stale(s, now):
+        _finalize(s, s.last_active_at)
+        db.commit()
+        db.refresh(s)
+        return HeartbeatOut(active=False, session=_to_out(s, now))
 
     s.last_heartbeat_at = now  # connection liveness, regardless of presence
     if present:

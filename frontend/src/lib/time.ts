@@ -5,6 +5,24 @@ export function parseUTC(s: string): Date {
   return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s + 'Z');
 }
 
+// Live-counted minutes for a study session. A finalized session reports its
+// server-capped `duration_min` verbatim. An ACTIVE session ticks live to `nowTs`
+// only while activity is recent; once the last present beat is older than the
+// idle grace (laptop closed, tab dormant), it freezes at `last_active_at` — the
+// same boundary the server counts to. This prevents a still-open session that
+// spanned a long dormant gap from displaying its full wall-clock span.
+const SESSION_IDLE_GRACE_MS = 120_000; // matches server IDLE_GRACE_SECONDS/STALE_SECONDS
+export function sessionMinutes(
+  s: { active: boolean; started_at: string; last_active_at: string; duration_min: number },
+  nowTs: number,
+): number {
+  if (!s.active) return s.duration_min;
+  const start = parseUTC(s.started_at).getTime();
+  const lastActive = parseUTC(s.last_active_at).getTime();
+  const end = nowTs - lastActive < SESSION_IDLE_GRACE_MS ? nowTs : lastActive;
+  return Math.max(0, (end - start) / 60000);
+}
+
 export function localDateKey(d: Date): string {
   // YYYY-MM-DD in the user's local timezone
   const y = d.getFullYear();

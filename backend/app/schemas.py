@@ -190,6 +190,7 @@ class SessionOut(BaseModel):
     id: int
     user_id: int
     started_at: datetime
+    last_active_at: datetime  # last present beat — the counted-time boundary
     ended_at: datetime | None
     date: date
     duration_min: int  # computed/finalized minutes

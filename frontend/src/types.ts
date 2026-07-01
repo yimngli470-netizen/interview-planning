@@ -79,6 +79,7 @@ export interface StudySession {
   id: number;
   user_id: number;
   started_at: string; // naive UTC ISO (no tz suffix)
+  last_active_at: string; // last present beat — the counted-time boundary
   ended_at: string | null;
   date: string;
   duration_min: number;

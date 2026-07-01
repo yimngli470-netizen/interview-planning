@@ -150,9 +150,19 @@ Per-user tables (seeded users "Zoey" + "Xiaoming", both with a blank password):
   sends no flag (treated as not-present) — can never accrue phantom minutes; this
   is the authoritative guard, independent of the client loop. A session is
   finalized when idle > `IDLE_GRACE_SECONDS` (120s) or the connection goes stale
-  (no beats > `STALE_SECONDS` 120s), always capping at `last_active_at`. The
-  header timer freezes ("· paused") while away; on return the client silently
-  starts a fresh block instead of logging out.
+  (no beats > `STALE_SECONDS` 120s), always capping at `last_active_at`. **The
+  stale-gap check runs at the TOP of `heartbeat`, before `last_active_at` is
+  advanced** — otherwise a single present beat after a dormant gap (e.g. a laptop
+  closed overnight; the reload path sends `active` = `!document.hidden` = true when
+  the tab is visible) would set `last_active_at = now` and retroactively count the
+  whole gap. So a dormant block is finalized at its real last activity and the
+  client opens a fresh one (both the heartbeat loop and the page-reload resume do
+  this). The header timer freezes ("· paused") while away; on return the client
+  silently starts a fresh block instead of logging out. `SessionOut` carries
+  `last_active_at`, and the client's `lib/time.sessionMinutes` freezes an active
+  session's displayed duration at `last_active_at` once beats go stale (so a
+  still-open session that spanned a dormant gap never *displays* the full
+  wall-clock span, mirroring the server's counted time).
 - `QuestionProgress` = per-user `done` flag AND `notes` (the user's answer/notes)
   on a Question (unique user+question). GET returns all rows; PUT upserts either
   field. Frontend keeps a doneSet + a Map<questionId, notes>.

@@ -165,13 +165,17 @@ export default function App() {
           const saved: SavedAuth = JSON.parse(raw);
           try {
             const hb = await api.heartbeat(saved.sessionId, !document.hidden);
-            if (hb.active && hb.session) {
-              setCurrentUser({ id: saved.userId, name: saved.userName });
-              setActiveSession(hb.session);
-              await loadUserData(saved.userId);
-            } else {
-              localStorage.removeItem(AUTH_KEY);
+            let session = hb.active ? hb.session : null;
+            if (!session) {
+              // The saved block was finalized (idle/stale — e.g. the laptop was
+              // closed since last visit). Stay logged in but open a FRESH block so
+              // the dormant gap isn't counted; don't kick the user back to login.
+              session = await api.startSession(saved.userId);
+              localStorage.setItem(AUTH_KEY, JSON.stringify({ userId: saved.userId, userName: saved.userName, sessionId: session.id }));
             }
+            setCurrentUser({ id: saved.userId, name: saved.userName });
+            setActiveSession(session);
+            await loadUserData(saved.userId);
           } catch {
             localStorage.removeItem(AUTH_KEY);
           }
