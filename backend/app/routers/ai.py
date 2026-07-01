@@ -12,6 +12,13 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 EXPLAIN_MODES = {"simpler", "deeper"}
 
+# On-demand "Explain simpler / Go deeper" is paused in prod to cap LLM spend.
+# Flip to False to re-enable (also flip AI_EXPLAIN_DISABLED in the frontend).
+# This is the authoritative guard — even a stale client can't trigger an LLM call
+# or serve a cached explanation while it's on.
+EXPLAIN_DISABLED = True
+EXPLAIN_BUDGET_MSG = "AI explanations are paused — the usage budget has been used up."
+
 
 @router.get("/status")
 def ai_status():
@@ -34,6 +41,10 @@ class ExplainIn(BaseModel):
 def explain(payload: ExplainIn, db: Session = Depends(get_db)):
     """On-demand markdown explanation of one learning point (simpler/deeper).
     Cache-first: a hit returns instantly with no LLM call."""
+    if EXPLAIN_DISABLED:
+        # 402 Payment Required — the usage budget is exhausted. Refuse before any
+        # cache lookup or LLM call so nothing is served or spent.
+        raise HTTPException(402, EXPLAIN_BUDGET_MSG)
     mode = payload.mode if payload.mode in EXPLAIN_MODES else "simpler"
 
     cached = None

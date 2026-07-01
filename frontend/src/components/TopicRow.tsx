@@ -9,6 +9,12 @@ import { DomainChip, StatusButton, nextStatus } from '../lib/ui';
 import { api } from '../lib/api';
 import Markdown from '../lib/Markdown';
 
+// On-demand "Explain simpler / Go deeper" is paused in prod to cap LLM spend.
+// Clicking a button just shows the budget message — no API call. Flip to false to
+// re-enable (also flip EXPLAIN_DISABLED in backend/app/routers/ai.py).
+const AI_EXPLAIN_DISABLED: boolean = true;
+const AI_EXPLAIN_BUDGET_MSG = 'AI explanations are paused — the usage budget has been used up.';
+
 const LEVEL_META: Record<Exclude<Level, ''>, { label: string; bg: string; fg: string }> = {
   foundational: { label: 'Foundational', bg: 'oklch(0.93 0.06 155)', fg: 'oklch(0.42 0.10 155)' },
   intermediate: { label: 'Intermediate', bg: 'var(--warn-soft)', fg: 'oklch(0.50 0.12 66)' },
@@ -205,6 +211,7 @@ function SubtopicRow({
   const ask = async (mode: 'simpler' | 'deeper') => {
     if (loading) return;
     if (extra[mode]) { closeExtra(mode); return; }  // toggle off if already shown
+    if (AI_EXPLAIN_DISABLED) { setErr(AI_EXPLAIN_BUDGET_MSG); return; }
     setLoading(mode); setErr('');
     try {
       const { markdown } = await api.explain({ point_title: sub.title, topic_title: topicTitle, domain_name: domainName, mode, subtopic_id: sub.id });

@@ -98,7 +98,11 @@ button on the expanded topic is clicked. To add one: drop the HTML in `app/summa
 `SUMMARY_MAP` line, restart the backend.
 - On-demand depth (B4): `POST /api/ai/explain {point_title, topic_title, domain_name, mode,
   subtopic_id?, refresh?}` (`mode` = `simpler|deeper`) → `{markdown, cached}` via
-  `llm.explain_learning_point`. The UI's **"Explain simpler / Go deeper"** buttons call it
+  `llm.explain_learning_point`. **Currently PAUSED in prod to cap LLM spend:**
+  `EXPLAIN_DISABLED = True` in `routers/ai.py` makes the endpoint return **402** (before any
+  cache lookup or LLM call), and `AI_EXPLAIN_DISABLED` in `TopicRow.tsx` makes the buttons
+  show a "usage budget has been used up" message with no API call. Re-enable by flipping
+  both flags to false. The UI's **"Explain simpler / Go deeper"** buttons call it
   with `subtopic_id`. **Default content only:** the buttons are hidden for a user's own
   items (`owner_id` set) and the endpoint returns 403 for them — per-point LLM calls are
   reserved for shared default learning points; a user's own topics get the create-time
